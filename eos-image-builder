@@ -1,0 +1,121 @@
+#!/bin/bash
+
+## image-builder - Image System Build Scripts
+## Copyright (C) 2012 Hector Oron <hector.oron@collabora.co.uk>
+##
+## image-builder comes with ABSOLUTELY NO WARRANTY; for details see COPYING.
+## This is free software, and you are welcome to redistribute it
+## under certain conditions; see COPYING for details.
+
+# (C) 2012 Hector Oron <hector.oron@collabora.co.uk>
+
+timestamp=`date "+%y%m%d-%H%M%S"`
+builddir="/scratch/tmp/"
+logdir="${builddir}"/logs
+export CB_BASE=$(dirname $(readlink -f $0))
+
+processJob(){
+local _dist="${1}"
+local _suite="${2}"
+local _platform="${3}"
+local _arch="${4}"
+local _device="${5}"
+local _timestamp="${6}"
+local _builddir="${7}"
+
+echo "I: trigger configuration"
+
+rm -rf ${builddir}/${_builddir}
+mkdir -p ${builddir}/${_builddir}
+
+cd ${builddir}/${_builddir}
+
+_compo="core endless"
+case ${_arch} in
+armhf)
+  _image_size="3584M"
+;;
+*)
+  _image_size="7.5G"
+;;
+esac
+
+case "${_platform}" in
+core)
+  _image_format="img"
+  if [ x"${_arch}" = xi386 ] ; then
+    _image_format="vdi img"
+  fi
+  cb config -s "${_suite}" \
+	-d "${_dist}" \
+	-a "${_arch}" \
+	--components "${_compo}" \
+	-c "${_device}" \
+	-f "${_suite}-${_arch}-${_device}-${_dist}.yaml" \
+	-p "core" \
+	-fmt "ext4" \
+	-it "${_image_format}" \
+	-i "${_image_size}" \
+	-b "${builddir}/${_builddir}/" \
+	--shared-dir "${builddir}/" \
+	-m "http://obs-mirror/${_dist}/" \
+	-rmirror "http://obs-mirror/${_dist}/" \
+	--postprocess \
+	-t $timestamp 2>&1
+;;
+iso)
+  cb config -s "${_suite}" \
+	-d "${_dist}" \
+	-a "${_arch}" \
+	--components "${_compo}" \
+	-c "${_device}" \
+	-p "core" \
+	-fmt "ext4" \
+	-it "iso" \
+	-b "${builddir}/${_builddir}/" \
+	--shared-dir "${builddir}/" \
+	-m "http://obs-mirror/${_dist}/" \
+	-rmirror "http://obs-mirror/${_dist}/" \
+	-t $timestamp 2>&1
+;;
+*)
+	echo "Unsupported build. Review your configuration."
+	echo "Wrong platform: ${_platform}"
+	exit 1
+;;
+esac
+
+cd ${builddir}/"${_builddir}"/
+cb build | tee ${logdir}/build_"${_suite}"-"${_platform}"-"${_arch}"-"${_device}"_"${_timestamp}".txt 2>&1 &
+
+}
+
+# Archive old logs
+mkdir -p "$logdir"
+cd "$logdir"
+mkdir -p archived
+find . -maxdepth 1 -name '*.txt' -exec mv -t archived '{}' +
+cd archived
+find . -maxdepth 1 -name '*.txt' -exec gzip -9 '{}' +
+cd -
+
+# Clean up
+
+rm -rf "${builddir}"/ospack-build/
+rm -rf "${builddir}"/hwpack-build/
+rm -rf "${builddir}"/image-build/
+
+# Endless
+processJob endless eos core i386 i386 ${timestamp} "end/i386-core"
+processJob endless eos core armhf odroidx2 ${timestamp} "end/odroidx2-core"
+processJob endless eos core armhf odroidu2 ${timestamp} "end/odroidu2-core"
+#processJob endless eos iso i386 i386 ${timestamp} "end/i386-iso"
+wait
+
+# -- Publish images
+webdir=/srv/images/www/dev/${timestamp}
+mkdir -p $webdir
+mv ${builddir}/image-build/* ${webdir}
+
+# Purge old builds
+find ${webdir}/.. -maxdepth 1 -type d -ctime +7 -exec rm -rf '{}' \;
