@@ -8,15 +8,17 @@
 ## under certain conditions; see COPYING for details.
 
 # (C) 2012 Hector Oron <hector.oron@collabora.co.uk>
-
+set -x
 timestamp=`date "+%y%m%d-%H%M%S"`
 builddir="/scratch/tmp/"
 logdir="${builddir}"/logs
-export CB_BASE=$(dirname $(readlink -f $0))
+SUITE=dev
+export MYDIR=$(dirname $(readlink -f $0))
+export CB_BASE=$builddir/cb_base
 
 processJob(){
-local _dist="${1}"
-local _suite="${2}"
+local _product="${1}"
+local _dist="${2}"
 local _platform="${3}"
 local _arch="${4}"
 local _device="${5}"
@@ -30,7 +32,7 @@ mkdir -p ${builddir}/${_builddir}
 
 cd ${builddir}/${_builddir}
 
-_compo="core endless"
+_compo="core endless extra"
 case ${_arch} in
 armhf)
   _image_size="3584M"
@@ -40,53 +42,37 @@ armhf)
 ;;
 esac
 
-case "${_platform}" in
-core)
   _image_format="img"
   if [ x"${_arch}" = xi386 ] ; then
     _image_format="vdi img"
   fi
-  cb config -s "${_suite}" \
-	-d "${_dist}" \
+
+  hwpack_tmpl="${_product}-${_arch}-${_device}.yaml.in"
+  hwpack_conf="${_dist}-${_arch}-${_device}-${_product}.yaml"
+  repo_url="http://obs-master.endlessm-sf.com:82/shared/${_product}/"
+  sed -e "s/@DIST@/${_dist}/g" -e "s/@PRODUCT@/${_product}/g" \
+    -e "s/@COMPONENTS@/${_compo}/g" -e "s,@REPO@,${repo_url},g" \
+    $MYDIR/customization/hwpack/${hwpack_tmpl} > $CB_BASE/customization/hwpack/${hwpack_conf}
+
+  cb config -s "${_dist}" \
+	-d "${_product}" \
 	-a "${_arch}" \
 	--components "${_compo}" \
 	-c "${_device}" \
-	-f "${_suite}-${_arch}-${_device}-${_dist}.yaml" \
+	-f "${hwpack_conf}" \
 	-p "core" \
 	-fmt "ext4" \
 	-it "${_image_format}" \
 	-i "${_image_size}" \
 	-b "${builddir}/${_builddir}/" \
 	--shared-dir "${builddir}/" \
-	-m "http://obs-mirror/${_dist}/" \
-	-rmirror "http://obs-mirror/${_dist}/" \
+	-m "${repo_url}" \
+	-rmirror "${repo_url}" \
 	--postprocess \
 	-t $timestamp 2>&1
-;;
-iso)
-  cb config -s "${_suite}" \
-	-d "${_dist}" \
-	-a "${_arch}" \
-	--components "${_compo}" \
-	-c "${_device}" \
-	-p "core" \
-	-fmt "ext4" \
-	-it "iso" \
-	-b "${builddir}/${_builddir}/" \
-	--shared-dir "${builddir}/" \
-	-m "http://obs-mirror/${_dist}/" \
-	-rmirror "http://obs-mirror/${_dist}/" \
-	-t $timestamp 2>&1
-;;
-*)
-	echo "Unsupported build. Review your configuration."
-	echo "Wrong platform: ${_platform}"
-	exit 1
-;;
-esac
 
 cd ${builddir}/"${_builddir}"/
-cb build | tee ${logdir}/build_"${_suite}"-"${_platform}"-"${_arch}"-"${_device}"_"${_timestamp}".txt 2>&1 &
+cb build | tee ${logdir}/build_"${_dist}"-"${_platform}"-"${_arch}"-"${_device}"_"${_timestamp}".txt 2>&1 &
 
 }
 
@@ -104,18 +90,27 @@ cd -
 rm -rf "${builddir}"/ospack-build/
 rm -rf "${builddir}"/hwpack-build/
 rm -rf "${builddir}"/image-build/
+rm -rf $CB_BASE
+
+# Set up input for cb
+mkdir -p $CB_BASE/customization/hwpack
+ln -s $MYDIR/functions $CB_BASE
+ln -snf $MYDIR/customization/eos $CB_BASE/customization/$SUITE
 
 # Endless
-processJob endless eos core i386 i386 ${timestamp} "end/i386-core"
-processJob endless eos core armhf odroidx2 ${timestamp} "end/odroidx2-core"
-processJob endless eos core armhf odroidu2 ${timestamp} "end/odroidu2-core"
-#processJob endless eos iso i386 i386 ${timestamp} "end/i386-iso"
+processJob eos $SUITE core i386 i386 ${timestamp} "end/i386-core"
+processJob eos $SUITE core armhf odroidx2 ${timestamp} "end/odroidx2-core"
+wait
+processJob eos $SUITE core armhf odroidu2 ${timestamp} "end/odroidu2-core"
 wait
 
 # -- Publish images
 webdir=/srv/images/www/dev/${timestamp}
 mkdir -p $webdir
 mv ${builddir}/image-build/* ${webdir}
+
+mkdir -p ${webdir}/logs
+ln ${logdir}/*.txt ${webdir}/logs
 
 # Purge old builds
 find ${webdir}/.. -maxdepth 1 -type d -ctime +7 -exec rm -rf '{}' \;
