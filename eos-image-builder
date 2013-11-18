@@ -7,5 +7,7 @@ MYDIR=$(dirname $(readlink -f $0))
 		exit 1
 	fi
 
-	$MYDIR/build.sh $@
+	cd $MYDIR
+	git pull
+	./build.sh $@
 ) 9>/var/tmp/eos-image-builder.lock
