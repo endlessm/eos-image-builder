@@ -1,0 +1,40 @@
+#!/bin/bash -ex
+export EOB_SRC=$(dirname $(readlink -f $0))
+export EOB_BASELIB="${EOB_SRC}"/lib/eob.sh
+export PATH=$EOB_SRC/stages:$PATH
+
+export LANG=C
+unset LANGUAGE LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
+unset LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT LC_IDENTIFICATION
+unset LC_ALL
+export DEBIAN_FRONTEND=noninteractive
+export DEBCONF_NONINTERACTIVE_SEEN=true
+export DEBIAN_PRIORITY=critical
+
+. "${EOB_BASELIB}"
+
+export EOB_BRANCH=${1:-dev}
+
+case "$(uname -m)" in
+  x86_64|i?86)
+    export EOB_ARCH=i386
+    export EOB_PLATFORM=i386
+    export EOB_IMAGE_SIZE=10GB
+    ;;
+
+  arm*)
+    export EOB_ARCH=armhf
+    export EOB_PLATFORM=odroidu2
+    export EOB_IMAGE_SIZE=8GB
+    ;;
+esac
+
+export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
+export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
+
+recreate_dir "${EOB_OUTDIR}"
+exec > >(tee $(eob_outfile build.txt))
+exec 2>&1
+
+mkdir -p "${EOB_CONTENT}"
+. "${EOB_SRC}"/buildscript
