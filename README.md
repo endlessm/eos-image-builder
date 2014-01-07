@@ -97,7 +97,7 @@ If you want to only run certain stages, modify the `buildscript` file
 accordingly before starting the program.
 
 Options available:
-  --product : specify product to build
+  --product : specify product to build (eos, eosdev)
 
 Customization
 =============

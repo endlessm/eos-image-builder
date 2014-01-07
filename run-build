@@ -48,6 +48,9 @@ case "${EOB_PRODUCT}" in
   eos)
     export EOB_PERSONALITIES="Brazil Guatemala Global"
     ;;
+  eosdev)
+    export EOB_PERSONALITIES="Global"
+    ;;
 esac
 
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
