@@ -90,11 +90,14 @@ Execution
 =========
 
 To run EOB, use the endless-os-builder script, optionally with a branch name:
- # ./endless-os-builder master
+ # ./endless-os-builder [options] master
 
 If no branch name is specified, dev is used.
 If you want to only run certain stages, modify the `buildscript` file
 accordingly before starting the program.
+
+Options available:
+  --product : specify product to build
 
 Customization
 =============
@@ -103,6 +106,9 @@ The core of EOB is just a wrapper. The real content of the output is defined
 by customization scripts found under customization/. These scripts have
 access to environment variables and library functions allowing them to
 integrate correctly with the core.
+
+The scripts for each product are kept under `customization/PRODUCT`.
+`customization/all` is special, it is run on all builds.
 
 If a script has an executable bit, it is executed directly. Otherwise it
 is executed through bash and will have access to the library functions.
@@ -121,11 +127,11 @@ than having a small number of huge bash rambles.
 os customization
 ----------------
 
-At the start of the os stage, the hooks under `customization/seed` are run.
+At the start of the os stage, the customization hooks under `seed` are run.
 At this stage the `${INSTALL_ROOT}` is totally empty. Place anything here
 that you want to be present at the time of initial bootstrap, which follows.
 
-After the initial bootstrap, the hooks under `customization/os` are run.
+After the initial bootstrap, the customization hooks under `os` are run.
 These scripts are responsible for making any configuration changes to the
 system (discouraged), installing packages, etc. The OS packages are installed
 by scripts at index 50.
@@ -133,13 +139,13 @@ by scripts at index 50.
 image customization
 -------------------
 
-At the start of the image stage, the hooks under `customization/content`
+At the start of the image stage, the customization hooks under `content`
 are run. These hooks are intended to ensure that all content for all
 personalities is available on host disk, to be used later. `${EOB_CONTENT}`
 should be used for storing this.
 
-Once the ostree has been checked out (onto the host disk), hooks under
-`customization/image` are run, *once for each personality*.
+Once the ostree has been checked out (onto the host disk), customization
+hooks under `image` are run, *once for each personality*.
 `${OSTREE_DEPLOYMENT}` contains the path to the checkout, and
 `${PERSONALITY}` states which personality is being built.
 
@@ -154,7 +160,7 @@ publish customization
 
 Keeping with the design that the core is simple and the meat is kept
 under customization, the publish stage does nothing more than call
-into hooks kept in `customization/publish`. As publishing requirements
+into customization hooks kept in `publish`. As publishing requirements
 vary from host to host, we maintain a different script per each build host.
 
 Each script should take the output of `${EOB_OUTDIR}` and push it to the

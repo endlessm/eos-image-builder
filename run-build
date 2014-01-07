@@ -11,9 +11,24 @@ export DEBIAN_FRONTEND=noninteractive
 export DEBCONF_NONINTERACTIVE_SEEN=true
 export DEBIAN_PRIORITY=critical
 
-. "${EOB_BASELIB}"
+args=$(getopt -o "p:" -l "product:" -n "endless-os-builder" -- "$@")
+eval set -- "${args}"
+
+while true; do
+  case "$1" in
+    -p|--product)
+      EOB_PRODUCT=$2
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+  esac
+done
 
 export EOB_BRANCH=${1:-dev}
+export EOB_PRODUCT=${EOB_PRODUCT:-eos}
 
 case "$(uname -m)" in
   x86_64|i?86)
@@ -29,8 +44,17 @@ case "$(uname -m)" in
     ;;
 esac
 
+case "${EOB_PRODUCT}" in
+  eos)
+    export EOB_PERSONALITIES="Brazil Guatemala Global"
+    ;;
+esac
+
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
 export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
+export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}
+
+. "${EOB_BASELIB}"
 
 recreate_dir "${EOB_OUTDIR}"
 exec > >(tee $(eob_outfile build.txt))
