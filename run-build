@@ -34,13 +34,13 @@ case "$(uname -m)" in
   x86_64|i?86)
     export EOB_ARCH=i386
     export EOB_PLATFORM=i386
-    export EOB_IMAGE_SIZE=10GB
+    export EOB_IMAGE_SIZE=12GB
     ;;
 
   arm*)
     export EOB_ARCH=armhf
     export EOB_PLATFORM=odroidu2
-    export EOB_IMAGE_SIZE=8GB
+    export EOB_IMAGE_SIZE=10GB
     ;;
 esac
 
