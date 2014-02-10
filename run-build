@@ -34,19 +34,17 @@ case "$(uname -m)" in
   x86_64|i?86)
     export EOB_ARCH=i386
     export EOB_PLATFORM=i386
-    export EOB_IMAGE_SIZE=12GB
     ;;
 
   arm*)
     export EOB_ARCH=armhf
     export EOB_PLATFORM=odroidu2
-    export EOB_IMAGE_SIZE=10GB
     ;;
 esac
 
 case "${EOB_PRODUCT}" in
   eos)
-    export EOB_PERSONALITIES="Brazil Guatemala Global"
+    export EOB_PERSONALITIES="Brazil Guatemala Global Positivo"
     ;;
   eosdev)
     export EOB_PERSONALITIES="Global"
