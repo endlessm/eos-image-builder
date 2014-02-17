@@ -27,6 +27,22 @@ while true; do
   esac
 done
 
+# Some configuration defaults
+# Debian package repository from where OS packages will be obtained
+export EOB_OBS_REPO=http://obs-master.endlessm-sf.com:82/shared/eos
+
+# GPG private key ID to sign ostree commit. The key with this ID must be
+# available in /etc/image-utils/gnupg
+export EOB_OSTREE_KEYID=4827DDED
+
+# The ostree base URL that the final system will query for updates. Not used
+# during build time. The product (e.g. eos) is taken as a subdirectory of
+# this address.
+export EOB_OSTREE_URL_BASE="http://endless:***REMOVED***@ostree.endlessm.com/staging/dev/"
+
+# Size of built images
+export EOB_IMAGE_SIZE=20GB
+
 export EOB_BRANCH=${1:-dev}
 export EOB_PRODUCT=${EOB_PRODUCT:-eos}
 
@@ -54,6 +70,9 @@ esac
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
 export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
 export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
+
+# Read user config overrides
+[[ -e "${EOB_SRC}"/config ]] && . "${EOB_SRC}"/config
 
 . "${EOB_BASELIB}"
 

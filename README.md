@@ -78,13 +78,13 @@ configuration.
 Configuration
 =============
 
-The config.defaults file contains the configuration defaults and documentation
-of available options. Update this file directly when making changes that are
-semi-permanent or permanent.
+The base configuration is kept in the run-build script. Some configuration
+is static, and some is dynamic. Update this file directly when making changes
+that are semi-permanent or permanent.
 
 For one-off builds that require a different configuration, create a file named
-config and put key=value pairs there to override the defaults. Delete this
-file after the one-off build has been made.
+config and put `export key=value` pairs there to override the defaults. Delete
+this file after the one-off build has been made.
 
 Execution
 =========
