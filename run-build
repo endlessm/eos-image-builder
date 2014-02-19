@@ -71,6 +71,13 @@ export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
 export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
 export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
 
+if [[ "${EOB_ARCH}" == "armhf" && "${EOB_BRANCH}" == "master" ]]; then
+  # FIXME: we shipped Echo with -echo prepended to the branch name for
+  # reasons that are no longer interesting. But we need to stick with
+  # the naming scheme for upgrades. Drop this when Echo is EOL.
+  export EOB_OSTREE_BRANCH=${EOB_OSTREE_BRANCH}-echo
+fi
+
 # Read user config overrides
 [[ -e "${EOB_SRC}"/config ]] && . "${EOB_SRC}"/config
 
