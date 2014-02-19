@@ -63,7 +63,7 @@ case "${EOB_PRODUCT}" in
     export EOB_PERSONALITIES="Brazil Guatemala Global Positivo"
     ;;
   eosdev)
-    export EOB_PERSONALITIES="Global"
+    export EOB_PERSONALITIES=""
     ;;
 esac
 
