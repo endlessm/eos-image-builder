@@ -35,11 +35,6 @@ export EOB_OBS_REPO=http://obs-master.endlessm-sf.com:82/shared/eos
 # available in /etc/image-utils/gnupg
 export EOB_OSTREE_KEYID=4827DDED
 
-# The ostree base URL that the final system will query for updates. Not used
-# during build time. The product (e.g. eos) is taken as a subdirectory of
-# this address.
-export EOB_OSTREE_URL_BASE="http://endless:***REMOVED***@ostree.endlessm.com/staging/dev/"
-
 # Size of built images
 export EOB_IMAGE_SIZE=20GB
 
@@ -69,13 +64,25 @@ esac
 
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
 export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
+
+# The ostree URL that the final system will query for updates. Not used
+# during build time. The product (e.g. eos) and arch is taken as a
+# subdirectory of this address.
+export EOB_OSTREE_URL_ROOT="http://endless:***REMOVED***@ostree.endlessm.com"
+if [[ "${EOB_BRANCH}" == "master" ]]; then
+  export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/ostree/"
+else
+  export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/staging/dev/"
+fi
 export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
 
 if [[ "${EOB_ARCH}" == "armhf" && "${EOB_BRANCH}" == "master" ]]; then
-  # FIXME: we shipped Echo with -echo prepended to the branch name for
-  # reasons that are no longer interesting. But we need to stick with
-  # the naming scheme for upgrades. Drop this when Echo is EOL.
+  # FIXME: we shipped Echo with -echo appended to the branch name and a
+  # slightly different URL for reasons that are no longer interesting.
+  # But we need to stick with the naming scheme for upgrades. Drop this
+  # when Echo is EOL.
   export EOB_OSTREE_BRANCH=${EOB_OSTREE_BRANCH}-echo
+  export EOB_OSTREE_URL="${EOB_OSTREE_URL_BASE}/echo/"
 fi
 
 # Read user config overrides
