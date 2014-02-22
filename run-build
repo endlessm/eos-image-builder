@@ -70,9 +70,9 @@ export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
 # subdirectory of this address.
 export EOB_OSTREE_URL_ROOT="http://endless:***REMOVED***@ostree.endlessm.com"
 if [[ "${EOB_BRANCH}" == "master" ]]; then
-  export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/ostree/"
+  export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/ostree"
 else
-  export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/staging/dev/"
+  export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/staging/dev"
 fi
 export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
 
