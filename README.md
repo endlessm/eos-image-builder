@@ -56,17 +56,9 @@ Setup
 Known to work on Debian Wheezy, Ubuntu 13.04 and Ubuntu 13.10.
 Required packages:
  * pigz rsync
- * ostree (see below)
+ * ostree
  * x86: grub2
  * arm: mkimage
-
-ostree
-------
-
-For Debian Wheezy, the ostree package comes from Collabora's infrastructure
-tools respository. For Ubuntu, this package must be rebuilt because libarchive
-soversion has changed, and systemd is not available. This is as simple as
-taking the source package, removing all references to systemd, and rebuilding.
 
 ostree signing
 --------------
