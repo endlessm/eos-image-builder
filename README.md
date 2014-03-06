@@ -50,6 +50,12 @@ publish stage
 This stage publishes the ostree repository and final images to a place
 where they can be accessed by developers/users.
 
+error stage
+-----------
+
+This stage is only run in the event of an error and simply publishes the
+build log to the image server.
+
 Setup
 =====
 
@@ -157,3 +163,14 @@ vary from host to host, we maintain a different script per each build host.
 
 Each script should take the output of `${EOB_OUTDIR}` and push it to the
 final destination, while also publishing the ostree from `${EOB_OSTREE}`.
+
+
+error customization
+---------------------
+
+Like the publish stage, the error stage simply calls the customization
+hooks kept in `error`. As publishing of build logs varies from host to
+host, we maintain a different script per each build host.
+
+Each script should take the `build.txt` file from `${EOB_OUTDIR}` and
+push it to the final destination.

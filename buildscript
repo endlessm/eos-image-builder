@@ -1,3 +1,10 @@
+# Run the eob_error stage on errors
+stage_error() {
+  local status=$?
+  eob_error
+  exit $status
+}
+trap stage_error ERR
 eob_os
 eob_ostree
 eob_image

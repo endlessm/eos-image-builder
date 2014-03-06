@@ -11,6 +11,9 @@ export DEBIAN_FRONTEND=noninteractive
 export DEBCONF_NONINTERACTIVE_SEEN=true
 export DEBIAN_PRIORITY=critical
 
+# Make sure ERR traps follow through to shell functions
+set -E
+
 args=$(getopt -o "p:" -l "product:" -n "endless-os-builder" -- "$@")
 eval set -- "${args}"
 
