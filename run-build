@@ -38,9 +38,6 @@ export EOB_OBS_REPO=http://obs-master.endlessm-sf.com:82/shared/eos
 # available in /etc/image-utils/gnupg
 export EOB_OSTREE_KEYID=4827DDED
 
-# Size of built images
-export EOB_IMAGE_SIZE=20GB
-
 export EOB_BRANCH=${1:-dev}
 export EOB_PRODUCT=${EOB_PRODUCT:-eos}
 
