@@ -85,6 +85,15 @@ if [[ "${EOB_ARCH}" == "armhf" && "${EOB_BRANCH}" == "master" ]]; then
   export EOB_OSTREE_URL="${EOB_OSTREE_URL_BASE}/echo/"
 fi
 
+# Image URLs
+EOB_IMAGE_URL_ROOT="http://images.endlessm-sf.com/"
+EOB_IMAGE_URL_BASE="${EOB_IMAGE_URL_ROOT}/${EOB_PRODUCT}-${EOB_ARCH}/${EOB_BRANCH}/${EOB_BUILD_VERSION}"
+
+# Email settings
+EOB_EMAIL_FROM=image-builder@endlessm.com
+EOB_EMAIL_REPLYTO=endless-dev@endlessm.com
+EOB_EMAIL_TO=endless-dev-status@endlessm.com
+
 # Read user config overrides
 [[ -e "${EOB_SRC}"/config ]] && . "${EOB_SRC}"/config
 
