@@ -85,6 +85,12 @@ if [[ "${EOB_ARCH}" == "armhf" && "${EOB_BRANCH}" == "master" ]]; then
   export EOB_OSTREE_URL="${EOB_OSTREE_URL_BASE}/echo/"
 fi
 
+# Image uploading
+export EOB_IMAGE_HOST_SHORT=obs-repository
+export EOB_IMAGE_HOST=${EOB_IMAGE_HOST_SHORT}.endlessm-sf.com
+export EOB_IMAGE_USER=uploader
+export EOB_IMAGE_PATH=/srv/images/www
+
 # Image URLs
 EOB_IMAGE_URL_ROOT="http://images.endlessm-sf.com/"
 EOB_IMAGE_URL_BASE="${EOB_IMAGE_URL_ROOT}/${EOB_PRODUCT}-${EOB_ARCH}/${EOB_BRANCH}/${EOB_BUILD_VERSION}"
