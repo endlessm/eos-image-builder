@@ -88,11 +88,13 @@ fi
 # Image URLs
 EOB_IMAGE_URL_ROOT="http://images.endlessm-sf.com/"
 EOB_IMAGE_URL_BASE="${EOB_IMAGE_URL_ROOT}/${EOB_PRODUCT}-${EOB_ARCH}/${EOB_BRANCH}/${EOB_BUILD_VERSION}"
+export EOB_IMAGE_URL_ROOT EOB_IMAGE_URL_BASE
 
 # Email settings
 EOB_EMAIL_FROM=image-builder@endlessm.com
 EOB_EMAIL_REPLYTO=endless-dev@endlessm.com
 EOB_EMAIL_TO=endless-dev-status@endlessm.com
+export EOB_EMAIL_FROM EOB_EMAIL_REPLYTO EOB_EMAIL_TO
 
 # Read user config overrides
 [[ -e "${EOB_SRC}"/config ]] && . "${EOB_SRC}"/config
