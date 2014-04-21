@@ -113,3 +113,4 @@ exec 2>&1
 
 mkdir -p "${EOB_CONTENT}"
 . "${EOB_SRC}"/buildscript
+rm -rf "${EOB_OUTDIR}"
