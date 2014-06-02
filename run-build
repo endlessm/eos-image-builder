@@ -38,7 +38,7 @@ export EOB_OBS_REPO=http://obs-master.endlessm-sf.com:82/shared/eos
 # available in /etc/image-utils/gnupg
 export EOB_OSTREE_KEYID=4827DDED
 
-export EOB_BRANCH=${1:-dev}
+export EOB_BRANCH=${1:-master}
 export EOB_PRODUCT=${EOB_PRODUCT:-eos}
 
 case "$(uname -m)" in
@@ -70,9 +70,9 @@ export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
 # subdirectory of this address.
 export EOB_OSTREE_URL_ROOT="http://endless:***REMOVED***@ostree.endlessm.com"
 if [[ "${EOB_BRANCH}" == "master" ]]; then
-  export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/ostree"
-else
   export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/staging/dev"
+else
+  export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/ostree"
 fi
 export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
 
