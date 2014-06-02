@@ -76,13 +76,13 @@ else
 fi
 export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
 
-if [[ "${EOB_ARCH}" == "armhf" && "${EOB_BRANCH}" == "master" ]]; then
-  # FIXME: we shipped Echo with -echo appended to the branch name and a
-  # slightly different URL for reasons that are no longer interesting.
-  # But we need to stick with the naming scheme for upgrades. Drop this
-  # when Echo is EOL.
-  export EOB_OSTREE_BRANCH=${EOB_OSTREE_BRANCH}-echo
-  export EOB_OSTREE_URL="${EOB_OSTREE_URL_BASE}/echo/"
+if [[ "${EOB_ARCH}" == "armhf" && "${EOB_BRANCH}" == "eos1" ]]; then
+  # FIXME: We shipped eos1 (Echo) with master as the branch name, -echo
+  # appended to it, and a slightly different URL for reasons that are no
+  # longer interesting. But we need to stick with the naming scheme for
+  # upgrades. Drop this when eos1 is EOL.
+  EOB_OSTREE_BRANCH=master/${EOB_PLATFORM}-echo
+  EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/echo
 fi
 
 # Image uploading
