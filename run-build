@@ -76,13 +76,15 @@ else
 fi
 export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
 
+# Support adding a ref on an alternate branch. By default, no alternate
+# is used.
+export EOB_OSTREE_BRANCH_ALT=
 if [[ "${EOB_ARCH}" == "armhf" && "${EOB_BRANCH}" == "eos1" ]]; then
-  # FIXME: We shipped eos1 (Echo) with master as the branch name, -echo
-  # appended to it, and a slightly different URL for reasons that are no
-  # longer interesting. But we need to stick with the naming scheme for
-  # upgrades. Drop this when eos1 is EOL.
-  EOB_OSTREE_BRANCH=master/${EOB_PLATFORM}-echo
-  EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/echo
+  # FIXME: We shipped eos1 (Echo) with master as the branch name and
+  # -echo appended to it. Continue to provide compatibility to the
+  # original name to support upgrades for current users. Drop this when
+  # eos1 is EOL.
+  EOB_OSTREE_BRANCH_ALT=master/${EOB_PLATFORM}-echo
 fi
 
 # Image uploading
