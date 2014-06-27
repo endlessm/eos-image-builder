@@ -34,12 +34,23 @@ done
 # Debian package repository from where OS packages will be obtained
 export EOB_OBS_REPO=http://obs-master.endlessm-sf.com:82/shared/eos
 
-# GPG private key ID to sign ostree commit. The key with this ID must be
-# available in /etc/image-utils/gnupg
-export EOB_OSTREE_KEYID=4827DDED
-
 export EOB_BRANCH=${1:-master}
 export EOB_PRODUCT=${EOB_PRODUCT:-eos}
+
+# GPG private key ID to sign ostree commit. The key with this ID must be
+# available in /etc/image-utils/gnupg
+case "${EOB_BRANCH}" in
+  eos1)
+    # Continue to use the ECOLSK1 key for eos1 until it expires on
+    # 2014-09-20.
+    EOB_OSTREE_KEYID=4827DDED
+    ;;
+  *)
+    # EOSK1 key expiring 2019-05-13.
+    EOB_OSTREE_KEYID=BA02FC46
+    ;;
+esac
+export EOB_OSTREE_KEYID
 
 case "$(uname -m)" in
   x86_64|i?86)
