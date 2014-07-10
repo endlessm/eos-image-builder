@@ -38,7 +38,7 @@ export EOB_BRANCH=${1:-master}
 export EOB_PRODUCT=${EOB_PRODUCT:-eos}
 
 # GPG private key ID to sign ostree commit. The key with this ID must be
-# available in /etc/image-utils/gnupg
+# available in ${EOB_SYSCONF}/gnupg
 case "${EOB_BRANCH}" in
   eos1)
     # Continue to use the ECOLSK1 key for eos1 until it expires on
@@ -114,6 +114,9 @@ EOB_EMAIL_FROM=image-builder@endlessm.com
 EOB_EMAIL_REPLYTO=endless-dev@endlessm.com
 EOB_EMAIL_TO=endless-dev-status@endlessm.com
 export EOB_EMAIL_FROM EOB_EMAIL_REPLYTO EOB_EMAIL_TO
+
+# Read system config overrides
+[[ -e "${EOB_SYSCONF}"/config ]] && . "${EOB_SYSCONF}"/config
 
 # Read user config overrides
 [[ -e "${EOB_SRC}"/config ]] && . "${EOB_SRC}"/config

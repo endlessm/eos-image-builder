@@ -80,9 +80,16 @@ The base configuration is kept in the run-build script. Some configuration
 is static, and some is dynamic. Update this file directly when making changes
 that are semi-permanent or permanent.
 
-For one-off builds that require a different configuration, create a file named
-config and put `export key=value` pairs there to override the defaults. Delete
-this file after the one-off build has been made.
+For one-off builds that require a different configuration, create a file
+named config and put `export key=value` pairs there to override the
+defaults. However, this file is sourced by the run-build script, so any
+bash can be used to set the variables. Delete this file after the
+one-off build has been made.
+
+More permanent configuration changes can be kept in a system
+configuration file at /etc/image-utils/config. This is sourced before
+the local config file to allow it to override the system settings. The
+same rules apply for the contents of the system config file.
 
 Execution
 =========
