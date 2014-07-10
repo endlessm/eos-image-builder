@@ -15,7 +15,8 @@ export DEBIAN_PRIORITY=critical
 # Make sure ERR traps follow through to shell functions
 set -E
 
-args=$(getopt -o "p:" -l "product:,platform:" -n "endless-os-builder" -- "$@")
+args=$(getopt -o "p:P:" -l "product:,platform:,personalities:" \
+  -n "endless-os-builder" -- "$@")
 eval set -- "${args}"
 
 while true; do
@@ -26,6 +27,10 @@ while true; do
       ;;
     --platform)
       EOB_PLATFORM=$2
+      shift 2
+      ;;
+    -P|--personalities)
+      EOB_PERSONALITIES=$2
       shift 2
       ;;
     --)
@@ -69,14 +74,20 @@ case "$(uname -m)" in
     ;;
 esac
 
-case "${EOB_PRODUCT}" in
-  eos)
-    export EOB_PERSONALITIES="Brazil Guatemala Global"
-    ;;
-  eosdev)
-    export EOB_PERSONALITIES=""
-    ;;
-esac
+# Set personalities to build if they haven't been requested. Detect when
+# the variable is set but empty with -v. This allows no personality
+# builds to be selected.
+if [ ! -v EOB_PERSONALITIES ]; then
+  case "${EOB_PRODUCT}" in
+    eos)
+      EOB_PERSONALITIES="Brazil Guatemala Global"
+      ;;
+    eosdev)
+      EOB_PERSONALITIES=""
+      ;;
+  esac
+fi
+export EOB_PERSONALITIES
 
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
 export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
