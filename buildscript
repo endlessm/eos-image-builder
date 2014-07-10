@@ -1,8 +1,8 @@
-# Run the eob_error stage on errors
+# Run the eob_error stage on errors. Return code 2 is used for image
+# build failures to differentiate from locking failures.
 stage_error() {
-  local status=$?
   eob_error
-  exit $status
+  exit 2
 }
 trap stage_error ERR
 eob_os
