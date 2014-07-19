@@ -1,5 +1,6 @@
 #!/bin/bash -ex
 export EOB_SRC=$(dirname $(readlink -f $0))
+export EOB_SYSCONF=/etc/image-utils
 export EOB_BASELIB="${EOB_SRC}"/lib/eob.sh
 export PATH=$EOB_SRC/stages:$PATH
 
