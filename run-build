@@ -15,13 +15,17 @@ export DEBIAN_PRIORITY=critical
 # Make sure ERR traps follow through to shell functions
 set -E
 
-args=$(getopt -o "p:" -l "product:" -n "endless-os-builder" -- "$@")
+args=$(getopt -o "p:" -l "product:,platform:" -n "endless-os-builder" -- "$@")
 eval set -- "${args}"
 
 while true; do
   case "$1" in
     -p|--product)
       EOB_PRODUCT=$2
+      shift 2
+      ;;
+    --platform)
+      EOB_PLATFORM=$2
       shift 2
       ;;
     --)
@@ -56,12 +60,12 @@ export EOB_OSTREE_KEYID
 case "$(uname -m)" in
   x86_64|i?86)
     export EOB_ARCH=i386
-    export EOB_PLATFORM=i386
+    export EOB_PLATFORM=${EOB_PLATFORM:-i386}
     ;;
 
   arm*)
     export EOB_ARCH=armhf
-    export EOB_PLATFORM=odroidu2
+    export EOB_PLATFORM=${EOB_PLATFORM:-odroidu2}
     ;;
 esac
 
