@@ -62,6 +62,8 @@ case "${EOB_BRANCH}" in
 esac
 export EOB_OSTREE_KEYID
 
+export EOB_IMAGE_SIGNING_KEYID=587A279C
+
 case "$(uname -m)" in
   x86_64|i?86)
     export EOB_ARCH=i386
