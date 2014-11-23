@@ -44,6 +44,13 @@ This stage checks out the latest ostree into a new directory, configures
 the bootloader, adds content, and creates output images.
 This stage has an internal loop which creates images for each personality.
 
+split stage
+-----------
+
+This stage takes the newly created image file and creates a 2nd set of
+images for use in a 2 disk setup. This is performed in a loop over
+personalities.
+
 publish stage
 -------------
 
@@ -159,6 +166,23 @@ personality. This means that *all customization scripts here should
 unconditionally wipe out the results of previous runs* before making any
 changes, otherwise changes from previous personalities might spill over
 into the current one.
+
+split customization
+-------------------
+
+Image splitting needs to occur for each full image file created, so the
+`split` hooks are run *once for each personality*.
+`${OSTREE_DEPLOYMENT}` contains the path to the checkout,
+`${EXTRA_MOUNT}` contains the chroot-relative path to the extra storage
+(currently `/var/endless-extra`), and `${PERSONALITY}` states which
+personality is being built.
+
+The ostree deployment /var is bind mounted at `${OSTREE_DEPLOYMENT}/var`
+to resemble a real booted system. The 2nd disk filesystem is then
+mounted at `${OSTREE_DEPLOYMENT}/${EXTRA_MOUNT}`. Hooks are intended to
+migrate content from the root into this filesystem. The filesystem is a
+fixed size (currenlty 8 GB), so hooks are required to ignore failures
+due to insufficient space and revert to the original layout.
 
 publish customization
 ---------------------

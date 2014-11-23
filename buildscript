@@ -8,4 +8,5 @@ trap stage_error ERR
 eob_os
 eob_ostree
 eob_image
+eob_split
 eob_publish
