@@ -91,6 +91,14 @@ if [ ! -v EOB_PERSONALITIES ]; then
 fi
 export EOB_PERSONALITIES
 
+# Create 2 disk split images for eos.
+if [[ "${EOB_PRODUCT}" == eos ]]; then
+  EOB_SPLIT_IMAGES=true
+else
+  EOB_SPLIT_IMAGES=false
+fi
+export EOB_SPLIT_IMAGES
+
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
 export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
 
