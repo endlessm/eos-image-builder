@@ -15,7 +15,7 @@ export DEBIAN_PRIORITY=critical
 # Make sure ERR traps follow through to shell functions
 set -E
 
-args=$(getopt -o "p:P:" -l "product:,platform:,personalities:" \
+args=$(getopt -o "p:P:n" -l "product:,platform:,personalities:,dry-run" \
   -n "endless-os-builder" -- "$@")
 eval set -- "${args}"
 
@@ -32,6 +32,10 @@ while true; do
     -P|--personalities)
       EOB_PERSONALITIES=$2
       shift 2
+      ;;
+    -n|--dry-run)
+      export EOB_DRY_RUN=true
+      shift
       ;;
     --)
       shift
@@ -155,4 +159,7 @@ exec 2>&1
 
 mkdir -p "${EOB_CONTENT}"
 . "${EOB_SRC}"/buildscript
-rm -rf "${EOB_OUTDIR}"
+
+# Unless this is a dry run, the output files have been published and can
+# be deleted.
+[ -n "${EOB_DRY_RUN}" ] || rm -rf "${EOB_OUTDIR}"
