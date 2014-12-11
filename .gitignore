@@ -1,4 +1,7 @@
+*.bundle
+*.deb
+*.log
 *.swp
 *~
-*.log
 *.pyc
+__pycache__
