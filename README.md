@@ -71,7 +71,7 @@ Required packages:
  * pigz rsync
  * ostree
  * x86: grub2
- * arm: mkimage
+ * arm: mkimage, device-tree-compiler
 
 ostree signing
 --------------
