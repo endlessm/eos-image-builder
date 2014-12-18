@@ -86,7 +86,7 @@ esac
 if [ ! -v EOB_PERSONALITIES ]; then
   case "${EOB_PRODUCT}" in
     eos)
-      EOB_PERSONALITIES="Brazil Guatemala Arabic Haiti Global"
+      EOB_PERSONALITIES="Brazil Guatemala Global"
       ;;
     eosdev)
       EOB_PERSONALITIES=""
