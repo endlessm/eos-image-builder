@@ -104,7 +104,8 @@ export EOB_PERSONALITIES
 
 # Create 2 disk split images for eos.
 if [[ "${EOB_PRODUCT}" == eos ]]; then
-  EOB_SPLIT_IMAGES=true
+  # FIXME: Temporarily disabled until split images are working correctly.
+  EOB_SPLIT_IMAGES=false
 else
   EOB_SPLIT_IMAGES=false
 fi
