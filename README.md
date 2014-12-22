@@ -24,6 +24,13 @@ flexibility.
 The build process is divided into several stages, detailed below. An
 invocation can run some or all of these stages.
 
+check_update stage
+------------------
+
+This stage does not perform image building, but is used to determine if
+an image build is required. If it exits successfully, no image build is
+needed.
+
 OS stage
 --------
 
@@ -135,6 +142,20 @@ Scripts are executed in lexical order and the convention is to prefix them
 with a two-digit number to make the order explicit. Each script should be
 succinct - we prefer to have a decent number of small-ish scripts, rather
 than having a small number of huge bash rambles.
+
+check_update customization
+--------------------------
+
+The check_update stage calls the `cache` customization hooks. The
+intention is to determine facts about the current build and compare them
+to cached facts from the previous build. Facts are stored in the build
+specific cache directory, determined from the function `eob_cachedir`.
+Cache files should be named using the eob_cachefile function.
+
+The check_update stage determines if an update is needed by seeing if
+the modification times for any files in the cache directory have been
+updated. Therefore, the hook should only update its cache file if
+there's a difference from the previous build.
 
 os customization
 ----------------
