@@ -162,6 +162,7 @@ export EOB_EMAIL_FROM EOB_EMAIL_REPLYTO EOB_EMAIL_TO
 . "${EOB_BASELIB}"
 
 recreate_dir "${EOB_OUTDIR}"
+recreate_dir "${EOB_TMPDIR}"
 exec > >(tee $(eob_outfile build.txt))
 exec 2>&1
 
