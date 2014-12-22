@@ -5,6 +5,7 @@ stage_error() {
   exit 2
 }
 trap stage_error ERR
+eob_check_update
 eob_os
 eob_ostree
 eob_image
