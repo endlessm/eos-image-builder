@@ -5,7 +5,11 @@ stage_error() {
   exit 2
 }
 trap stage_error ERR
-eob_check_update
+
+# Check if build needed and exit early if not
+eob_check_update && exit 0
+
+# Real build stages
 eob_os
 eob_ostree
 eob_image
