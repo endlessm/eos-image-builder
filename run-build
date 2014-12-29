@@ -3,6 +3,7 @@ export EOB_SRC=$(dirname $(readlink -f $0))
 export EOB_SYSCONF=/etc/image-utils
 export EOB_BASELIB="${EOB_SRC}"/lib/eob.sh
 export PATH=$EOB_SRC/stages:$PATH
+export PYTHONPATH=$EOB_SRC/lib
 
 export LANG=C
 unset LANGUAGE LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
