@@ -77,7 +77,7 @@ Known to work on Debian Wheezy, Ubuntu 13.04 and Ubuntu 13.10.
 Required packages:
  * pigz rsync
  * ostree
- * python-apt
+ * python3-apt
  * x86: grub2
  * arm: mkimage, device-tree-compiler
 
