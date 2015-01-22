@@ -87,9 +87,6 @@ shrink_disk2_image() {
     awk '/^Estimated minimum size/{print $NF}')
   local extra_part_size=$((extra_part_min_blocks * 4096))
 
-  # So we don't run with a totally full partition, add 5 MB of free space.
-  ((extra_part_size += 5 * 2**20))
-
   # Calculate the total disk2 size. Add any additional sectors before
   # the first partition.
   local disk2_img_size=$((extra_part_size + EOB_DISK2_PART1_START * 512))
@@ -150,12 +147,8 @@ split_image() {
   # actual size of 2 devices in bytes is 7948206080. Since that might
   # vary and we want to be a little conservative, use 98% of 8 GB, which
   # is 7840000000 bytes.
-  #
-  # Subtract 5 MiB so that we can later ensure there's a bit of headroom
-  # on the FS.
   rm -f "${disk2_img}"
   local disk2_img_size=$(python -c "print int(8 * 10**9 * 0.98)")
-  ((disk2_img_size -= 5 * 2**20))
   truncate -s ${disk2_img_size} "${disk2_img}"
   sfdisk -S 32 -H 32 --force -uS "${disk2_img}" <<EOF
 ${EOB_DISK2_PART1_START}
