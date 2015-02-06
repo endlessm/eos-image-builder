@@ -143,12 +143,11 @@ split_image() {
   OSTREE_CURRENT_VAR="${OSTREE_CURRENT}"/var
   mount --bind "${ostree_var}" "${OSTREE_CURRENT_VAR}"
 
-  # Create disk2 image file with 1 partition for our "8 GB" SD card. The
-  # actual size of 2 devices in bytes is 7948206080. Since that might
-  # vary and we want to be a little conservative, use 98% of 8 GB, which
-  # is 7840000000 bytes.
+  # Create disk2 image file with 1 partition for our "16 GB" SD card.
+  # The actual size might vary and we want to be a little connservative,
+  # so use 98% of 16 GB, which is 15680000000 bytes.
   rm -f "${disk2_img}"
-  local disk2_img_size=$(python -c "print int(8 * 10**9 * 0.98)")
+  local disk2_img_size=$(python -c "print int(16 * 10**9 * 0.98)")
   truncate -s ${disk2_img_size} "${disk2_img}"
   sfdisk -S 32 -H 32 --force -uS "${disk2_img}" <<EOF
 ${EOB_DISK2_PART1_START}
