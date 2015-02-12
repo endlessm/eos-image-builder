@@ -80,10 +80,10 @@ if [ ! -v EOB_PERSONALITIES ]; then
     eos)
       case "${EOB_ARCH}" in
         i386)
-          EOB_PERSONALITIES="Brazil Guatemala Global"
+          EOB_PERSONALITIES="pt_BR es_GT en"
           ;;
         armhf)
-          EOB_PERSONALITIES="Guatemala"
+          EOB_PERSONALITIES="es_GT"
           ;;
       esac
       ;;
