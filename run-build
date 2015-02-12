@@ -54,17 +54,8 @@ export EOB_PRODUCT=${EOB_PRODUCT:-eos}
 
 # GPG private key ID to sign ostree commit. The key with this ID must be
 # available in ${EOB_SYSCONF}/gnupg
-case "${EOB_BRANCH}" in
-  eos1)
-    # Continue to use the ECOLSK1 key for eos1 until it expires on
-    # 2014-09-20.
-    EOB_OSTREE_KEYID=4827DDED
-    ;;
-  *)
-    # EOSK1 key expiring 2019-05-13.
-    EOB_OSTREE_KEYID=BA02FC46
-    ;;
-esac
+# EOSK1 key expiring 2019-05-13.
+EOB_OSTREE_KEYID=BA02FC46
 export EOB_OSTREE_KEYID
 
 export EOB_IMAGE_SIGNING_KEYID=587A279C
@@ -128,13 +119,6 @@ export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
 # Support adding a ref on an alternate branch. By default, no alternate
 # is used.
 export EOB_OSTREE_BRANCH_ALT=
-if [[ "${EOB_ARCH}" == "armhf" && "${EOB_BRANCH}" == "eos1" ]]; then
-  # FIXME: We shipped eos1 (Echo) with master as the branch name and
-  # -echo appended to it. Continue to provide compatibility to the
-  # original name to support upgrades for current users. Drop this when
-  # eos1 is EOL.
-  EOB_OSTREE_BRANCH_ALT=master/${EOB_PLATFORM}-echo
-fi
 
 # Image uploading
 export EOB_IMAGE_HOST_SHORT=obs-repository
