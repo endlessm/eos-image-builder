@@ -80,7 +80,7 @@ if [ ! -v EOB_PERSONALITIES ]; then
     eos)
       case "${EOB_ARCH}" in
         i386)
-          EOB_PERSONALITIES="en es_GT pt_BR"
+          EOB_PERSONALITIES="en es es_GT pt_BR"
           ;;
         armhf)
           EOB_PERSONALITIES="es_GT"
