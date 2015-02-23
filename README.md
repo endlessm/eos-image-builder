@@ -48,15 +48,10 @@ image stage
 -----------
 
 This stage checks out the latest ostree into a new directory, configures
-the bootloader, adds content, and creates output images.
-This stage has an internal loop which creates images for each personality.
-
-split stage
------------
-
-This stage takes the newly created image file and creates a 2nd set of
-images for use in a 2 disk setup. This is performed in a loop over
-personalities.
+the bootloader, adds content, and creates output images. This stage has
+an internal loop which creates images for each personality. After
+completing the image, a 2nd set of images for use in a 2 disk setup is
+created.
 
 publish stage
 -------------
@@ -188,9 +183,6 @@ personality. This means that *all customization scripts here should
 unconditionally wipe out the results of previous runs* before making any
 changes, otherwise changes from previous personalities might spill over
 into the current one.
-
-split customization
--------------------
 
 Image splitting needs to occur for each full image file created, so the
 `split` hooks are run *once for each personality*.
