@@ -163,9 +163,9 @@ EOF
 
   # Enable /endless overlayfs mount unit for the split image.
   mkdir -p "${OSTREE_CURRENT}"/endless \
-    "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.requires
+    "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.wants
   ln -sf /lib/systemd/system/endless.mount \
-    "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.requires/
+    "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.wants/
 
   # Unmount the filesystems and shrink the image files.
   cleanup_mounts
