@@ -162,7 +162,8 @@ EOF
   run_hooks split "${OSTREE_CURRENT}"
 
   # Enable /endless overlayfs mount unit for the split image.
-  mkdir -p "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.requires
+  mkdir -p "${OSTREE_CURRENT}"/endless \
+    "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.requires
   ln -sf /lib/systemd/system/endless.mount \
     "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.requires/
 
