@@ -105,6 +105,11 @@ export EOB_SPLIT_IMAGES
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
 export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
 
+# Multiple stable minor version branches may be in use, but the deployed
+# ostree configuration should use only the major version. E.g., the real
+# branch may be eos2.2, but the deployed configuration should use eos2.
+export EOB_OSTREE_BRANCH_DEPLOY=${EOB_BRANCH%.*}/${EOB_PLATFORM}
+
 # The ostree URL that the final system will query for updates. Not used
 # during build time. The product (e.g. eos) and arch is taken as a
 # subdirectory of this address.
