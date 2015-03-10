@@ -75,24 +75,21 @@ esac
 # Set personalities to build if they haven't been requested. Detect when
 # the variable is set but empty with -v. This allows no personality
 # builds to be selected.
-if [ ! -v EOB_PERSONALITIES ]; then
+if [ -z "${EOB_PERSONALITIES}" ]; then
+  export EOB_PERSONALITIES=base
   case "${EOB_PRODUCT}" in
     eos)
       case "${EOB_ARCH}" in
         i386)
-          EOB_PERSONALITIES="en es es_GT pt_BR"
+          EOB_PERSONALITIES="$EOB_PERSONALITIES en es es_GT pt_BR"
           ;;
         armhf)
-          EOB_PERSONALITIES="es_GT"
+          EOB_PERSONALITIES="$EOB_PERSONALITIES es_GT"
           ;;
       esac
       ;;
-    eosdev)
-      EOB_PERSONALITIES=""
-      ;;
   esac
 fi
-export EOB_PERSONALITIES
 
 # Create 2 disk split images for eos.
 if [[ "${EOB_PRODUCT}" == eos ]]; then
