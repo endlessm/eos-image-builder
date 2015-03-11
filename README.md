@@ -42,7 +42,8 @@ ostree stage
 
 This stage makes appropriate modifications to the output of the previous
 stage and commits it to a locally stored ostree repository. The ostree
-repository is created if it does not already exist.
+repository is created if it does not already exist. At the end of the
+stage, the repository is published to the remote server.
 
 image stage
 -----------
@@ -56,8 +57,8 @@ created.
 publish stage
 -------------
 
-This stage publishes the ostree repository and final images to a place
-where they can be accessed by developers/users.
+This stage publishes the final images to a place where they can be
+accessed by developers/users.
 
 error stage
 -----------
@@ -165,6 +166,13 @@ These scripts are responsible for making any configuration changes to the
 system (discouraged), installing packages, etc. The OS packages are installed
 by scripts at index 50.
 
+ostree customization
+----------------------------
+
+At the end of the ostree stage, the `publish-ostree` customization hooks
+are run. These hooks should publish the ostree repository in
+`${EOB_OSTREE}` to the remote ostree server.
+
 image customization
 -------------------
 
@@ -207,7 +215,7 @@ into customization hooks kept in `publish`. As publishing requirements
 vary from host to host, we maintain a different script per each build host.
 
 Each script should take the output of `${EOB_OUTDIR}` and push it to the
-final destination, while also publishing the ostree from `${EOB_OSTREE}`.
+final destination.
 
 
 error customization
