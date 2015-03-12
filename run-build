@@ -140,6 +140,12 @@ EOB_EMAIL_REPLYTO=endless-dev@endlessm.com
 EOB_EMAIL_TO=endless-dev-status@endlessm.com
 export EOB_EMAIL_FROM EOB_EMAIL_REPLYTO EOB_EMAIL_TO
 
+# Jenkins triggering
+EOB_JENKINS_URL="http://ci.endlessm-sf.com:8080"
+EOB_JENKINS_USER=image-builder
+EOB_JENKINS_TOKEN="${EOB_SYSCONF}"/jenkins-token
+export EOB_JENKINS_URL EOB_JENKINS_USER EOB_JENKINS_TOKEN
+
 # Read system config overrides
 [[ -e "${EOB_SYSCONF}"/config ]] && . "${EOB_SYSCONF}"/config
 
