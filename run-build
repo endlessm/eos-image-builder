@@ -127,6 +127,7 @@ export EOB_IMAGE_HOST_SHORT=obs-repository
 export EOB_IMAGE_HOST=${EOB_IMAGE_HOST_SHORT}.endlessm-sf.com
 export EOB_IMAGE_USER=uploader
 export EOB_IMAGE_PATH=/srv/images/www
+export EOB_IMAGE_DEST=${EOB_IMAGE_PATH}/${EOB_PRODUCT}-${EOB_ARCH}-${EOB_PLATFORM}/${EOB_BRANCH}/${EOB_BUILD_VERSION}
 
 # Image URLs
 EOB_IMAGE_URL_ROOT="http://images.endlessm-sf.com/"

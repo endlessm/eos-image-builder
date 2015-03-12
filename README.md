@@ -52,13 +52,14 @@ This stage checks out the latest ostree into a new directory, configures
 the bootloader, adds content, and creates output images. This stage has
 an internal loop which creates images for each personality. After
 completing the image, a 2nd set of images for use in a 2 disk setup is
-created.
+created. After the images are created for each personality, they're
+immediately published to the remote image server.
 
 publish stage
 -------------
 
-This stage publishes the final images to a place where they can be
-accessed by developers/users.
+This stage does a final publishing of the output directory to the remote
+image server.
 
 error stage
 -----------
@@ -205,6 +206,10 @@ mounted at `${OSTREE_DEPLOYMENT}/${EXTRA_MOUNT}`. Hooks are intended to
 migrate content from the root into this filesystem. The filesystem is a
 fixed size (currenlty 8 GB), so hooks are required to ignore failures
 due to insufficient space and revert to the original layout.
+
+After image files are created, customization hooks under `publish-image`
+are run, *once for each personality*. These hooks should publish that
+personality's image files to the remote image server.
 
 publish customization
 ---------------------
