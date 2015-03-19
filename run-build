@@ -72,24 +72,8 @@ case "$(uname -m)" in
     ;;
 esac
 
-# Set personalities to build if they haven't been requested. Detect when
-# the variable is set but empty with -v. This allows no personality
-# builds to be selected.
-if [ -z "${EOB_PERSONALITIES}" ]; then
-  export EOB_PERSONALITIES=base
-  case "${EOB_PRODUCT}" in
-    eos)
-      case "${EOB_ARCH}" in
-        i386)
-          EOB_PERSONALITIES="$EOB_PERSONALITIES en es es_GT pt_BR"
-          ;;
-        armhf)
-          EOB_PERSONALITIES="$EOB_PERSONALITIES es_GT"
-          ;;
-      esac
-      ;;
-  esac
-fi
+# By default, only the base personality image is built.
+export EOB_PERSONALITIES=${EOB_PERSONALITIES:-base}
 
 # Create 2 disk split images for eos.
 if [[ "${EOB_PRODUCT}" == eos ]]; then
