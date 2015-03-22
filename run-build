@@ -102,6 +102,13 @@ else
 fi
 export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
 
+# Internal ostree server URL. This is used to pull the most recent
+# commit and to push the new commit.
+export EOB_OSTREE_INT_HOST=ostree.endlessm-sf.com
+export EOB_OSTREE_INT_USER=uploader
+export EOB_OSTREE_INT_DIR="/srv/ostree/www/${EOB_PRODUCT}-${EOB_ARCH}"
+export EOB_OSTREE_INT_URL="http://${EOB_OSTREE_INT_HOST}/${EOB_PRODUCT}-${EOB_ARCH}"
+
 # Support adding a ref on an alternate branch. By default, no alternate
 # is used.
 export EOB_OSTREE_BRANCH_ALT=
