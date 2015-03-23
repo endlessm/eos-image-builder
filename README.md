@@ -42,27 +42,24 @@ ostree stage
 
 This stage makes appropriate modifications to the output of the previous
 stage and commits it to a locally stored ostree repository. The ostree
-repository is created if it does not already exist.
+repository is created if it does not already exist. At the end of the
+stage, the repository is published to the remote server.
 
 image stage
 -----------
 
 This stage checks out the latest ostree into a new directory, configures
-the bootloader, adds content, and creates output images.
-This stage has an internal loop which creates images for each personality.
-
-split stage
------------
-
-This stage takes the newly created image file and creates a 2nd set of
-images for use in a 2 disk setup. This is performed in a loop over
-personalities.
+the bootloader, adds content, and creates output images. This stage has
+an internal loop which creates images for each personality. After
+completing the image, a 2nd set of images for use in a 2 disk setup is
+created. After the images are created for each personality, they're
+immediately published to the remote image server.
 
 publish stage
 -------------
 
-This stage publishes the ostree repository and final images to a place
-where they can be accessed by developers/users.
+This stage does a final publishing of the output directory to the remote
+image server.
 
 error stage
 -----------
@@ -170,6 +167,13 @@ These scripts are responsible for making any configuration changes to the
 system (discouraged), installing packages, etc. The OS packages are installed
 by scripts at index 50.
 
+ostree customization
+----------------------------
+
+At the end of the ostree stage, the `publish-ostree` customization hooks
+are run. These hooks should publish the ostree repository in
+`${EOB_OSTREE}` to the remote ostree server.
+
 image customization
 -------------------
 
@@ -189,9 +193,6 @@ unconditionally wipe out the results of previous runs* before making any
 changes, otherwise changes from previous personalities might spill over
 into the current one.
 
-split customization
--------------------
-
 Image splitting needs to occur for each full image file created, so the
 `split` hooks are run *once for each personality*.
 `${OSTREE_DEPLOYMENT}` contains the path to the checkout,
@@ -206,6 +207,10 @@ migrate content from the root into this filesystem. The filesystem is a
 fixed size (currenlty 8 GB), so hooks are required to ignore failures
 due to insufficient space and revert to the original layout.
 
+After image files are created, customization hooks under `publish-image`
+are run, *once for each personality*. These hooks should publish that
+personality's image files to the remote image server.
+
 publish customization
 ---------------------
 
@@ -215,7 +220,7 @@ into customization hooks kept in `publish`. As publishing requirements
 vary from host to host, we maintain a different script per each build host.
 
 Each script should take the output of `${EOB_OUTDIR}` and push it to the
-final destination, while also publishing the ostree from `${EOB_OSTREE}`.
+final destination.
 
 
 error customization

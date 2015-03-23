@@ -72,8 +72,8 @@ case "$(uname -m)" in
     ;;
 esac
 
-# By default, only the no personality image is built.
-export EOB_PERSONALITIES=${EOB_PERSONALITIES:-}
+# By default, only the base personality image is built.
+export EOB_PERSONALITIES=${EOB_PERSONALITIES:-base}
 
 # Create 2 disk split images for eos.
 if [[ "${EOB_PRODUCT}" == eos ]]; then
@@ -85,6 +85,11 @@ export EOB_SPLIT_IMAGES
 
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
 export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
+
+# Multiple stable minor version branches may be in use, but the deployed
+# ostree configuration should use only the major version. E.g., the real
+# branch may be eos2.2, but the deployed configuration should use eos2.
+export EOB_OSTREE_BRANCH_DEPLOY=${EOB_BRANCH%.*}/${EOB_PLATFORM}
 
 # The ostree URL that the final system will query for updates. Not used
 # during build time. The product (e.g. eos) and arch is taken as a
@@ -106,6 +111,7 @@ export EOB_IMAGE_HOST_SHORT=obs-repository
 export EOB_IMAGE_HOST=${EOB_IMAGE_HOST_SHORT}.endlessm-sf.com
 export EOB_IMAGE_USER=uploader
 export EOB_IMAGE_PATH=/srv/images/www
+export EOB_IMAGE_DEST=${EOB_IMAGE_PATH}/${EOB_PRODUCT}-${EOB_ARCH}-${EOB_PLATFORM}/${EOB_BRANCH}/${EOB_BUILD_VERSION}
 
 # Image URLs
 EOB_IMAGE_URL_ROOT="http://images.endlessm-sf.com/"
@@ -117,6 +123,12 @@ EOB_EMAIL_FROM=image-builder@endlessm.com
 EOB_EMAIL_REPLYTO=endless-dev@endlessm.com
 EOB_EMAIL_TO=endless-dev-status@endlessm.com
 export EOB_EMAIL_FROM EOB_EMAIL_REPLYTO EOB_EMAIL_TO
+
+# Jenkins triggering
+EOB_JENKINS_URL="http://ci.endlessm-sf.com:8080"
+EOB_JENKINS_USER=image-builder
+EOB_JENKINS_TOKEN="${EOB_SYSCONF}"/jenkins-token
+export EOB_JENKINS_URL EOB_JENKINS_USER EOB_JENKINS_TOKEN
 
 # Read system config overrides
 [[ -e "${EOB_SYSCONF}"/config ]] && . "${EOB_SYSCONF}"/config
