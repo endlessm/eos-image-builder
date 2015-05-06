@@ -154,7 +154,7 @@ EOF
   EXTRA="${OSTREE_CURRENT_VAR}"/endless-extra
   recreate_dir "${EXTRA}"
   mount -t ext4 "${EXTRA_LOOP}" "${EXTRA}"
-  eob_write_version_xattr "${EXTRA}"
+  eob_write_version_xattr "${EXTRA}" ${personality}
 
   # Split files from the root filesystem into extra. Let the hooks know
   # where the extra filesystem is mounted and what the personality is.
