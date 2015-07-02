@@ -94,7 +94,7 @@ export EOB_OSTREE_BRANCH_DEPLOY=${EOB_BRANCH%.*}/${EOB_PLATFORM}
 # The ostree URL that the final system will query for updates. Not used
 # during build time. The product (e.g. eos) and arch is taken as a
 # subdirectory of this address.
-export EOB_OSTREE_URL_ROOT="http://endless:***REMOVED***@ostree.endlessm.com"
+export EOB_OSTREE_URL_ROOT="https://endless:***REMOVED***@ostree.endlessm.com"
 if [[ "${EOB_BRANCH}" == "master" ]]; then
   export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/staging/dev"
 else
