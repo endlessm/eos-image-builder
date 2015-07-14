@@ -12,11 +12,16 @@ cleanup_mounts() {
   unset EXTRA OSTREE_CURRENT OSTREE_CURRENT_VAR ROOT
 }
 
+cleanup_loop() {
+  partx -v -d "$1" || :
+  losetup -d "$1" || :
+}
+
 cleanup_devices() {
   cleanup_mounts
-  [ -n "${ROOT_LOOP}" ] && losetup -d "${ROOT_LOOP}" || :
-  [ -n "${EXTRA_LOOP}" ] && losetup -d "${EXTRA_LOOP}" || :
-  unset ROOT_LOOP EXTRA_LOOP EXTRA_MOUNT PERSONALITY
+  [ -n "${DISK1_LOOP}" ] && cleanup_loop "${DISK1_LOOP}"
+  [ -n "${DISK2_LOOP}" ] && cleanup_loop "${DISK2_LOOP}"
+  unset DISK1_LOOP DISK2_LOOP EXTRA_MOUNT PERSONALITY
 }
 
 cleanup() {
@@ -126,8 +131,9 @@ split_image() {
   fi
 
   # Mount root filesystem from the 2nd partition of the image file.
-  ROOT_LOOP=$(losetup --show --offset $((EOB_DISK1_PART2_START * 512)) \
-    -f "${disk1_img}")
+  DISK1_LOOP=$(losetup --show -f "${disk1_img}")
+  partx -a -v "${DISK1_LOOP}"
+  ROOT_LOOP="${DISK1_LOOP}p2"
   ROOT=${EOB_SCRATCH}/mnt
   recreate_dir "${ROOT}"
   mount -t ext4 "${ROOT_LOOP}" "${ROOT}"
@@ -150,8 +156,9 @@ ${EOB_DISK2_PART1_START}
 EOF
 
   # Create disk2 filesystem and mount it on top of the above bind mount.
-  EXTRA_LOOP=$(losetup --show --offset $((EOB_DISK2_PART1_START * 512)) \
-    -f "${disk2_img}")
+  DISK2_LOOP=$(losetup --show -f "${disk2_img}")
+  partx -a -v "${DISK2_LOOP}"
+  EXTRA_LOOP="${DISK2_LOOP}p1"
   mke2fs -t ext4 -O dir_index,^huge_file -m1 -L extra "${EXTRA_LOOP}"
   EXTRA="${OSTREE_CURRENT_VAR}"/endless-extra
   recreate_dir "${EXTRA}"
