@@ -162,10 +162,9 @@ EOF
   export PERSONALITY=${personality}
   run_hooks split "${OSTREE_CURRENT}"
 
-  # Enable /endless overlayfs mount unit for the split image.
-  mkdir -p "${OSTREE_CURRENT}"/endless \
-    "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.wants
-  ln -sf /lib/systemd/system/endless.mount \
+  # Enable /var/endless-extra mount unit for the split image.
+  mkdir -p "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.wants
+  ln -sf "/lib/systemd/system/var-endless\x2dextra.mount" \
     "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.wants/
 
   # Unmount the filesystems and shrink the image files.
