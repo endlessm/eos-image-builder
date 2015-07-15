@@ -42,9 +42,13 @@ shrink_disk1_image() {
     awk '/^Estimated minimum size/{print $NF}')
   local root_part_size=$((root_part_min_blocks * 4096))
 
-  # Calculate the total disk1 size. Add the sectors up to the end of the
-  # boot partition and the just recalculated root partition size.
-  local disk1_img_size=$((EOB_DISK1_PART2_START * 512 + root_part_size))
+  # Calculate the new total disk1 size
+  local new_disk1_img_size=$root_part_size
+  local old_disk1_img_size=$(blockdev --getsize64 $DISK1_LOOP)
+  local old_disk1_root_size=$(blockdev --getsize64 $ROOT_LOOP)
+
+  # Add the same number of sectors before and after the root partition
+  (( new_disk1_img_size += old_disk1_img_size - old_disk1_root_size))
 
   # After booting, the root fs will be expanded to fill any available
   # space, and we want to provide 1 GiB of free space on the device. The
@@ -53,7 +57,7 @@ shrink_disk1_image() {
   # Fail if the image won't fit in this space.
   local disk1_max_img_size=$(python -c "print int(16 * 10**9 * 0.98)")
   ((disk1_max_img_size -= 1 * 2**30))
-  if ((disk1_img_size > disk1_max_img_size)); then
+  if ((new_disk1_img_size > disk1_max_img_size)); then
     echo "ERROR: ${personality} disk1 image exceeds ${disk1_max_img_size}" >&2
     return 1
   fi
@@ -61,25 +65,30 @@ shrink_disk1_image() {
   # So we don't perform the initial boot with a totally full root, add
   # 100MB of initial free space.
   ((root_part_size += 100 * 2**20))
-  ((disk1_img_size += 100 * 2**20))
-  echo "Creating ${personality} disk1 image with size ${disk1_img_size}"
+  ((new_disk1_img_size += 100 * 2**20))
+  echo "Creating ${personality} disk1 image with size ${new_disk1_img_size}"
 
   # Resize the root fs, specifying sectors from bytes.
   local root_part_len=$((root_part_size / 512))
   e2fsck -f -p "${ROOT_LOOP}"
   resize2fs "${ROOT_LOOP}" "${root_part_len}s"
 
-  # Resize the image file and rewrite the partition table. The image
-  # file is truncated first to try to catch errors in the partition
-  # setup.
-  truncate -s ${disk1_img_size} "${disk1_img}"
-  sfdisk -S 32 -H 32 --force -uS "${disk1_img}" <<EOF
-${EOB_DISK1_PART1_START},${EOB_DISK1_PART1_LEN},,*
-${EOB_DISK1_PART2_START},${root_part_len},,
-EOF
+  # Read the current partition table. Must be done before truncating the
+  # image; sfdisk doesn't manage to read the GPT from the truncated image
+  # because it has lost the GPT backup.
+  local orig_partitions=$(sfdisk -d "${disk1_img}")
 
-  # Ensure magic marker on 4th partition still exists.
-  sfdisk --change-id "${disk1_img}" 4 dd
+  # Resize the image file first, to try to later catch errors in the partition
+  # setup.
+  truncate -s ${new_disk1_img_size} "${disk1_img}"
+
+  # Adjust and restore the partition table
+  # last-lba is removed for sfdisk to recompute
+  # The final partition is sized according to our calculations
+  echo "${orig_partitions}" | sed \
+	-e '/^last-lba:/d' \
+	-e "$ s/size=[0-9\t ]*,/size=${root_part_len},/" |
+	sfdisk --force --label gpt "${disk1_img}"
 }
 
 # Shrink the disk2 image after migration to extra storage.
@@ -94,26 +103,37 @@ shrink_disk2_image() {
     awk '/^Estimated minimum size/{print $NF}')
   local extra_part_size=$((extra_part_min_blocks * 4096))
 
-  # Calculate the total disk2 size. Add any additional sectors before
-  # the first partition.
-  local disk2_img_size=$((extra_part_size + EOB_DISK2_PART1_START * 512))
-  echo "Creating ${personality} disk2 image with size ${disk2_img_size}"
+  # Calculate the new total disk1 size
+  local new_disk2_img_size=$extra_part_size
+  local old_disk2_img_size=$(blockdev --getsize64 $DISK2_LOOP)
+  local old_disk2_extra_size=$(blockdev --getsize64 $EXTRA_LOOP)
+
+  # Add the same number of sectors before and after the partition
+  (( new_disk2_img_size += old_disk2_img_size - old_disk2_extra_size))
+
+  echo "Creating ${personality} disk2 image with size ${new_disk2_img_size}"
 
   # Resize the extra fs, specifying sectors from bytes.
   local extra_part_len=$((extra_part_size / 512))
   e2fsck -f -p "${EXTRA_LOOP}"
   resize2fs "${EXTRA_LOOP}" "${extra_part_len}s"
 
-  # Resize the image file and rewrite the partition table. The image
-  # file is truncated first to try to catch errors in the partition
-  # setup.
-  truncate -s ${disk2_img_size} "${disk2_img}"
-  sfdisk -S 32 -H 32 --force -uS "${disk2_img}" <<EOF
-${EOB_DISK2_PART1_START}
-EOF
+  # Read the current partition table. Must be done before truncating the
+  # image; sfdisk doesn't manage to read the GPT from the truncated image
+  # because it has lost the GPT backup.
+  local orig_partitions=$(sfdisk -d "${disk2_img}")
 
-  # Add magic marker on 4th partition to signal resizing is wanted.
-  sfdisk --change-id "${disk2_img}" 4 dd
+  # Resize the image file first to try to catch errors in the partition
+  # setup.
+  truncate -s ${new_disk2_img_size} "${disk2_img}"
+
+  # Adjust and restore the partition table
+  # last-lba is removed for sfdisk to recompute
+  # The final partition is sized according to our calculations
+  echo "${orig_partitions}" | sed \
+	-e '/^last-lba:/d' \
+	-e "$ s/size=[0-9\t ]*,/size=${extra_part_len},/" |
+	sfdisk --force --label gpt "${disk2_img}"
 }
 
 split_image() {
@@ -130,10 +150,11 @@ split_image() {
     disk2_img_gz=$(eob_outfile disk2.img.gz)
   fi
 
-  # Mount root filesystem from the 2nd partition of the image file.
+  # Mount root filesystem from the last partition of the image file.
   DISK1_LOOP=$(losetup --show -f "${disk1_img}")
   partx -a -v "${DISK1_LOOP}"
-  ROOT_LOOP="${DISK1_LOOP}p2"
+  local disk1_parts=( "${DISK1_LOOP}"p* )
+  ROOT_LOOP="${disk1_parts[-1]}"
   ROOT=${EOB_SCRATCH}/mnt
   recreate_dir "${ROOT}"
   mount -t ext4 "${ROOT_LOOP}" "${ROOT}"
@@ -151,9 +172,9 @@ split_image() {
   rm -f "${disk2_img}"
   local disk2_img_size=$(python -c "print int(16 * 10**9 * 0.98)")
   truncate -s ${disk2_img_size} "${disk2_img}"
-  sfdisk -S 32 -H 32 --force -uS "${disk2_img}" <<EOF
-${EOB_DISK2_PART1_START}
-EOF
+
+  # Attr 55 indicates that the partition should be resized later.
+  echo "start=2048, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, attrs=GUID:55" | sfdisk --force --label gpt "${disk2_img}"
 
   # Create disk2 filesystem and mount it on top of the above bind mount.
   DISK2_LOOP=$(losetup --show -f "${disk2_img}")
