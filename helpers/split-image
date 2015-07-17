@@ -32,6 +32,7 @@ shrink_disk1_image() {
 
   # Calculate the shrunken root fs size from the esimated minimum. The
   # minimum size is in blocks, which are assumed to be 4kB.
+  e2fsck -f -p "${ROOT_LOOP}"
   local root_part_min_blocks=$(resize2fs -P $ROOT_LOOP | \
     awk '/^Estimated minimum size/{print $NF}')
   local root_part_size=$((root_part_min_blocks * 4096))
@@ -83,6 +84,7 @@ shrink_disk2_image() {
 
   # Calculate the shrunken extra fs size from the esimated minimum. The
   # minimum size is in blocks, which are assumed to be 4kB.
+  e2fsck -f -p "${EXTRA_LOOP}"
   local extra_part_min_blocks=$(resize2fs -P $EXTRA_LOOP | \
     awk '/^Estimated minimum size/{print $NF}')
   local extra_part_size=$((extra_part_min_blocks * 4096))
