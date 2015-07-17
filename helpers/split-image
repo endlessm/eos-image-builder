@@ -66,6 +66,12 @@ shrink_disk1_image() {
   # 100MB of initial free space.
   ((root_part_size += 100 * 2**20))
   ((new_disk1_img_size += 100 * 2**20))
+
+  if ((new_disk1_img_size >= old_disk1_img_size)); then
+    echo "Avoid growing ${personality} disk1 image to ${new_disk1_img_size}"
+    return 0
+  fi
+
   echo "Creating ${personality} disk1 image with size ${new_disk1_img_size}"
 
   # Resize the root fs, specifying sectors from bytes.
