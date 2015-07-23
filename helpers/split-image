@@ -1,32 +1,25 @@
 #!/bin/bash -ex
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
 . "${EOB_BASELIB}"
 
 # Split the existing full image into two files. One image file is for
 # the main disk, and one is for a supplemental disk to be filled with
 # apps.
 
-cleanup_mounts() {
-  [ -n "${EXTRA}" ] && umount "${EXTRA}" || :
-  [ -n "${OSTREE_CURRENT_VAR}" ] && umount "${OSTREE_CURRENT_VAR}" || :
-  [ -n "${ROOT}" ] && umount "${ROOT}" || :
-  unset EXTRA OSTREE_CURRENT OSTREE_CURRENT_VAR ROOT
-}
-
 cleanup_loop() {
-  partx -v -d "$1" || :
-  losetup -d "$1" || :
+  partx -v -d "$1"
+  losetup -d "$1"
 }
 
 cleanup_devices() {
-  cleanup_mounts
   [ -n "${DISK1_LOOP}" ] && cleanup_loop "${DISK1_LOOP}"
   [ -n "${DISK2_LOOP}" ] && cleanup_loop "${DISK2_LOOP}"
-  unset DISK1_LOOP DISK2_LOOP EXTRA_MOUNT PERSONALITY
+  unset DISK1_LOOP DISK2_LOOP
 }
 
 cleanup() {
-  cleanup_mounts
-  cleanup_devices
+  eob_umount_all || :
+  cleanup_devices || :
 }
 trap cleanup EXIT
 
@@ -164,14 +157,14 @@ split_image() {
   ROOT_LOOP="${disk1_parts[-1]}"
   ROOT=${EOB_SCRATCH}/mnt
   recreate_dir "${ROOT}"
-  mount -t ext4 "${ROOT_LOOP}" "${ROOT}"
+  eob_mount -t ext4 "${ROOT_LOOP}" "${ROOT}"
 
   # Bind mount the ostree /var into the current deployment so it
   # resembles the booted system.
   export OSTREE_CURRENT="${ROOT}"/ostree/deploy/${EOB_PRODUCT}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
   local ostree_var="${ROOT}"/ostree/deploy/${EOB_PRODUCT}/var
   OSTREE_CURRENT_VAR="${OSTREE_CURRENT}"/var
-  mount --bind "${ostree_var}" "${OSTREE_CURRENT_VAR}"
+  eob_mount --bind "${ostree_var}" "${OSTREE_CURRENT_VAR}"
 
   # Create disk2 image file with 1 partition for our "16 GB" SD card.
   # The actual size might vary and we want to be a little connservative,
@@ -190,7 +183,7 @@ split_image() {
   mke2fs -t ext4 -O dir_index,^huge_file -m1 -L extra "${EXTRA_LOOP}"
   EXTRA="${OSTREE_CURRENT_VAR}"/endless-extra
   recreate_dir "${EXTRA}"
-  mount -t ext4 "${EXTRA_LOOP}" "${EXTRA}"
+  eob_mount -t ext4 "${EXTRA_LOOP}" "${EXTRA}"
   eob_write_version_xattr "${EXTRA}" ${personality}
 
   # Split files from the root filesystem into extra. Let the hooks know
@@ -205,7 +198,7 @@ split_image() {
     "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.wants/
 
   # Unmount the filesystems and shrink the image files.
-  cleanup_mounts
+  eob_umount_all
   shrink_disk1_image "${disk1_img}" "${personality}"
   shrink_disk2_image "${disk2_img}" "${personality}"
 

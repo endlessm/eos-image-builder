@@ -1,3 +1,4 @@
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
 # Run the eob_error stage on errors. Return code 2 is used for image
 # build failures to differentiate from locking failures.
 stage_error() {
