@@ -77,7 +77,9 @@ esac
 export EOB_PERSONALITIES=${EOB_PERSONALITIES:-base}
 
 # Create 2 disk split images for eos.
-if [[ "${EOB_PRODUCT}" == eos ]]; then
+# FIXME: Temporarily disabling armhf split due to image failure. See
+# https://github.com/endlessm/eos-shell/issues/5416.
+if [[ "${EOB_PRODUCT}" == eos ]] && [[ "${EOB_ARCH}" != armhf ]]; then
   EOB_SPLIT_IMAGES=true
 else
   EOB_SPLIT_IMAGES=false
