@@ -8,7 +8,7 @@
 
 cleanup_loop() {
   partx -v -d "$1"
-  losetup -d "$1"
+  eob_delete_loop "$1"
 }
 
 cleanup_devices() {
