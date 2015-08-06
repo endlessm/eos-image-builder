@@ -76,12 +76,15 @@ esac
 # By default, only the base personality image is built.
 export EOB_PERSONALITIES=${EOB_PERSONALITIES:-base}
 
-# Create 2 disk split images for eos.
-if [[ "${EOB_PRODUCT}" == eos ]]; then
-  EOB_SPLIT_IMAGES=true
-else
-  EOB_SPLIT_IMAGES=false
-fi
+# Create 2 disk split images for everything except eosdev.
+case "${EOB_PRODUCT}" in
+  eosdev)
+    EOB_SPLIT_IMAGES=false
+    ;;
+  *)
+    EOB_SPLIT_IMAGES=true
+    ;;
+esac
 export EOB_SPLIT_IMAGES
 
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
