@@ -86,6 +86,8 @@ export EOB_SPLIT_IMAGES
 
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
 export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
+export EOB_OSTREE_REPO=${EOB_PRODUCT}-${EOB_ARCH}
+export EOB_OSTREE_OS=${EOB_PRODUCT}
 
 # Multiple stable minor version branches may be in use, but the deployed
 # ostree configuration should use only the major version. E.g., the real
@@ -101,14 +103,14 @@ if [[ "${EOB_BRANCH}" == "master" ]]; then
 else
   export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/ostree"
 fi
-export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
+export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_OSTREE_REPO}
 
 # Internal ostree server URL. This is used to pull the most recent
 # commit and to push the new commit.
 export EOB_OSTREE_INT_HOST=ostree.endlessm-sf.com
 export EOB_OSTREE_INT_USER=uploader
-export EOB_OSTREE_INT_DIR="/srv/ostree/www/${EOB_PRODUCT}-${EOB_ARCH}"
-export EOB_OSTREE_INT_URL="http://${EOB_OSTREE_INT_HOST}/${EOB_PRODUCT}-${EOB_ARCH}"
+export EOB_OSTREE_INT_DIR="/srv/ostree/www/${EOB_OSTREE_REPO}"
+export EOB_OSTREE_INT_URL="http://${EOB_OSTREE_INT_HOST}/${EOB_OSTREE_REPO}"
 
 # Support adding a ref on an alternate branch. By default, no alternate
 # is used.

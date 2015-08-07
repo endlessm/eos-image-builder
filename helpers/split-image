@@ -161,8 +161,8 @@ split_image() {
 
   # Bind mount the ostree /var into the current deployment so it
   # resembles the booted system.
-  export OSTREE_CURRENT="${ROOT}"/ostree/deploy/${EOB_PRODUCT}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
-  local ostree_var="${ROOT}"/ostree/deploy/${EOB_PRODUCT}/var
+  export OSTREE_CURRENT="${ROOT}"/ostree/deploy/${EOB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
+  local ostree_var="${ROOT}"/ostree/deploy/${EOB_OSTREE_OS}/var
   OSTREE_CURRENT_VAR="${OSTREE_CURRENT}"/var
   eob_mount --bind "${ostree_var}" "${OSTREE_CURRENT_VAR}"
 
