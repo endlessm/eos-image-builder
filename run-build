@@ -89,6 +89,22 @@ export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
 export EOB_OSTREE_REPO=${EOB_PRODUCT}-${EOB_ARCH}
 export EOB_OSTREE_OS=${EOB_PRODUCT}
 
+# The eos and eosnonfree products are handled a bit counterintuitively.
+# For both products, we want to continue using the eos OS name. For eos,
+# we will temporarily use a separate repo called eosfree-$arch. For
+# eosnonfree, it will continue using the eos-$arch repo so our users
+# with codecs continue to get updates. Later, when the OS is clean
+# again, the eosfree-$arch repo will go away and both will use the
+# eos-$arch repo.
+case "${EOB_PRODUCT}" in
+  eos)
+    EOB_OSTREE_REPO=eosfree-${EOB_ARCH}
+    ;;
+  eosnonfree)
+    EOB_OSTREE_OS=eos-${EOB_ARCH}
+    ;;
+esac
+
 # Multiple stable minor version branches may be in use, but the deployed
 # ostree configuration should use only the major version. E.g., the real
 # branch may be eos2.2, but the deployed configuration should use eos2.
