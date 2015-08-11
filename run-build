@@ -76,16 +76,41 @@ esac
 # By default, only the base personality image is built.
 export EOB_PERSONALITIES=${EOB_PERSONALITIES:-base}
 
-# Create 2 disk split images for eos.
-if [[ "${EOB_PRODUCT}" == eos ]]; then
-  EOB_SPLIT_IMAGES=true
-else
-  EOB_SPLIT_IMAGES=false
-fi
+# Create 2 disk split images for everything except eosdev.
+case "${EOB_PRODUCT}" in
+  eosdev)
+    EOB_SPLIT_IMAGES=false
+    ;;
+  *)
+    EOB_SPLIT_IMAGES=true
+    ;;
+esac
 export EOB_SPLIT_IMAGES
 
 export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
 export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
+export EOB_OSTREE_REPO=${EOB_PRODUCT}-${EOB_ARCH}
+export EOB_OSTREE_OS=${EOB_PRODUCT}
+
+# The eos and eosnonfree products are handled a bit counterintuitively.
+# For both products, we want to continue using the eos OS name. For eos,
+# we will temporarily use a separate repo called eosfree-$arch. For
+# eosnonfree, it will continue using the eos-$arch repo so our users
+# with codecs continue to get updates. Later, when the OS is clean
+# again, the eosfree-$arch repo will go away and both will use the
+# eos-$arch repo.
+case "${EOB_PRODUCT}" in
+  eos)
+    EOB_OSTREE_REPO=eosfree-${EOB_ARCH}
+    ;;
+  eosnonfree)
+    EOB_OSTREE_OS=eos-${EOB_ARCH}
+    ;;
+esac
+
+# Builder's ostree repo. Use the same name as above to maintain
+# appropriate mirroring to the server.
+export EOB_OSTREE=${EOB_SCRATCH}/ostree/${EOB_OSTREE_REPO}
 
 # Multiple stable minor version branches may be in use, but the deployed
 # ostree configuration should use only the major version. E.g., the real
@@ -101,14 +126,14 @@ if [[ "${EOB_BRANCH}" == "master" ]]; then
 else
   export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/ostree"
 fi
-export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_PRODUCT}-${EOB_ARCH}
+export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_OSTREE_REPO}
 
 # Internal ostree server URL. This is used to pull the most recent
 # commit and to push the new commit.
 export EOB_OSTREE_INT_HOST=ostree.endlessm-sf.com
 export EOB_OSTREE_INT_USER=uploader
-export EOB_OSTREE_INT_DIR="/srv/ostree/www/${EOB_PRODUCT}-${EOB_ARCH}"
-export EOB_OSTREE_INT_URL="http://${EOB_OSTREE_INT_HOST}/${EOB_PRODUCT}-${EOB_ARCH}"
+export EOB_OSTREE_INT_DIR="/srv/ostree/www/${EOB_OSTREE_REPO}"
+export EOB_OSTREE_INT_URL="http://${EOB_OSTREE_INT_HOST}/${EOB_OSTREE_REPO}"
 
 # Support adding a ref on an alternate branch. By default, no alternate
 # is used.
