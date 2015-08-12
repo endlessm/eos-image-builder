@@ -190,6 +190,12 @@ split_image() {
   # where the extra filesystem is mounted and what the personality is.
   export EXTRA_MOUNT=/var/endless-extra
   export PERSONALITY=${personality}
+
+  # Mount kernel filesystems into deployment for split hooks
+  eob_mount -t sysfs sysfs "${OSTREE_CURRENT}"/sys
+  eob_mount -t proc proc "${OSTREE_CURRENT}"/proc
+  eob_mount --bind /dev "${OSTREE_CURRENT}"/dev
+
   run_hooks split "${OSTREE_CURRENT}"
 
   # Enable /var/endless-extra mount unit for the split image.
