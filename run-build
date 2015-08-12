@@ -104,7 +104,8 @@ case "${EOB_PRODUCT}" in
     EOB_OSTREE_REPO=eosfree-${EOB_ARCH}
     ;;
   eosnonfree)
-    EOB_OSTREE_OS=eos-${EOB_ARCH}
+    EOB_OSTREE_REPO=eos-${EOB_ARCH}
+    EOB_OSTREE_OS=eos
     ;;
 esac
 
