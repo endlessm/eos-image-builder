@@ -108,10 +108,6 @@ case "${EOB_PRODUCT}" in
     ;;
 esac
 
-# Builder's ostree repo. Use the same name as above to maintain
-# appropriate mirroring to the server.
-export EOB_OSTREE=${EOB_SCRATCH}/ostree/${EOB_OSTREE_REPO}
-
 # Multiple stable minor version branches may be in use, but the deployed
 # ostree configuration should use only the major version. E.g., the real
 # branch may be eos2.2, but the deployed configuration should use eos2.
