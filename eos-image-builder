@@ -2,6 +2,28 @@
 # -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
 MYDIR=$(dirname $(readlink -f $0))
 
+# This option list must stay in sync with run-build. It's repeated here
+# so that the branch to checkout can be reliably determined.
+orig_args=("$@")
+args=$(getopt -o "p:P:n" -l "product:,platform:,personalities:,dry-run" \
+  -n "eos-image-builder" -- "$@")
+eval set -- "${args}"
+
+while true; do
+  case "$1" in
+    --)
+      shift
+      break
+      ;;
+    *)
+      # All other options are to be processed by run-build. Skip them.
+      shift
+      ;;
+  esac
+done
+
+branch=${1:-master}
+
 # Ensure the lock is taken before checking out the needed branch. This
 # is done in a subshell with the file connected to fd 9 to ensure the
 # file remains locked until the build completes.
@@ -20,9 +42,9 @@ mkdir -p /var/lock
     if [ -z "$JENKINS_HOME" ]; then
       git fetch origin
     fi
-    git checkout origin/${1:-master}
+    git checkout origin/"$branch"
     git clean -xdf
   fi
 
-  ./run-build "$@"
+  ./run-build "${orig_args[@]}"
 ) 9>/var/lock/eos-image-builder.lock
