@@ -26,13 +26,15 @@ Build and publish images for Endless
   --platform            platform to build
   -P, --personalities   personalities to build
   -n, --dry-run         don't publish images
+  --no-checkout         use current builder branch
   -h, --help            display this help and exit
 
 If BRANCH is not specified, master is used.
 EOF
 }
 
-args=$(getopt -o "p:P:nh" -l "product:,platform:,personalities:,dry-run,help" \
+args=$(getopt -o "p:P:nh" \
+  -l "product:,platform:,personalities:,dry-run,no-checkout,help" \
   -n "eos-image-builder" -- "$@")
 eval set -- "${args}"
 
@@ -52,6 +54,10 @@ while true; do
       ;;
     -n|--dry-run)
       export EOB_DRY_RUN=true
+      shift
+      ;;
+    --no-checkout)
+      # Ignored, only used in top level script
       shift
       ;;
     -h|--help)
