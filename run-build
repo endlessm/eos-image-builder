@@ -10,9 +10,6 @@ export LANG=C
 unset LANGUAGE LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
 unset LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT LC_IDENTIFICATION
 unset LC_ALL
-export DEBIAN_FRONTEND=noninteractive
-export DEBCONF_NONINTERACTIVE_SEEN=true
-export DEBIAN_PRIORITY=critical
 
 # Make sure ERR traps follow through to shell functions
 set -E
@@ -78,12 +75,7 @@ export EOB_OBS_REPO=http://obs-master.endlessm-sf.com:82/shared/eos
 export EOB_BRANCH=${1:-master}
 export EOB_PRODUCT=${EOB_PRODUCT:-eos}
 
-# GPG private key ID to sign ostree commit. The key with this ID must be
-# available in ${EOB_SYSCONF}/gnupg
-# EOSK1 key expiring 2019-05-13.
-EOB_OSTREE_KEYID=BA02FC46
-export EOB_OSTREE_KEYID
-
+# GPG private key ID for signing images
 export EOB_IMAGE_SIGNING_KEYID=587A279C
 
 case "$(uname -m)" in
@@ -151,15 +143,11 @@ fi
 export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_OSTREE_REPO}
 
 # Internal ostree server URL. This is used to pull the most recent
-# commit and to push the new commit.
+# commit.
 export EOB_OSTREE_INT_HOST=ostree.endlessm-sf.com
 export EOB_OSTREE_INT_USER=uploader
 export EOB_OSTREE_INT_DIR="/srv/ostree/www/${EOB_OSTREE_REPO}"
 export EOB_OSTREE_INT_URL="http://${EOB_OSTREE_INT_HOST}/${EOB_OSTREE_REPO}"
-
-# Support adding a ref on an alternate branch. By default, no alternate
-# is used.
-export EOB_OSTREE_BRANCH_ALT=
 
 # Image uploading
 export EOB_IMAGE_HOST_SHORT=obs-repository
