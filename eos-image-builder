@@ -5,6 +5,7 @@ MYDIR=$(dirname $(readlink -f $0))
 # Ensure the lock is taken before checking out the needed branch. This
 # is done in a subshell with the file connected to fd 9 to ensure the
 # file remains locked until the build completes.
+mkdir -p /var/lock
 (
   if ! flock -w 60 9; then
     echo "ERROR: instance already running" >&2
@@ -24,4 +25,4 @@ MYDIR=$(dirname $(readlink -f $0))
   fi
 
   ./run-build "$@"
-) 9>/var/tmp/eob.lock
+) 9>/var/lock/eos-image-builder.lock
