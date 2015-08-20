@@ -1,10 +1,10 @@
 #!/bin/bash -ex
 # -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
-export EOB_SRC=$(dirname $(readlink -f $0))
-export EOB_SYSCONF=/etc/eos-image-builder
-export EOB_BASELIB="${EOB_SRC}"/lib/eob.sh
-export PATH=$EOB_SRC/stages:$PATH
-export PYTHONPATH=$EOB_SRC/lib
+export EIB_SRC=$(dirname $(readlink -f $0))
+export EIB_SYSCONF=/etc/eos-image-builder
+export EIB_BASELIB="${EIB_SRC}"/lib/eib.sh
+export PATH=$EIB_SRC/stages:$PATH
+export PYTHONPATH=$EIB_SRC/lib
 
 export LANG=C
 unset LANGUAGE LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
@@ -38,19 +38,19 @@ eval set -- "${args}"
 while true; do
   case "$1" in
     -p|--product)
-      EOB_PRODUCT=$2
+      EIB_PRODUCT=$2
       shift 2
       ;;
     --platform)
-      EOB_PLATFORM=$2
+      EIB_PLATFORM=$2
       shift 2
       ;;
     -P|--personalities)
-      EOB_PERSONALITIES=$2
+      EIB_PERSONALITIES=$2
       shift 2
       ;;
     -n|--dry-run)
-      export EOB_DRY_RUN=true
+      export EIB_DRY_RUN=true
       shift
       ;;
     --no-checkout)
@@ -70,44 +70,44 @@ done
 
 # Some configuration defaults
 # Debian package repository from where OS packages will be obtained
-export EOB_OBS_REPO=http://obs-master.endlessm-sf.com:82/shared/eos
+export EIB_OBS_REPO=http://obs-master.endlessm-sf.com:82/shared/eos
 
-export EOB_BRANCH=${1:-master}
-export EOB_PRODUCT=${EOB_PRODUCT:-eos}
+export EIB_BRANCH=${1:-master}
+export EIB_PRODUCT=${EIB_PRODUCT:-eos}
 
 # GPG private key ID for signing images
-export EOB_IMAGE_SIGNING_KEYID=587A279C
+export EIB_IMAGE_SIGNING_KEYID=587A279C
 
 case "$(uname -m)" in
   x86_64|i?86)
-    export EOB_ARCH=i386
-    export EOB_PLATFORM=${EOB_PLATFORM:-i386}
+    export EIB_ARCH=i386
+    export EIB_PLATFORM=${EIB_PLATFORM:-i386}
     ;;
 
   arm*)
-    export EOB_ARCH=armhf
-    export EOB_PLATFORM=${EOB_PLATFORM:-odroidu2}
+    export EIB_ARCH=armhf
+    export EIB_PLATFORM=${EIB_PLATFORM:-odroidu2}
     ;;
 esac
 
 # By default, only the base personality image is built.
-export EOB_PERSONALITIES=${EOB_PERSONALITIES:-base}
+export EIB_PERSONALITIES=${EIB_PERSONALITIES:-base}
 
 # Create 2 disk split images for everything except eosdev.
-case "${EOB_PRODUCT}" in
+case "${EIB_PRODUCT}" in
   eosdev)
-    EOB_SPLIT_IMAGES=false
+    EIB_SPLIT_IMAGES=false
     ;;
   *)
-    EOB_SPLIT_IMAGES=true
+    EIB_SPLIT_IMAGES=true
     ;;
 esac
-export EOB_SPLIT_IMAGES
+export EIB_SPLIT_IMAGES
 
-export EOB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
-export EOB_OSTREE_BRANCH=${EOB_BRANCH}/${EOB_PLATFORM}
-export EOB_OSTREE_REPO=${EOB_PRODUCT}-${EOB_ARCH}
-export EOB_OSTREE_OS=${EOB_PRODUCT}
+export EIB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
+export EIB_OSTREE_BRANCH=${EIB_BRANCH}/${EIB_PLATFORM}
+export EIB_OSTREE_REPO=${EIB_PRODUCT}-${EIB_ARCH}
+export EIB_OSTREE_OS=${EIB_PRODUCT}
 
 # The eos and eosnonfree products are handled a bit counterintuitively.
 # For both products, we want to continue using the eos OS name. For eos,
@@ -116,79 +116,79 @@ export EOB_OSTREE_OS=${EOB_PRODUCT}
 # with codecs continue to get updates. Later, when the OS is clean
 # again, the eosfree-$arch repo will go away and both will use the
 # eos-$arch repo.
-case "${EOB_PRODUCT}" in
+case "${EIB_PRODUCT}" in
   eos)
-    EOB_OSTREE_REPO=eosfree-${EOB_ARCH}
+    EIB_OSTREE_REPO=eosfree-${EIB_ARCH}
     ;;
   eosnonfree)
-    EOB_OSTREE_REPO=eos-${EOB_ARCH}
-    EOB_OSTREE_OS=eos
+    EIB_OSTREE_REPO=eos-${EIB_ARCH}
+    EIB_OSTREE_OS=eos
     ;;
 esac
 
 # Multiple stable minor version branches may be in use, but the deployed
 # ostree configuration should use only the major version. E.g., the real
 # branch may be eos2.2, but the deployed configuration should use eos2.
-export EOB_OSTREE_BRANCH_DEPLOY=${EOB_BRANCH%.*}/${EOB_PLATFORM}
+export EIB_OSTREE_BRANCH_DEPLOY=${EIB_BRANCH%.*}/${EIB_PLATFORM}
 
 # The ostree URL that the final system will query for updates. Not used
 # during build time. The product (e.g. eos) and arch is taken as a
 # subdirectory of this address.
-export EOB_OSTREE_URL_ROOT="https://endless:***REMOVED***@ostree.endlessm.com"
-if [[ "${EOB_BRANCH}" == "master" ]]; then
-  export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/staging/dev"
+export EIB_OSTREE_URL_ROOT="https://endless:***REMOVED***@ostree.endlessm.com"
+if [[ "${EIB_BRANCH}" == "master" ]]; then
+  export EIB_OSTREE_URL_BASE="${EIB_OSTREE_URL_ROOT}/staging/dev"
 else
-  export EOB_OSTREE_URL_BASE="${EOB_OSTREE_URL_ROOT}/ostree"
+  export EIB_OSTREE_URL_BASE="${EIB_OSTREE_URL_ROOT}/ostree"
 fi
-export EOB_OSTREE_URL=${EOB_OSTREE_URL_BASE}/${EOB_OSTREE_REPO}
+export EIB_OSTREE_URL=${EIB_OSTREE_URL_BASE}/${EIB_OSTREE_REPO}
 
 # Internal ostree server URL. This is used to pull the most recent
 # commit.
-export EOB_OSTREE_INT_HOST=ostree.endlessm-sf.com
-export EOB_OSTREE_INT_USER=uploader
-export EOB_OSTREE_INT_DIR="/srv/ostree/www/${EOB_OSTREE_REPO}"
-export EOB_OSTREE_INT_URL="http://${EOB_OSTREE_INT_HOST}/${EOB_OSTREE_REPO}"
+export EIB_OSTREE_INT_HOST=ostree.endlessm-sf.com
+export EIB_OSTREE_INT_USER=uploader
+export EIB_OSTREE_INT_DIR="/srv/ostree/www/${EIB_OSTREE_REPO}"
+export EIB_OSTREE_INT_URL="http://${EIB_OSTREE_INT_HOST}/${EIB_OSTREE_REPO}"
 
 # Image uploading
-export EOB_IMAGE_HOST_SHORT=obs-repository
-export EOB_IMAGE_HOST=${EOB_IMAGE_HOST_SHORT}.endlessm-sf.com
-export EOB_IMAGE_USER=uploader
-export EOB_IMAGE_PATH=/srv/images/www
-export EOB_IMAGE_DEST=${EOB_IMAGE_PATH}/${EOB_PRODUCT}-${EOB_ARCH}-${EOB_PLATFORM}/${EOB_BRANCH}/${EOB_BUILD_VERSION}
+export EIB_IMAGE_HOST_SHORT=obs-repository
+export EIB_IMAGE_HOST=${EIB_IMAGE_HOST_SHORT}.endlessm-sf.com
+export EIB_IMAGE_USER=uploader
+export EIB_IMAGE_PATH=/srv/images/www
+export EIB_IMAGE_DEST=${EIB_IMAGE_PATH}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_BUILD_VERSION}
 
 # Image URLs
-EOB_IMAGE_URL_ROOT="http://images.endlessm-sf.com/"
-EOB_IMAGE_URL_BASE="${EOB_IMAGE_URL_ROOT}/${EOB_PRODUCT}-${EOB_ARCH}-${EOB_PLATFORM}/${EOB_BRANCH}/${EOB_BUILD_VERSION}"
-export EOB_IMAGE_URL_ROOT EOB_IMAGE_URL_BASE
+EIB_IMAGE_URL_ROOT="http://images.endlessm-sf.com/"
+EIB_IMAGE_URL_BASE="${EIB_IMAGE_URL_ROOT}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_BUILD_VERSION}"
+export EIB_IMAGE_URL_ROOT EIB_IMAGE_URL_BASE
 
 # Email settings
-EOB_EMAIL_FROM=image-builder@endlessm.com
-EOB_EMAIL_REPLYTO=endless-dev@endlessm.com
-EOB_EMAIL_TO=endless-dev-status@endlessm.com
-export EOB_EMAIL_FROM EOB_EMAIL_REPLYTO EOB_EMAIL_TO
+EIB_EMAIL_FROM=image-builder@endlessm.com
+EIB_EMAIL_REPLYTO=endless-dev@endlessm.com
+EIB_EMAIL_TO=endless-dev-status@endlessm.com
+export EIB_EMAIL_FROM EIB_EMAIL_REPLYTO EIB_EMAIL_TO
 
 # Jenkins triggering
-EOB_JENKINS_URL="http://ci.endlessm-sf.com:8080"
-EOB_JENKINS_USER=image-builder
-EOB_JENKINS_TOKEN="${EOB_SYSCONF}"/jenkins-token
-export EOB_JENKINS_URL EOB_JENKINS_USER EOB_JENKINS_TOKEN
+EIB_JENKINS_URL="http://ci.endlessm-sf.com:8080"
+EIB_JENKINS_USER=image-builder
+EIB_JENKINS_TOKEN="${EIB_SYSCONF}"/jenkins-token
+export EIB_JENKINS_URL EIB_JENKINS_USER EIB_JENKINS_TOKEN
 
 # Read system config overrides
-[[ -e "${EOB_SYSCONF}"/config ]] && . "${EOB_SYSCONF}"/config
+[[ -e "${EIB_SYSCONF}"/config ]] && . "${EIB_SYSCONF}"/config
 
 # Read user config overrides
-[[ -e "${EOB_SRC}"/config ]] && . "${EOB_SRC}"/config
+[[ -e "${EIB_SRC}"/config ]] && . "${EIB_SRC}"/config
 
-. "${EOB_BASELIB}"
+. "${EIB_BASELIB}"
 
-recreate_dir "${EOB_OUTDIR}"
-recreate_dir "${EOB_TMPDIR}"
-exec > >(tee $(eob_outfile build.txt))
+recreate_dir "${EIB_OUTDIR}"
+recreate_dir "${EIB_TMPDIR}"
+exec > >(tee $(eib_outfile build.txt))
 exec 2>&1
 
-mkdir -p "${EOB_CONTENT}"
-. "${EOB_SRC}"/buildscript
+mkdir -p "${EIB_CONTENT}"
+. "${EIB_SRC}"/buildscript
 
 # Unless this is a dry run, the output files have been published and can
 # be deleted.
-[ -n "${EOB_DRY_RUN}" ] || rm -rf "${EOB_OUTDIR}"
+[ -n "${EIB_DRY_RUN}" ] || rm -rf "${EIB_OUTDIR}"

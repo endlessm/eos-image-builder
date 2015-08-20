@@ -13,7 +13,7 @@ eval set -- "${args}"
 while true; do
   case "$1" in
     --no-checkout)
-      EOB_NO_CHECKOUT=true
+      EIB_NO_CHECKOUT=true
       shift
       ;;
     -h|--help)
@@ -48,7 +48,7 @@ mkdir -p /var/lock
   # that if the job is running from jenkins that it has already fetched
   # the latest.
   cd $MYDIR
-  if [ -z "$EOB_NO_CHECKOUT" ]; then
+  if [ -z "$EIB_NO_CHECKOUT" ]; then
     if [ -z "$JENKINS_HOME" ]; then
       git fetch origin
     fi

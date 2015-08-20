@@ -1,4 +1,4 @@
-Endless OS Builder (EOB)
+Endless OS Builder (EIB)
 ========================
 
 This program assembles the Endless OS (EOS) from prebuilt packages
@@ -9,7 +9,7 @@ and content. Its main functions are:
 Design
 ======
 
-EOB is designed to be simple. It is written in bash script and has just
+EIB is designed to be simple. It is written in bash script and has just
 enough flexibility to meet our needs. The simplicity allows us to have a
 complete in-house understanding of the build system, enabling smooth
 organic growth as our requirements evolve. The build master(s) who maintain
@@ -82,7 +82,7 @@ Required packages:
 ostree signing
 --------------
 
-EOB signs the ostree commits it makes with GPG. A private keyring must be
+EIB signs the ostree commits it makes with GPG. A private keyring must be
 installed in /etc/image-utils/gnupg and the key ID must be set in the
 configuration.
 
@@ -107,7 +107,7 @@ same rules apply for the contents of the system config file.
 Execution
 =========
 
-To run EOB, use the eos-image-builder script, optionally with a branch name:
+To run EIB, use the eos-image-builder script, optionally with a branch name:
  # ./eos-image-builder [options] master
 
 If no branch name is specified, dev is used.
@@ -120,7 +120,7 @@ Options available:
 Customization
 =============
 
-The core of EOB is just a wrapper. The real content of the output is defined
+The core of EIB is just a wrapper. The real content of the output is defined
 by customization scripts found under customization/. These scripts have
 access to environment variables and library functions allowing them to
 integrate correctly with the core.
@@ -148,8 +148,8 @@ check_update customization
 The check_update stage calls the `cache` customization hooks. The
 intention is to determine facts about the current build and compare them
 to cached facts from the previous build. Facts are stored in the build
-specific cache directory, determined from the function `eob_cachedir`.
-Cache files should be named using the eob_cachefile function.
+specific cache directory, determined from the function `eib_cachedir`.
+Cache files should be named using the eib_cachefile function.
 
 The check_update stage determines if an update is needed by seeing if
 the modification times for any files in the cache directory have been
@@ -173,14 +173,14 @@ ostree customization
 
 At the end of the ostree stage, the `publish-ostree` customization hooks
 are run. These hooks should publish the ostree repository in
-`${EOB_OSTREE}` to the remote ostree server.
+`${EIB_OSTREE}` to the remote ostree server.
 
 image customization
 -------------------
 
 At the start of the image stage, the customization hooks under `content`
 are run. These hooks are intended to ensure that all content for all
-personalities is available on host disk, to be used later. `${EOB_CONTENT}`
+personalities is available on host disk, to be used later. `${EIB_CONTENT}`
 should be used for storing this.
 
 Once the ostree has been checked out (onto the host disk), customization
@@ -220,7 +220,7 @@ under customization, the publish stage does nothing more than call
 into customization hooks kept in `publish`. As publishing requirements
 vary from host to host, we maintain a different script per each build host.
 
-Each script should take the output of `${EOB_OUTDIR}` and push it to the
+Each script should take the output of `${EIB_OUTDIR}` and push it to the
 final destination.
 
 
@@ -231,5 +231,5 @@ Like the publish stage, the error stage simply calls the customization
 hooks kept in `error`. As publishing of build logs varies from host to
 host, we maintain a different script per each build host.
 
-Each script should take the `build.txt` file from `${EOB_OUTDIR}` and
+Each script should take the `build.txt` file from `${EIB_OUTDIR}` and
 push it to the final destination.

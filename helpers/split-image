@@ -1,6 +1,6 @@
 #!/bin/bash -ex
 # -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
-. "${EOB_BASELIB}"
+. "${EIB_BASELIB}"
 
 # Split the existing full image into two files. One image file is for
 # the main disk, and one is for a supplemental disk to be filled with
@@ -8,7 +8,7 @@
 
 cleanup_loop() {
   partx -v -d "$1"
-  eob_delete_loop "$1"
+  eib_delete_loop "$1"
 }
 
 cleanup_devices() {
@@ -18,7 +18,7 @@ cleanup_devices() {
 }
 
 cleanup() {
-  eob_umount_all || :
+  eib_umount_all || :
   cleanup_devices || :
 }
 trap cleanup EXIT
@@ -88,7 +88,7 @@ shrink_disk1_image() {
 	-e '/^last-lba:/d' \
 	-e "$ s/size=[0-9\t ]*,/size=${root_part_len},/" |
 	sfdisk --force --label gpt "${disk1_img}"
-  eob_fix_boot_checksum "${img_loop}" "${OSTREE_CURRENT}"
+  eib_fix_boot_checksum "${img_loop}" "${OSTREE_CURRENT}"
 }
 
 # Shrink the disk2 image after migration to extra storage.
@@ -139,32 +139,32 @@ shrink_disk2_image() {
 split_image() {
   local disk1_img=$1
   local personality=$2
-  local disk2_img=${EOB_SCRATCH}/disk2
+  local disk2_img=${EIB_SCRATCH}/disk2
 
   local disk1_img_gz disk2_img_gz
   if [ -n "$personality" ]; then
-    disk1_img_gz=$(eob_outfile ${personality}.disk1.img.gz)
-    disk2_img_gz=$(eob_outfile ${personality}.disk2.img.gz)
+    disk1_img_gz=$(eib_outfile ${personality}.disk1.img.gz)
+    disk2_img_gz=$(eib_outfile ${personality}.disk2.img.gz)
   else
-    disk1_img_gz=$(eob_outfile disk1.img.gz)
-    disk2_img_gz=$(eob_outfile disk2.img.gz)
+    disk1_img_gz=$(eib_outfile disk1.img.gz)
+    disk2_img_gz=$(eib_outfile disk2.img.gz)
   fi
 
   # Mount root filesystem from the last partition of the image file.
   DISK1_LOOP=$(losetup --show -f "${disk1_img}")
-  eob_partx_scan "${DISK1_LOOP}"
+  eib_partx_scan "${DISK1_LOOP}"
   local disk1_parts=( "${DISK1_LOOP}"p* )
   ROOT_LOOP="${disk1_parts[-1]}"
-  ROOT=${EOB_SCRATCH}/mnt
+  ROOT=${EIB_SCRATCH}/mnt
   recreate_dir "${ROOT}"
-  eob_mount -t ext4 "${ROOT_LOOP}" "${ROOT}"
+  eib_mount -t ext4 "${ROOT_LOOP}" "${ROOT}"
 
   # Bind mount the ostree /var into the current deployment so it
   # resembles the booted system.
-  export OSTREE_CURRENT="${ROOT}"/ostree/deploy/${EOB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
-  local ostree_var="${ROOT}"/ostree/deploy/${EOB_OSTREE_OS}/var
+  export OSTREE_CURRENT="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
+  local ostree_var="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/var
   OSTREE_CURRENT_VAR="${OSTREE_CURRENT}"/var
-  eob_mount --bind "${ostree_var}" "${OSTREE_CURRENT_VAR}"
+  eib_mount --bind "${ostree_var}" "${OSTREE_CURRENT_VAR}"
 
   # Create disk2 image file with 1 partition for our "16 GB" SD card.
   # The actual size might vary and we want to be a little connservative,
@@ -178,13 +178,13 @@ split_image() {
 
   # Create disk2 filesystem and mount it on top of the above bind mount.
   DISK2_LOOP=$(losetup --show -f "${disk2_img}")
-  eob_partx_scan "${DISK2_LOOP}"
+  eib_partx_scan "${DISK2_LOOP}"
   EXTRA_LOOP="${DISK2_LOOP}p1"
   mke2fs -t ext4 -O dir_index,^huge_file -m1 -L extra "${EXTRA_LOOP}"
   EXTRA="${OSTREE_CURRENT_VAR}"/endless-extra
   recreate_dir "${EXTRA}"
-  eob_mount -t ext4 "${EXTRA_LOOP}" "${EXTRA}"
-  eob_write_version_xattr "${EXTRA}" ${personality}
+  eib_mount -t ext4 "${EXTRA_LOOP}" "${EXTRA}"
+  eib_write_version_xattr "${EXTRA}" ${personality}
 
   # Split files from the root filesystem into extra. Let the hooks know
   # where the extra filesystem is mounted and what the personality is.
@@ -192,9 +192,9 @@ split_image() {
   export PERSONALITY=${personality}
 
   # Mount kernel filesystems into deployment for split hooks
-  eob_mount -t sysfs sysfs "${OSTREE_CURRENT}"/sys
-  eob_mount -t proc proc "${OSTREE_CURRENT}"/proc
-  eob_mount --bind /dev "${OSTREE_CURRENT}"/dev
+  eib_mount -t sysfs sysfs "${OSTREE_CURRENT}"/sys
+  eib_mount -t proc proc "${OSTREE_CURRENT}"/proc
+  eib_mount --bind /dev "${OSTREE_CURRENT}"/dev
 
   run_hooks split "${OSTREE_CURRENT}"
 
@@ -204,7 +204,7 @@ split_image() {
     "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.wants/
 
   # Unmount the filesystems and shrink the image files.
-  eob_umount_all
+  eib_umount_all
   shrink_disk1_image "${disk1_img}" "${personality}"
   shrink_disk2_image "${disk2_img}" "${personality}"
 

@@ -1,0 +1,50 @@
+#!/bin/bash -ex
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
+. "${EIB_BASELIB}"
+
+# Create a minimal ostree chroot to pull and deployments with. This
+# allows the build to be independent of the host's ostree.
+make_tmp_ostree
+
+# Cleanup for using the ostree chroot.
+cleanup() {
+  eib_umount_all || :
+}
+trap cleanup EXIT
+
+# Bind mount the ostree repo, sysconfdir and install root to the same
+# locations in the ostree chroot.
+EIB_OSTREE_CHROOT="${EIB_OSTREE_TMPDIR}${EIB_OSTREE}"
+EIB_SYSCONF_CHROOT="${EIB_OSTREE_TMPDIR}${EIB_SYSCONF}"
+mkdir -p "${EIB_OSTREE}" "${EIB_OSTREE_CHROOT}" "${EIB_SYSCONF_CHROOT}"
+eib_mount --bind "${EIB_OSTREE}" "${EIB_OSTREE_CHROOT}"
+eib_mount --bind "${EIB_SYSCONF}" "${EIB_SYSCONF_CHROOT}"
+eib_mount -t sysfs sysfs "${EIB_OSTREE_TMPDIR}"/sys
+eib_mount -t proc proc "${EIB_OSTREE_TMPDIR}"/proc
+eib_mount --bind /dev/pts "${EIB_OSTREE_TMPDIR}"/dev/pts
+
+if [ ! -f "${EIB_OSTREE}"/config ]; then
+  tmp_ostree --repo="${EIB_OSTREE}" init --mode archive-z2
+fi
+
+# Prune the builder's ostree to keep the local repo from growing
+# unbounded. Only the latest commit on each ref is needed to minimize
+# the pull size.
+tmp_ostree --repo="${EIB_OSTREE}" prune --refs-only --depth=0
+
+# Pull in the latest commit. Recreate the remote setup to ensure there
+# aren't any stale settings.
+tmp_ostree --repo="${EIB_OSTREE}" remote delete --if-exists ${EIB_OSTREE_OS}
+tmp_ostree --repo="${EIB_OSTREE}" remote add ${EIB_OSTREE_OS} \
+  ${EIB_OSTREE_INT_URL} ${EIB_OSTREE_BRANCH}
+tmp_ostree --repo="${EIB_OSTREE}" pull --mirror ${EIB_OSTREE_OS}
+
+# Update the major version branch if necessary. This will be used in the
+# deployment instead of the minor version branch.
+if [ "${EIB_OSTREE_BRANCH_DEPLOY}" != "${EIB_OSTREE_BRANCH}" ]; then
+  tmp_ostree_write_refs "${EIB_OSTREE}" ${EIB_OSTREE_BRANCH} \
+    ${EIB_OSTREE_BRANCH_DEPLOY}
+fi
+
+# All done with the tmp ostree mounts
+eib_umount_all
