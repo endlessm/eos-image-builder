@@ -5,12 +5,17 @@ MYDIR=$(dirname $(readlink -f $0))
 # This option list must stay in sync with run-build. It's repeated here
 # so that the branch to checkout can be reliably determined.
 orig_args=("$@")
-args=$(getopt -o "p:P:n" -l "product:,platform:,personalities:,dry-run" \
+args=$(getopt -o "p:P:nh" -l "product:,platform:,personalities:,dry-run,help" \
   -n "eos-image-builder" -- "$@")
 eval set -- "${args}"
 
 while true; do
   case "$1" in
+    -h|--help)
+      # Show help output from run-build without locking or bash tracing
+      bash -e $MYDIR/run-build $1
+      exit 0
+      ;;
     --)
       shift
       break

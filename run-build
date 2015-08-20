@@ -17,7 +17,22 @@ export DEBIAN_PRIORITY=critical
 # Make sure ERR traps follow through to shell functions
 set -E
 
-args=$(getopt -o "p:P:n" -l "product:,platform:,personalities:,dry-run" \
+usage() {
+  cat <<EOF
+Usage: eos-image-builder [OPTION]... [BRANCH]
+Build and publish images for Endless
+
+  -p, --product         product to build
+  --platform            platform to build
+  -P, --personalities   personalities to build
+  -n, --dry-run         don't publish images
+  -h, --help            display this help and exit
+
+If BRANCH is not specified, master is used.
+EOF
+}
+
+args=$(getopt -o "p:P:nh" -l "product:,platform:,personalities:,dry-run,help" \
   -n "eos-image-builder" -- "$@")
 eval set -- "${args}"
 
@@ -38,6 +53,10 @@ while true; do
     -n|--dry-run)
       export EOB_DRY_RUN=true
       shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
       ;;
     --)
       shift
