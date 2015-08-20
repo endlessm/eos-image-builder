@@ -31,6 +31,8 @@ run_hooks() {
   popd &>/dev/null
 
   for hook in ${files}; do
+    # Skip backup files
+    [ "${hook: -1}" = "~" ] && continue
     hookpath="${EIB_SRC}"/customization/${hook}
     if [ "${hook: -7}" == ".chroot" ]; then
       if [ -z "$install_root" ]; then
