@@ -107,8 +107,8 @@ same rules apply for the contents of the system config file.
 Execution
 =========
 
-To run EOB, use the endless-os-builder script, optionally with a branch name:
- # ./endless-os-builder [options] master
+To run EOB, use the eos-image-builder script, optionally with a branch name:
+ # ./eos-image-builder [options] master
 
 If no branch name is specified, dev is used.
 If you want to only run certain stages, modify the `buildscript` file

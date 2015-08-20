@@ -18,7 +18,7 @@ export DEBIAN_PRIORITY=critical
 set -E
 
 args=$(getopt -o "p:P:n" -l "product:,platform:,personalities:,dry-run" \
-  -n "endless-os-builder" -- "$@")
+  -n "eos-image-builder" -- "$@")
 eval set -- "${args}"
 
 while true; do

@@ -1,0 +1,27 @@
+#!/bin/bash -e
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
+MYDIR=$(dirname $(readlink -f $0))
+
+# Ensure the lock is taken before checking out the needed branch. This
+# is done in a subshell with the file connected to fd 9 to ensure the
+# file remains locked until the build completes.
+(
+  if ! flock -w 60 9; then
+    echo "ERROR: instance already running" >&2
+    exit 1
+  fi
+
+  # Fetch the current code before launching the actual build. Assume
+  # that if the job is running from jenkins that it has already fetched
+  # the latest.
+  cd $MYDIR
+  if [ -z "$EOB_NO_CHECKOUT" ]; then
+    if [ -z "$JENKINS_HOME" ]; then
+      git fetch origin
+    fi
+    git checkout origin/${1:-master}
+    git clean -xdf
+  fi
+
+  ./run-build "$@"
+) 9>/var/tmp/eob.lock
