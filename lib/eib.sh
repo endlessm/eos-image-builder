@@ -177,6 +177,9 @@ eib_fix_boot_checksum() {
 # Create a .inprogress file on the remote image server to indicate that
 # this build has started publishing files.
 eib_start_publishing() {
+  # Skip on dry runs
+  [ -n "${EIB_DRY_RUN}" ] && return 0
+
   if [ "$(hostname -s)" != "${EIB_IMAGE_HOST_SHORT}" ]; then
     ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} mkdir -p "${EIB_IMAGE_DEST}"
     ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} touch \
@@ -190,6 +193,9 @@ eib_start_publishing() {
 # Delete the .inprogress file on the remote image server to indicate
 # that this build has finished publishing files.
 eib_end_publishing() {
+  # Skip on dry runs
+  [ -n "${EIB_DRY_RUN}" ] && return 0
+
   if [ "$(hostname -s)" != "${EIB_IMAGE_HOST_SHORT}" ]; then
     ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} rm -f \
       "${EIB_IMAGE_DEST}"/.inprogress
