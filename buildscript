@@ -11,7 +11,6 @@ trap stage_error ERR
 eob_check_update && exit 0
 
 # Real build stages
-eob_os
 eob_ostree
 eob_image
 eob_publish
