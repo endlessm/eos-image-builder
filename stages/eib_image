@@ -1,0 +1,212 @@
+#!/bin/bash -ex
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
+. "${EIB_BASELIB}"
+
+# We do all fs preparation on the host disk, before then copying it into
+# an image, in preparation for later development where the image will be sized
+# dynamically based on how much data it includes.
+
+mutable_deployment() {
+  if [ -n "${OSTREE_DEPLOYMENT}" ]; then
+    chattr -i "${OSTREE_DEPLOYMENT}"
+  fi
+}
+
+cleanup_devices() {
+  if [ -n "${img_loop}" ]; then
+    partx -v -d "${img_loop}"
+    eib_delete_loop "${img_loop}"
+  fi
+  unset img_loop
+}
+
+cleanup() {
+  mutable_deployment || :
+  eib_umount_all || :
+  cleanup_devices || :
+}
+trap cleanup EXIT
+
+recreate_dir "${EIB_OSTREE_CHECKOUT}"
+REPOPATH=${EIB_OSTREE_CHECKOUT}/ostree/repo
+BOOT=${EIB_OSTREE_CHECKOUT}/boot
+
+# Bind mount the ostree repo and checkout to the same locations in the
+# ostree chroot.
+EIB_OSTREE_CHROOT="${EIB_OSTREE_TMPDIR}${EIB_OSTREE}"
+EIB_OSTREE_CO_CHROOT="${EIB_OSTREE_TMPDIR}${EIB_OSTREE_CHECKOUT}"
+mkdir -p "${EIB_OSTREE_CHROOT}" "${EIB_OSTREE_CO_CHROOT}"
+eib_mount --bind "${EIB_OSTREE}" "${EIB_OSTREE_CHROOT}"
+eib_mount --bind "${EIB_OSTREE_CHECKOUT}" "${EIB_OSTREE_CO_CHROOT}"
+eib_mount -t sysfs sysfs "${EIB_OSTREE_TMPDIR}"/sys
+eib_mount -t proc proc "${EIB_OSTREE_TMPDIR}"/proc
+eib_mount --bind /dev/pts "${EIB_OSTREE_TMPDIR}"/dev/pts
+
+tmp_ostree admin init-fs "${EIB_OSTREE_CHECKOUT}"
+tmp_ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" os-init ${EIB_OSTREE_OS}
+tmp_ostree --repo="${REPOPATH}" remote add ${EIB_OSTREE_OS} ${EIB_OSTREE_URL} \
+  ${EIB_OSTREE_BRANCH_DEPLOY}
+tmp_ostree --repo="${REPOPATH}" pull-local --remote=${EIB_OSTREE_OS} \
+  ${EIB_OSTREE} ${EIB_OSTREE_BRANCH_DEPLOY}
+
+# Basic bootloader setup
+if [[ "${EIB_ARCH}" == "armhf" ]]; then
+  mkdir -p "${BOOT}"/loader.0
+  ln -s loader.0 "${BOOT}"/loader
+  # Empty uEnv.txt otherwise ostree gets upset
+  > "${BOOT}"/loader/uEnv.txt
+  ln -s loader/uEnv.txt "${BOOT}"/uEnv.txt
+elif [[ "${EIB_ARCH}" == "i386" ]]; then
+  mkdir -p "${BOOT}"/grub
+  cp "${EIB_DATA}"/grub.cfg "${BOOT}"/grub/grub.cfg
+fi
+
+kargs=(--karg=root=LABEL=ostree --karg=rw --karg=splash \
+    --karg=plymouth.ignore-serial-consoles --karg=quiet)
+tmp_ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" deploy \
+  --os=${EIB_OSTREE_OS} "${kargs[@]}" \
+  ${EIB_OSTREE_OS}:${EIB_OSTREE_BRANCH_DEPLOY}
+
+# There's no current symlink anymore, so query the deployment status.
+# This will be the second parameter on the first line.
+export OSTREE_CURRENT_DEPLOYMENT=$(tmp_ostree admin \
+  --sysroot="${EIB_OSTREE_CHECKOUT}" status | awk '{print $2; exit}')
+export OSTREE_DEPLOYMENT="${EIB_OSTREE_CHECKOUT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
+export OSTREE_VAR="${EIB_OSTREE_CHECKOUT}"/ostree/deploy/${EIB_OSTREE_OS}/var
+
+treeinfo=$(eib_outfile ostree.txt)
+echo "Branch ${EIB_OSTREE_BRANCH}" > ${treeinfo}
+tmp_ostree --repo="${EIB_OSTREE_CHECKOUT}"/ostree/repo show \
+  ${EIB_OSTREE_BRANCH_DEPLOY} >> ${treeinfo}
+
+# All done with the tmp ostree, cleanup the mounts
+eib_umount_all
+
+run_hooks content "${OSTREE_DEPLOYMENT}"
+
+create_image() {
+  local outfile=$1
+  local personality=$2
+
+  # Create images according to data size, with 1GB free space.
+  local img_size=$(du --block-size=1 -s "${EIB_OSTREE_CHECKOUT}")
+  img_size=${img_size%$'\t'*}
+  (( img_size += 1024 * 1024 * 1024 ))
+  echo "Creating $1 image with size ${img_size}"
+
+  local img=${EIB_SCRATCH}/image
+  rm -f "${img}"
+  truncate -s ${img_size} "${img}"
+
+  # Partition table
+  (
+    # Empty space up to 1mb (for GPT, and for uboot on ARM)
+    echo -n "start=2048, "
+
+    if [[ "${EIB_ARCH}" == "i386" ]]; then
+      # EFI system partition
+      echo "size=62MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+      # GRUB BIOS BOOT partition
+      echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
+    fi
+
+    # Remaining space is root fs, with special the special 55 attr as a
+    # marker indicating the partition should be resized later
+    echo "type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, attrs=GUID:55"
+  ) | sfdisk --force --label gpt "${img}"
+
+  img_loop=$(losetup -f --show "${img}")
+  eib_partx_scan "${img_loop}"
+
+  if [[ "${EIB_ARCH}" == "i386" ]]; then
+    esp_loop=${img_loop}p1
+    root_loop=${img_loop}p3
+    mkfs.vfat "${esp_loop}"
+  else
+    root_loop=${img_loop}p1
+  fi
+
+  mke2fs -t ext4 -O dir_index,^huge_file -m1 -L ostree ${root_loop}
+  ROOT="${EIB_SCRATCH}"/mnt
+  DEPLOY="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
+  mkdir -p "${ROOT}"
+  eib_mount ${root_loop} "${ROOT}"
+  eib_write_version_xattr "${ROOT}" ${personality}
+
+  if [[ "${EIB_ARCH}" == "i386" ]]; then
+    ESP="${ROOT}"/boot/efi
+    mkdir -p "${ESP}"
+    eib_mount ${esp_loop} "${ESP}"
+  fi
+
+  # Copy contents into image, preserving attributes, timestamps, hardlinks, etc.
+  cp -a "${EIB_OSTREE_CHECKOUT}"/* "${ROOT}"
+
+  # Install bootloader
+  if [[ "${EIB_PLATFORM}" == "odroidu2" ]]; then
+    # from hardkernel u-boot sd_fusing.sh
+    local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/exynos4_odroid
+    dd conv=notrunc if="${UBOOT_PATH}"/bl1.HardKernel of=${img} seek=1
+    dd conv=notrunc if="${UBOOT_PATH}"/bl2.HardKernel of=${img} seek=31
+    dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} seek=63
+    dd conv=notrunc if="${UBOOT_PATH}"/tzsw.HardKernel of=${img} seek=2111
+  elif [[ "${EIB_PLATFORM}" == "sqwerty" ]]; then
+    local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/exynos4_sqwerty
+    dd conv=notrunc if="${UBOOT_PATH}"/bl1.Sqwerty of=${img} seek=1
+    dd conv=notrunc if="${UBOOT_PATH}"/bl2.Sqwerty of=${img} seek=31
+    dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} seek=63
+    dd conv=notrunc if="${UBOOT_PATH}"/tzsw.Sqwerty of=${img} seek=2111
+  elif [[ "${EIB_PLATFORM}" == "ec100" ]]; then
+    local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/meson8b_m201
+    dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=1 count=442
+    dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=17408 skip=1 seek=1
+  elif [[ "${EIB_ARCH}" == "i386" ]]; then
+    # MBR bootloader install
+    grub-install --boot-directory=${ROOT}/boot \
+                 --modules="ext2 part_msdos part_gpt" \
+                 --directory="${DEPLOY}"/usr/lib/grub/i386-pc \
+                 ${img}
+    # UEFI bootloader install
+    cp -a "${DEPLOY}"/boot/efi/EFI "${ESP}"
+  fi
+
+  eib_fix_boot_checksum "${img_loop}" "${DEPLOY}"
+
+  # Cleanup mounts and devices
+  eib_umount_all
+  cleanup_devices
+
+  pigz --no-name -c "${img}" > ${outfile}
+  sign_file ${outfile} &
+
+  # Create split image for 2 disk systems if required.
+  if [ "${EIB_SPLIT_IMAGES}" = true ]; then
+    "${EIB_HELPERS}"/split-image "${img}" ${personality}
+  fi
+
+  rm -f "${img}"
+  wait
+}
+
+for personality in ${EIB_PERSONALITIES}; do
+  echo "Create image for personality ${personality}"
+
+  # Mount kernel filesystems into deployment for image hooks
+  eib_mount -t sysfs sysfs "${OSTREE_DEPLOYMENT}"/sys
+  eib_mount -t proc proc "${OSTREE_DEPLOYMENT}"/proc
+  eib_mount --bind /dev "${OSTREE_DEPLOYMENT}"/dev
+
+  # Bind mount OS /var over deployment's /var for image hooks
+  eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
+
+  export PERSONALITY=$personality
+  run_hooks image "${OSTREE_DEPLOYMENT}"
+  eib_umount_all
+  create_image $(eib_outfile ${personality}.img.gz) ${personality}
+  [ -z "${EIB_DRY_RUN}" ] && run_hooks publish-image
+done
+
+# Make the deployment root mutable to delete it
+mutable_deployment
+
+rm -rf "${EIB_OSTREE_CHECKOUT}" "${EIB_APPS_CONTENT}"

@@ -1,0 +1,60 @@
+#!/bin/bash -e
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
+MYDIR=$(dirname $(readlink -f $0))
+
+# This option list must stay in sync with run-build. It's repeated here
+# so that the branch to checkout can be reliably determined.
+orig_args=("$@")
+args=$(getopt -o "p:P:fnh" \
+  -l "product:,platform:,personalities:,force,dry-run,no-checkout,help" \
+  -n "eos-image-builder" -- "$@")
+eval set -- "${args}"
+
+while true; do
+  case "$1" in
+    --no-checkout)
+      EIB_NO_CHECKOUT=true
+      shift
+      ;;
+    -h|--help)
+      # Show help output from run-build without locking or bash tracing
+      bash -e $MYDIR/run-build $1
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      # All other options are to be processed by run-build. Skip them.
+      shift
+      ;;
+  esac
+done
+
+branch=${1:-master}
+
+# Ensure the lock is taken before checking out the needed branch. This
+# is done in a subshell with the file connected to fd 9 to ensure the
+# file remains locked until the build completes.
+mkdir -p /var/lock
+(
+  if ! flock -w 60 9; then
+    echo "ERROR: instance already running" >&2
+    exit 1
+  fi
+
+  # Fetch the current code before launching the actual build. Assume
+  # that if the job is running from jenkins that it has already fetched
+  # the latest.
+  cd $MYDIR
+  if [ -z "$EIB_NO_CHECKOUT" ]; then
+    if [ -z "$JENKINS_HOME" ]; then
+      git fetch origin
+    fi
+    git checkout origin/"$branch"
+    git clean -xdf
+  fi
+
+  ./run-build "${orig_args[@]}"
+) 9>/var/lock/eos-image-builder.lock

@@ -1,17 +1,18 @@
 # -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
-# Run the eob_error stage on errors. Return code 2 is used for image
+# Run the eib_error stage on errors. Return code 2 is used for image
 # build failures to differentiate from locking failures.
 stage_error() {
-  eob_error
+  eib_error
   exit 2
 }
 trap stage_error ERR
 
 # Check if build needed and exit early if not
-eob_check_update && exit 0
+if eib_check_update && [ -z "${EIB_FORCE}" ]; then
+  exit 0
+fi
 
 # Real build stages
-eob_os
-eob_ostree
-eob_image
-eob_publish
+eib_ostree
+eib_image
+eib_publish
