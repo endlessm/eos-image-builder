@@ -8,7 +8,9 @@ stage_error() {
 trap stage_error ERR
 
 # Check if build needed and exit early if not
-eib_check_update && exit 0
+if eib_check_update && [ -z "${EIB_FORCE}" ]; then
+  exit 0
+fi
 
 # Real build stages
 eib_ostree

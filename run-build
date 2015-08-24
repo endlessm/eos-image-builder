@@ -22,6 +22,7 @@ Build and publish images for Endless
   -p, --product         product to build
   --platform            platform to build
   -P, --personalities   personalities to build
+  -f, --force           run build even when no new assets found
   -n, --dry-run         don't publish images
   --no-checkout         use current builder branch
   -h, --help            display this help and exit
@@ -30,8 +31,8 @@ If BRANCH is not specified, master is used.
 EOF
 }
 
-args=$(getopt -o "p:P:nh" \
-  -l "product:,platform:,personalities:,dry-run,no-checkout,help" \
+args=$(getopt -o "p:P:fnh" \
+  -l "product:,platform:,personalities:,force,dry-run,no-checkout,help" \
   -n "eos-image-builder" -- "$@")
 eval set -- "${args}"
 
@@ -48,6 +49,10 @@ while true; do
     -P|--personalities)
       EIB_PERSONALITIES=$2
       shift 2
+      ;;
+    -f|--force)
+      export EIB_FORCE=true
+      shift
       ;;
     -n|--dry-run)
       export EIB_DRY_RUN=true

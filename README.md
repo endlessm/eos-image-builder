@@ -113,6 +113,7 @@ Options available:
   --product : specify product to build (eos, eosnonfree, eosdev)
   --platform : specify a sub-architecture to build (ec100, odroidu2)
   --personalities : specify image personaities to build (base, en)
+  --force : perform a build even if the update check says it's not needed
   --dry-run : perform a build, but do not publish the results
 
 Customization

@@ -5,8 +5,8 @@ MYDIR=$(dirname $(readlink -f $0))
 # This option list must stay in sync with run-build. It's repeated here
 # so that the branch to checkout can be reliably determined.
 orig_args=("$@")
-args=$(getopt -o "p:P:nh" \
-  -l "product:,platform:,personalities:,dry-run,no-checkout,help" \
+args=$(getopt -o "p:P:fnh" \
+  -l "product:,platform:,personalities:,force,dry-run,no-checkout,help" \
   -n "eos-image-builder" -- "$@")
 eval set -- "${args}"
 
