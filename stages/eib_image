@@ -82,6 +82,11 @@ tmp_ostree --repo="${EIB_OSTREE_CHECKOUT}"/ostree/repo show \
 # All done with the tmp ostree, cleanup the mounts
 eib_umount_all
 
+# Output package list using the dpkg database from the deployment's /var
+dpkgdir="${OSTREE_DEPLOYMENT}"/var/lib/dpkg
+packageinfo=$(eib_outfile packages.txt)
+dpkg-query -W --admindir="${dpkgdir}" > "${packageinfo}"
+
 run_hooks content "${OSTREE_DEPLOYMENT}"
 
 create_image() {
