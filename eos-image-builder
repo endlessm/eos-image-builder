@@ -1,6 +1,7 @@
 #!/bin/bash -e
 # -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
 MYDIR=$(dirname $(readlink -f $0))
+BUILDDIR=/var/cache/eos-image-builder
 
 # This option list must stay in sync with run-build. It's repeated here
 # so that the branch to checkout can be reliably determined.
@@ -44,11 +45,19 @@ mkdir -p /var/lock
     exit 1
   fi
 
-  # Fetch the current code before launching the actual build. Assume
-  # that if the job is running from jenkins that it has already fetched
-  # the latest.
   cd $MYDIR
   if [ -z "$EIB_NO_CHECKOUT" ]; then
+    # Make a copy of the repo to use. A real git repo is needed since
+    # the build later queries the current commit.
+    SRCDIR="$BUILDDIR"/src
+    rm -rf "$SRCDIR"
+    mkdir -p "$BUILDDIR"
+    cp -r "$MYDIR" "$SRCDIR"
+    cd "$SRCDIR"
+
+    # Fetch the current code before launching the actual build. Assume
+    # that if the job is running from jenkins that it has already
+    # fetched the latest.
     if [ -z "$JENKINS_HOME" ]; then
       git fetch origin
     fi
