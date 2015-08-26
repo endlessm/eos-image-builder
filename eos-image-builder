@@ -45,21 +45,24 @@ mkdir -p /var/lock
     exit 1
   fi
 
-  # Fetch the current code before launching the actual build. Assume
-  # that if the job is running from jenkins that it has already fetched
-  # the latest.
   cd $MYDIR
   if [ -z "$EIB_NO_CHECKOUT" ]; then
+    # Make a copy of the repo to use. A real git repo is needed since
+    # the build later queries the current commit.
+    SRCDIR="$BUILDDIR"/src
+    rm -rf "$SRCDIR"
+    mkdir -p "$BUILDDIR"
+    cp -r "$MYDIR" "$SRCDIR"
+    cd "$SRCDIR"
+
+    # Fetch the current code before launching the actual build. Assume
+    # that if the job is running from jenkins that it has already
+    # fetched the latest.
     if [ -z "$JENKINS_HOME" ]; then
       git fetch origin
     fi
-
-    # Make a checkout into the build directory and cd to it.
-    SRCDIR="$BUILDDIR"/src
-    rm -rf "$SRCDIR"
-    mkdir -p "$SRCDIR"
-    git archive origin/"$branch" | tar -x -C "$SRCDIR"
-    cd "$SRCDIR"
+    git checkout origin/"$branch"
+    git clean -xdf
   fi
 
   ./run-build "${orig_args[@]}"
