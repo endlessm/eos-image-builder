@@ -1,7 +1,6 @@
 #!/bin/bash -e
 # -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
 MYDIR=$(dirname $(readlink -f $0))
-BUILDDIR=/var/cache/eos-image-builder
 
 # This option list must stay in sync with run-build. It's repeated here
 # so that the branch to checkout can be reliably determined.
@@ -53,13 +52,8 @@ mkdir -p /var/lock
     if [ -z "$JENKINS_HOME" ]; then
       git fetch origin
     fi
-
-    # Make a checkout into the build directory and cd to it.
-    SRCDIR="$BUILDDIR"/src
-    rm -rf "$SRCDIR"
-    mkdir -p "$SRCDIR"
-    git archive origin/"$branch" | tar -x -C "$SRCDIR"
-    cd "$SRCDIR"
+    git checkout origin/"$branch"
+    git clean -xdf
   fi
 
   ./run-build "${orig_args[@]}"
