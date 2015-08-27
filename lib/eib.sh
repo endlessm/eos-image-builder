@@ -170,10 +170,11 @@ eib_keyring() {
 }
 
 eib_fix_boot_checksum() {
-	local disk=$1
-	local deploy=$2
-	[ -x "${deploy}"/usr/sbin/amlogic-fix-spl-checksum ] || return 0
-	"${deploy}"/usr/sbin/amlogic-fix-spl-checksum "${disk}"
+  local disk=${1:?No disk supplied to ${FUNCNAME}}
+  local deploy=${2:?No deployment supplied to ${FUNCNAME}}
+
+  [ -x "${deploy}"/usr/sbin/amlogic-fix-spl-checksum ] || return 0
+  "${deploy}"/usr/sbin/amlogic-fix-spl-checksum "${disk}"
 }
 
 # Create a .inprogress file on the remote image server to indicate that
