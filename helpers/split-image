@@ -88,7 +88,7 @@ shrink_disk1_image() {
 	-e '/^last-lba:/d' \
 	-e "$ s/size=[0-9\t ]*,/size=${root_part_len},/" |
 	sfdisk --force --label gpt "${disk1_img}"
-  eib_fix_boot_checksum "${img_loop}" "${OSTREE_CURRENT}"
+  eib_fix_boot_checksum "${DISK1_LOOP}" "${OSTREE_CURRENT}"
 }
 
 # Shrink the disk2 image after migration to extra storage.
