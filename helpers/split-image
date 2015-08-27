@@ -88,7 +88,6 @@ shrink_disk1_image() {
 	-e '/^last-lba:/d' \
 	-e "$ s/size=[0-9\t ]*,/size=${root_part_len},/" |
 	sfdisk --force --label gpt "${disk1_img}"
-  eib_fix_boot_checksum "${img_loop}" "${OSTREE_CURRENT}"
 }
 
 # Shrink the disk2 image after migration to extra storage.
@@ -207,6 +206,12 @@ split_image() {
   eib_umount_all
   shrink_disk1_image "${disk1_img}" "${personality}"
   shrink_disk2_image "${disk2_img}" "${personality}"
+
+  # Temporarily remount the filesystem to fix the disk1 checksum using
+  # the installed tool.
+  eib_mount -t ext4 "${ROOT_LOOP}" "${ROOT}"
+  eib_fix_boot_checksum "${DISK1_LOOP}" "${OSTREE_CURRENT}"
+  eib_umount_all
 
   # Delete loop devices and cleanup variables for the next iteration.
   cleanup_devices
