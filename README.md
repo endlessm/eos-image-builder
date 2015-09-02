@@ -171,7 +171,7 @@ personalities is available on host disk, to be used later.
 Once the ostree has been checked out (onto the host disk), customization
 hooks under `image` are run, *once for each personality*.
 `${OSTREE_DEPLOYMENT}` contains the path to the checkout, and
-`${PERSONALITY}` states which personality is being built.
+`${EIB_PERSONALITY}` states which personality is being built.
 
 For reasons of speed, the ostree deployment is not recreated for each
 personality. This means that *all customization scripts here should

@@ -204,7 +204,7 @@ for personality in ${EIB_PERSONALITIES}; do
   # Bind mount OS /var over deployment's /var for image hooks
   eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 
-  export PERSONALITY=$personality
+  export EIB_PERSONALITY=$personality
   run_hooks image "${OSTREE_DEPLOYMENT}"
   eib_umount_all
   create_image $(eib_outfile ${personality}.img.gz) ${personality}
