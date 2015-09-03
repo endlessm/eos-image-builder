@@ -203,7 +203,7 @@ publish customization
 Keeping with the design that the core is simple and the meat is kept
 under customization, the publish stage does nothing more than call into
 customization hooks kept in `publish`. These hooks should take the
-output of `${EIB_OUTDIR}` and push it to the final destination.
+output of `${EIB_OUT_ROOT}` and push it to the final destination.
 
 
 error customization
@@ -211,5 +211,5 @@ error customization
 
 Like the publish stage, the error stage simply calls the customization
 hooks kept in `error`. These hooks should take the `build.txt` file from
-`${EIB_OUTDIR}` and push it to the final destination. This stage should
+`${EIB_OUT_ROOT}` and push it to the final destination. This stage should
 also clean up for subsequent builds.

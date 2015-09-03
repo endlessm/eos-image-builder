@@ -159,12 +159,9 @@ export EIB_IMAGE_HOST_SHORT=obs-repository
 export EIB_IMAGE_HOST=${EIB_IMAGE_HOST_SHORT}.endlessm-sf.com
 export EIB_IMAGE_USER=uploader
 export EIB_IMAGE_PATH=/srv/images/www
-export EIB_IMAGE_DEST=${EIB_IMAGE_PATH}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_BUILD_VERSION}
 
 # Image URLs
-EIB_IMAGE_URL_ROOT="http://images.endlessm-sf.com/"
-EIB_IMAGE_URL_BASE="${EIB_IMAGE_URL_ROOT}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_BUILD_VERSION}"
-export EIB_IMAGE_URL_ROOT EIB_IMAGE_URL_BASE
+export EIB_IMAGE_URL_ROOT="http://images.endlessm-sf.com/"
 
 # Email settings
 EIB_EMAIL_FROM=image-builder@endlessm.com
@@ -186,7 +183,7 @@ export EIB_JENKINS_URL EIB_JENKINS_USER EIB_JENKINS_TOKEN
 
 . "${EIB_BASELIB}"
 
-recreate_dir "${EIB_OUTDIR}"
+recreate_dir "${EIB_OUT_ROOT}"
 recreate_dir "${EIB_TMPDIR}"
 exec > >(tee $(eib_outfile build.txt))
 exec 2>&1
@@ -196,4 +193,4 @@ mkdir -p "${EIB_CONTENT}"
 
 # Unless this is a dry run, the output files have been published and can
 # be deleted.
-[ -n "${EIB_DRY_RUN}" ] || rm -rf "${EIB_OUTDIR}"
+[ -n "${EIB_DRY_RUN}" ] || rm -rf "${EIB_OUT_ROOT}"

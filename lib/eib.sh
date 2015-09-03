@@ -12,7 +12,7 @@ EIB_OSTREE_CHECKOUT=${EIB_SCRATCH}/ostree-co
 export EIB_OSTREE=${EIB_SCRATCH}/ostree/${EIB_OSTREE_REPO}
 export EIB_DATA=${EIB_SRC}/data
 EIB_HELPERS=${EIB_SRC}/helpers
-EIB_OUTDIR=${EIB_SCRATCH}/out
+EIB_OUT_ROOT=${EIB_SCRATCH}/out
 EIB_CACHEDIR=${EIB_SCRATCH}/cache
 EIB_TMPDIR=${EIB_SCRATCH}/tmp
 EIB_OSTREE_TMPDIR=${EIB_TMPDIR}/ostree-bin
@@ -65,9 +65,24 @@ eib_version() {
   echo ${EIB_PRODUCT}-${EIB_BRANCH}-${EIB_ARCH}-${EIB_PLATFORM}.${EIB_BUILD_VERSION}
 }
 
+# Generate full path to output directory
+eib_outdir() {
+  echo ${EIB_OUT_ROOT}
+}
+
 # Generate full path to output file
 eib_outfile() {
-  echo "${EIB_OUTDIR}"/$(eib_version).$1
+  echo $(eib_outdir)/$(eib_version).$1
+}
+
+# Generate full remote output directory
+eib_image_dest() {
+  echo ${EIB_IMAGE_PATH}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_BUILD_VERSION}
+}
+
+# Generate full remote url
+eib_image_url() {
+  echo ${EIB_IMAGE_URL_ROOT}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_BUILD_VERSION}
 }
 
 # Encode the original image version and personality as an xattr of the
@@ -180,30 +195,34 @@ eib_fix_boot_checksum() {
 # Create a .inprogress file on the remote image server to indicate that
 # this build has started publishing files.
 eib_start_publishing() {
+  local destdir="$(eib_image_dest)"
+
   # Skip on dry runs
   [ -n "${EIB_DRY_RUN}" ] && return 0
 
   if [ "$(hostname -s)" != "${EIB_IMAGE_HOST_SHORT}" ]; then
-    ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} mkdir -p "${EIB_IMAGE_DEST}"
+    ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} mkdir -p "${destdir}"
     ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} touch \
-      "${EIB_IMAGE_DEST}"/.inprogress
+      "${destdir}"/.inprogress
   else
-    sudo -u ${EIB_IMAGE_USER} mkdir -p "${EIB_IMAGE_DEST}"
-    sudo -u ${EIB_IMAGE_USER} touch "${EIB_IMAGE_DEST}"/.inprogress
+    sudo -u ${EIB_IMAGE_USER} mkdir -p "${destdir}"
+    sudo -u ${EIB_IMAGE_USER} touch "${destdir}"/.inprogress
   fi
 }
 
 # Delete the .inprogress file on the remote image server to indicate
 # that this build has finished publishing files.
 eib_end_publishing() {
+  local destdir="$(eib_image_dest)"
+
   # Skip on dry runs
   [ -n "${EIB_DRY_RUN}" ] && return 0
 
   if [ "$(hostname -s)" != "${EIB_IMAGE_HOST_SHORT}" ]; then
     ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} rm -f \
-      "${EIB_IMAGE_DEST}"/.inprogress
+      "${destdir}"/.inprogress
   else
-    sudo -u ${EIB_IMAGE_USER} rm -f "${EIB_IMAGE_DEST}"/.inprogress
+    sudo -u ${EIB_IMAGE_USER} rm -f "${destdir}"/.inprogress
   fi
 }
 
