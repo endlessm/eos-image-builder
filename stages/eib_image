@@ -91,7 +91,6 @@ run_hooks content "${OSTREE_DEPLOYMENT}"
 
 create_image() {
   local outfile=$1
-  local personality=$2
 
   # Create images according to data size, with 1GB free space.
   local img_size=$(du --block-size=1 -s "${EIB_OSTREE_CHECKOUT}")
@@ -136,7 +135,7 @@ create_image() {
   DEPLOY="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
   mkdir -p "${ROOT}"
   eib_mount ${root_loop} "${ROOT}"
-  eib_write_version_xattr "${ROOT}" ${personality}
+  eib_write_version_xattr "${ROOT}" ${EIB_PERSONALITY}
 
   if [[ "${EIB_ARCH}" == "i386" ]]; then
     ESP="${ROOT}"/boot/efi
@@ -186,15 +185,16 @@ create_image() {
 
   # Create split image for 2 disk systems if required.
   if [ "${EIB_SPLIT_IMAGES}" = true ]; then
-    "${EIB_HELPERS}"/split-image "${img}" ${personality}
+    "${EIB_HELPERS}"/split-image "${img}"
   fi
 
   rm -f "${img}"
   wait
 }
 
-for personality in ${EIB_PERSONALITIES}; do
-  echo "Create image for personality ${personality}"
+export EIB_PERSONALITY
+for EIB_PERSONALITY in ${EIB_PERSONALITIES}; do
+  echo "Create image for personality ${EIB_PERSONALITY}"
 
   # Mount kernel filesystems into deployment for image hooks
   eib_mount -t sysfs sysfs "${OSTREE_DEPLOYMENT}"/sys
@@ -204,10 +204,9 @@ for personality in ${EIB_PERSONALITIES}; do
   # Bind mount OS /var over deployment's /var for image hooks
   eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 
-  export EIB_PERSONALITY=$personality
   run_hooks image "${OSTREE_DEPLOYMENT}"
   eib_umount_all
-  create_image $(eib_outfile ${personality}.img.gz) ${personality}
+  create_image $(eib_outfile ${EIB_PERSONALITY}.img.gz)
   [ -z "${EIB_DRY_RUN}" ] && run_hooks publish-image
 done
 
