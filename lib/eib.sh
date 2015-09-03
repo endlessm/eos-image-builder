@@ -62,12 +62,12 @@ run_hooks() {
 }
 
 eib_version() {
-  echo ${EIB_PRODUCT}-${EIB_BRANCH}-${EIB_ARCH}-${EIB_PLATFORM}.${EIB_BUILD_VERSION}
+  echo ${EIB_PRODUCT}-${EIB_BRANCH}-${EIB_ARCH}-${EIB_PLATFORM}.${EIB_BUILD_VERSION}.${EIB_PERSONALITY}
 }
 
 # Generate full path to output directory
 eib_outdir() {
-  echo ${EIB_OUT_ROOT}
+  echo ${EIB_OUT_ROOT}/${EIB_PERSONALITY}
 }
 
 # Generate full path to output file
@@ -77,12 +77,12 @@ eib_outfile() {
 
 # Generate full remote output directory
 eib_image_dest() {
-  echo ${EIB_IMAGE_PATH}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_BUILD_VERSION}
+  echo ${EIB_IMAGE_PATH}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_PERSONALITY}/${EIB_BUILD_VERSION}
 }
 
 # Generate full remote url
 eib_image_url() {
-  echo ${EIB_IMAGE_URL_ROOT}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_BUILD_VERSION}
+  echo ${EIB_IMAGE_URL_ROOT}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_PERSONALITY}/${EIB_BUILD_VERSION}
 }
 
 # Encode the original image version and personality as an xattr of the
@@ -90,16 +90,6 @@ eib_image_url() {
 # Usage: <root directory path> <personality>
 eib_write_version_xattr() {
   attr -s eos-image-version -V "$(eib_version).$2" "$1"
-}
-
-# Return all output files for a personality. This assumes that the files
-# all contain .$personality. in the filename.
-eib_personality_outfiles() {
-  local personality=${1:?No personality specified to ${FUNCNAME}}
-  local base=$(eib_outfile ${personality}.)
-
-  # Match all files with this personality in the filename.
-  echo "${base}"*
 }
 
 # Declare the EIB_MOUNTS array, but don't reinitialize it.

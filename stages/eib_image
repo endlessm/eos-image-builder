@@ -74,7 +74,7 @@ export OSTREE_CURRENT_DEPLOYMENT=$(tmp_ostree admin \
 export OSTREE_DEPLOYMENT="${EIB_OSTREE_CHECKOUT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
 export OSTREE_VAR="${EIB_OSTREE_CHECKOUT}"/ostree/deploy/${EIB_OSTREE_OS}/var
 
-treeinfo=$(eib_outfile ostree.txt)
+treeinfo="${EIB_TMPDIR}"/ostree.txt
 echo "Branch ${EIB_OSTREE_BRANCH}" > ${treeinfo}
 tmp_ostree --repo="${EIB_OSTREE_CHECKOUT}"/ostree/repo show \
   ${EIB_OSTREE_BRANCH_DEPLOY} >> ${treeinfo}
@@ -84,7 +84,7 @@ eib_umount_all
 
 # Output package list using the dpkg database from the deployment's /var
 dpkgdir="${OSTREE_DEPLOYMENT}"/var/lib/dpkg
-packageinfo=$(eib_outfile packages.txt)
+packageinfo="${EIB_TMPDIR}"/packages.txt
 dpkg-query -W --admindir="${dpkgdir}" > "${packageinfo}"
 
 run_hooks content "${OSTREE_DEPLOYMENT}"
@@ -183,6 +183,10 @@ create_image() {
   pigz --no-name -c "${img}" > ${outfile}
   sign_file ${outfile} &
 
+  # Copy ostree and package info to per-personality outdir.
+  cp "${EIB_TMPDIR}"/ostree.txt "$(eib_outfile ostree.txt)"
+  cp "${EIB_TMPDIR}"/packages.txt "$(eib_outfile packages.txt)"
+
   # Create split image for 2 disk systems if required.
   if [ "${EIB_SPLIT_IMAGES}" = true ]; then
     "${EIB_HELPERS}"/split-image "${img}"
@@ -204,10 +208,16 @@ for EIB_PERSONALITY in ${EIB_PERSONALITIES}; do
   # Bind mount OS /var over deployment's /var for image hooks
   eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 
+  recreate_dir "$(eob_outdir)"
   run_hooks image "${OSTREE_DEPLOYMENT}"
   eib_umount_all
-  create_image $(eib_outfile ${EIB_PERSONALITY}.img.gz)
-  [ -z "${EIB_DRY_RUN}" ] && run_hooks publish-image
+  create_image "$(eib_outfile img.gz)"
+  if [ -z "${EIB_DRY_RUN}" ]; then
+      # Publish this personality's files and cleanup the local output if
+      # this is not a dry run
+      run_hooks publish
+      rm -rf "$(eob_outdir)"
+  fi
 done
 
 # Make the deployment root mutable to delete it

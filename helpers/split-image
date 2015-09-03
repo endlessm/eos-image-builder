@@ -139,8 +139,8 @@ split_image() {
   local disk2_img=${EIB_SCRATCH}/disk2
 
   local disk1_img_gz disk2_img_gz
-  disk1_img_gz=$(eib_outfile ${EIB_PERSONALITY}.disk1.img.gz)
-  disk2_img_gz=$(eib_outfile ${EIB_PERSONALITY}.disk2.img.gz)
+  disk1_img_gz=$(eib_outfile disk1.img.gz)
+  disk2_img_gz=$(eib_outfile disk2.img.gz)
 
   # Mount root filesystem from the last partition of the image file.
   DISK1_LOOP=$(losetup --show -f "${disk1_img}")
