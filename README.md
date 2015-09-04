@@ -49,12 +49,6 @@ completing the image, a 2nd set of images for use in a 2 disk setup is
 created. After the images are created for each personality, they're
 immediately published to the remote image server.
 
-publish stage
--------------
-
-This stage does a final publishing of the output directory to the remote
-image server.
-
 error stage
 -----------
 
@@ -171,7 +165,7 @@ personalities is available on host disk, to be used later.
 Once the ostree has been checked out (onto the host disk), customization
 hooks under `image` are run, *once for each personality*.
 `${OSTREE_DEPLOYMENT}` contains the path to the checkout, and
-`${PERSONALITY}` states which personality is being built.
+`${EIB_PERSONALITY}` states which personality is being built.
 
 For reasons of speed, the ostree deployment is not recreated for each
 personality. This means that *all customization scripts here should
@@ -193,23 +187,14 @@ migrate content from the root into this filesystem. The filesystem is a
 fixed size (currenlty 8 GB), so hooks are required to ignore failures
 due to insufficient space and revert to the original layout.
 
-After image files are created, customization hooks under `publish-image`
-are run, *once for each personality*. These hooks should publish that
+After image files are created, customization hooks under `publish` are
+run, *once for each personality*. These hooks should publish that
 personality's image files to the remote image server.
-
-publish customization
----------------------
-
-Keeping with the design that the core is simple and the meat is kept
-under customization, the publish stage does nothing more than call into
-customization hooks kept in `publish`. These hooks should take the
-output of `${EIB_OUTDIR}` and push it to the final destination.
-
 
 error customization
 -------------------
 
 Like the publish stage, the error stage simply calls the customization
 hooks kept in `error`. These hooks should take the `build.txt` file from
-`${EIB_OUTDIR}` and push it to the final destination. This stage should
+`${EIB_OUT_ROOT}` and push it to the final destination. This stage should
 also clean up for subsequent builds.
