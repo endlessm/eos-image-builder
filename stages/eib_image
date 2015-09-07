@@ -208,7 +208,7 @@ for EIB_PERSONALITY in ${EIB_PERSONALITIES}; do
   # Bind mount OS /var over deployment's /var for image hooks
   eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 
-  recreate_dir "$(eob_outdir)"
+  recreate_dir "$(eib_outdir)"
   run_hooks image "${OSTREE_DEPLOYMENT}"
   eib_umount_all
   create_image "$(eib_outfile img.gz)"
@@ -216,7 +216,7 @@ for EIB_PERSONALITY in ${EIB_PERSONALITIES}; do
       # Publish this personality's files and cleanup the local output if
       # this is not a dry run
       run_hooks publish
-      rm -rf "$(eob_outdir)"
+      rm -rf "$(eib_outdir)"
   fi
 done
 
