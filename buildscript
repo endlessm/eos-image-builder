@@ -15,4 +15,3 @@ fi
 # Real build stages
 eib_ostree
 eib_image
-eib_publish
