@@ -146,6 +146,9 @@ create_image() {
   # Copy contents into image, preserving attributes, timestamps, hardlinks, etc.
   cp -a "${EIB_OSTREE_CHECKOUT}"/* "${ROOT}"
 
+  # Restore the immutable attribute on the deployment root lost via cp
+  chattr +i "${DEPLOY}"
+
   # Install bootloader
   if [[ "${EIB_PLATFORM}" == "odroidu2" ]]; then
     # from hardkernel u-boot sd_fusing.sh
