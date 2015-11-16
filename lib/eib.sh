@@ -216,6 +216,38 @@ eib_end_publishing() {
   fi
 }
 
+# Delete the in progess image publishing directories on failure. We
+# don't have the current personality at this point, so iterate through
+# all personalities.
+eib_fail_publishing() {
+  local destdir
+
+  # Skip on dry runs
+  [ -n "${EIB_DRY_RUN}" ] && return 0
+
+  for EIB_PERSONALITY in ${EIB_PERSONALITIES}; do
+    destdir=$(eib_image_dest)
+
+    # If the .inprogress file exists, delete the entire destdir. This is
+    # pretty ugly because we need a shell command list and that would
+    # require quite a bit of magic escaping.
+    if [ "$(hostname -s)" != "${EIB_IMAGE_HOST_SHORT}" ]; then
+      if ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} \
+        test -f "${destdir}"/.inprogress
+      then
+        ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} \
+          rm -rf "${destdir}"
+      fi
+    else
+      if sudo -u ${EIB_IMAGE_USER} \
+        test -f "${destdir}"/.inprogress
+      then
+        sudo -u ${EIB_IMAGE_USER} rm -rf "${destdir}"
+      fi
+    fi
+  done
+}
+
 # Try to work around a race where partx sometimes reports EBUSY failure
 eib_partx_scan() {
   udevadm settle
