@@ -188,7 +188,12 @@ exec > >(tee "${EIB_TMPDIR}"/build.txt)
 exec 2>&1
 
 mkdir -p "${EIB_CONTENT}"
-. "${EIB_SRC}"/buildscript
+
+# Run buildscript once per personality
+export EIB_PERSONALITY
+for EIB_PERSONALITY in ${EIB_PERSONALITIES}; do
+  . "${EIB_SRC}"/buildscript
+done
 
 # Unless this is a dry run, the output files have been published and can
 # be deleted.
