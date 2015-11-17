@@ -162,7 +162,7 @@ eib_prep_scratchdir() {
 # Path to the build specific cache directory. The build version is not
 # included since the files will be persistent.
 eib_cachedir() {
-  echo "${EIB_CACHEDIR}"/${EIB_PRODUCT}-${EIB_BRANCH}-${EIB_ARCH}-${EIB_PLATFORM}
+  echo "${EIB_CACHEDIR}"/${EIB_PRODUCT}-${EIB_BRANCH}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_PERSONALITY}
 }
 
 # Generate full path to cache file.
