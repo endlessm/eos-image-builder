@@ -23,8 +23,9 @@ eib_mount -t sysfs sysfs "${EIB_OSTREE_TMPDIR}"/sys
 eib_mount -t proc proc "${EIB_OSTREE_TMPDIR}"/proc
 eib_mount --bind /dev/pts "${EIB_OSTREE_TMPDIR}"/dev/pts
 
+# Use a normal bare repo to speed up later deployment
 if [ ! -f "${EIB_OSTREE}"/config ]; then
-  tmp_ostree --repo="${EIB_OSTREE}" init --mode archive-z2
+  tmp_ostree --repo="${EIB_OSTREE}" init
 fi
 
 # Prune the builder's ostree to keep the local repo from growing
