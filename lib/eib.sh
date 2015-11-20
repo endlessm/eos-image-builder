@@ -16,7 +16,7 @@ EIB_OUT_ROOT=${EIB_SCRATCH}/out
 EIB_CACHEDIR=${EIB_SCRATCH}/cache
 EIB_TMPDIR=${EIB_SCRATCH}/tmp
 EIB_OSTREE_TMPDIR=${EIB_TMPDIR}/ostree-bin
-export EIB_CONTENT=/var/eib/content
+export EIB_CONTENT=${EIB_SCRATCH}/content
 export EIB_APPS_CONTENT=${EIB_CONTENT}/apps
 
 # Run hooks under customization/
