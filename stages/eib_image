@@ -213,12 +213,6 @@ recreate_dir "$(eib_outdir)"
 run_hooks image "${OSTREE_DEPLOYMENT}"
 eib_umount_all
 create_image "$(eib_outfile img.gz)"
-if [ -z "${EIB_DRY_RUN}" ]; then
-  # Publish this personality's files and cleanup the local output if
-  # this is not a dry run
-  run_hooks publish
-  rm -rf "$(eib_outdir)"
-fi
 
 # Make the deployment root mutable to delete it
 mutable_deployment

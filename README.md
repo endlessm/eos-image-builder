@@ -45,8 +45,13 @@ image stage
 This stage checks out the latest ostree into a new directory, configures
 the bootloader, adds content, and creates output images. After
 completing the image, a 2nd set of images for use in a 2 disk setup is
-created. After the images are created for each personality, they're
-immediately published to the remote image server.
+created.
+
+publish stage
+-------------
+
+This stage does a final publishing of the output directory to the remote
+image server.
 
 error stage
 -----------
@@ -180,9 +185,13 @@ migrate content from the root into this filesystem. The filesystem is a
 fixed size (currently 8 GB), so hooks are required to ignore failures
 due to insufficient space and revert to the original layout.
 
-After image files are created, customization hooks under `publish` are
-run, *once for each personality*. These hooks should publish that
-personality's image files to the remote image server.
+publish customization
+---------------------
+
+Keeping with the design that the core is simple and the meat is kept
+under customization, the publish stage does nothing more than call into
+customization hooks kept in `publish`. These hooks should take the
+output of `$(eib_outdir)` and push it to the final destination.
 
 error customization
 -------------------
