@@ -136,7 +136,7 @@ shrink_disk2_image() {
 
 split_image() {
   local disk1_img=$1
-  local disk2_img=${EIB_SCRATCH}/disk2
+  local disk2_img=${EIB_TMPDIR}/disk2
 
   local disk1_img_gz disk2_img_gz
   disk1_img_gz=$(eib_outfile disk1.img.gz)

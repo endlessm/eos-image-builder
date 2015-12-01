@@ -16,7 +16,7 @@ EIB_OUT_ROOT=${EIB_SCRATCH}/out
 EIB_CACHEDIR=${EIB_SCRATCH}/cache
 EIB_TMPDIR=${EIB_SCRATCH}/tmp
 EIB_OSTREE_TMPDIR=${EIB_TMPDIR}/ostree-bin
-export EIB_CONTENT=/var/eib/content
+export EIB_CONTENT=${EIB_SCRATCH}/content
 export EIB_APPS_CONTENT=${EIB_CONTENT}/apps
 
 # Run hooks under customization/
@@ -123,6 +123,39 @@ eib_umount_all() {
   # Clear and re-declare the array
   unset EIB_MOUNTS
   declare -a EIB_MOUNTS
+}
+
+# Cleanup the scratch space and prep for a new build.
+eib_prep_scratchdir() {
+  local mounts=()
+  local realdir
+  local device
+  local dir
+  local rest
+  local -i n
+
+  # If the scratch space exists, unmount any filesystems in it and make
+  # all paths mutable.
+  if [ -d "${EIB_SCRATCH}" ]; then
+    # Fully resolve the scratch path to match what's in the mount info
+    realdir=$(readlink -f "${EIB_SCRATCH}")
+    while read device dir rest; do
+      [[ ${dir} =~ ^${realdir}/ ]] && mounts+=("$dir")
+    done < /proc/mounts
+
+    # Work from the end of the array to unmount submounts first
+    for ((n = ${#mounts[@]} - 1; n >= 0; n--)); do
+      umount "${mounts[n]}"
+    done
+
+    # Make everything mutable
+    chattr -R -i "${EIB_SCRATCH}"
+  fi
+
+  # Cleanup files from previous build
+  recreate_dir "${EIB_OUT_ROOT}"
+  recreate_dir "${EIB_OSTREE_CHECKOUT}"
+  recreate_dir "${EIB_TMPDIR}"
 }
 
 # Path to the build specific cache directory. The build version is not

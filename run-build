@@ -183,8 +183,7 @@ export EIB_JENKINS_URL EIB_JENKINS_USER EIB_JENKINS_TOKEN
 
 . "${EIB_BASELIB}"
 
-recreate_dir "${EIB_OUT_ROOT}"
-recreate_dir "${EIB_TMPDIR}"
+eib_prep_scratchdir
 exec > >(tee "${EIB_TMPDIR}"/build.txt)
 exec 2>&1
 
