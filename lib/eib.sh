@@ -148,8 +148,9 @@ eib_prep_scratchdir() {
       umount "${mounts[n]}"
     done
 
-    # Make everything mutable
-    chattr -R -i "${EIB_SCRATCH}"
+    # Make everything mutable. This is only valid on files and
+    # directories, so skip everything else.
+    find "${EIB_SCRATCH}" -type d -o -type f -exec chattr -i '{}' '+'
   fi
 
   # Cleanup files from previous build
