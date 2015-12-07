@@ -1,69 +1,113 @@
-#!/bin/bash -e
-# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
-MYDIR=$(dirname $(readlink -f $0))
-BUILDDIR=/var/cache/eos-image-builder
+#!/usr/bin/python3
+# -*- mode: Python; coding: utf-8 -*-
+
+# Endless image build runner
+#
+# Copyright (C) 2014-2015  Endless Mobile, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+from argparse import ArgumentParser
+import errno
+import fcntl
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+MYDIR = os.path.dirname(os.path.realpath(__file__))
+BUILDDIR = '/var/cache/eos-image-builder'
+LOCKFILE = '/var/lock/eos-image-builder.lock'
+LOCKTIMEOUT = 60
+
+def set_close_on_exec(fd):
+    flags = fcntl.fcntl(fd, fcntl.F_GETFD)
+    flags |= fcntl.FD_CLOEXEC
+    fcntl.fcntl(fd, fcntl.F_SETFD, flags)
+
+def lock_builder(lockf):
+    wait = LOCKTIMEOUT
+    while True:
+        try:
+            # Grab the lock exclusively non-blocking
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except IOError as err:
+            if err.errno in [errno.EACCES, errno.EAGAIN]:
+                if wait == LOCKTIMEOUT:
+                    lockpid = lockf.read().strip()
+                    print(LOCKFILE, 'currently locked by pid', lockpid,
+                          file=sys.stderr)
+                wait -= 1
+                if wait == 0:
+                    raise Exception('Could not lock file %s' % LOCKFILE)
+                time.sleep(1)
+            else:
+                # Some other issue
+                raise
+
+    # Write this pid into the lock file
+    lockf.truncate()
+    lockf.write('%d\n' % os.getpid())
+    lockf.flush()
 
 # This option list must stay in sync with run-build. It's repeated here
 # so that the branch to checkout can be reliably determined.
-orig_args=("$@")
-args=$(getopt -o "p:P:fnh" \
-  -l "product:,platform:,personalities:,force,dry-run,no-checkout,help" \
-  -n "eos-image-builder" -- "$@")
-eval set -- "${args}"
+aparser = ArgumentParser(description='Build and publish images for Endless')
+aparser.add_argument('-p', '--product', help='product to build')
+aparser.add_argument('--platform', help='platform to build')
+aparser.add_argument('-P', '--personalities', help='personalities to build')
+aparser.add_argument('-f', '--force', action='store_true',
+                     help='run build even when no new assets found')
+aparser.add_argument('-n', '--dry-run', action='store_true',
+                     help="don't publish images")
+aparser.add_argument('--no-checkout', action='store_true',
+                     help='use current builder branch')
+aparser.add_argument('branch', nargs='?', default='master',
+                     help='branch to build')
+args = aparser.parse_args()
 
-while true; do
-  case "$1" in
-    --no-checkout)
-      EIB_NO_CHECKOUT=true
-      shift
-      ;;
-    -h|--help)
-      # Show help output from run-build without locking or bash tracing
-      bash -e $MYDIR/run-build $1
-      exit 0
-      ;;
-    --)
-      shift
-      break
-      ;;
-    *)
-      # All other options are to be processed by run-build. Skip them.
-      shift
-      ;;
-  esac
-done
+os.makedirs(os.path.dirname(LOCKFILE), exist_ok=True)
+with open(LOCKFILE, 'r+') as lf:
+    lock_builder(lf)
 
-branch=${1:-master}
+    # Set the close-on-exec bit so the lock file isn't inherited by
+    # child processes. This isn't actually required since subprocess
+    # will close all fds except stdin/out/err by default, but let's be
+    # safe.
+    set_close_on_exec(lf.fileno())
 
-# Ensure the lock is taken before checking out the needed branch. This
-# is done in a subshell with the file connected to fd 9 to ensure the
-# file remains locked until the build completes.
-mkdir -p /var/lock
-(
-  if ! flock -w 60 9; then
-    echo "ERROR: instance already running" >&2
-    exit 1
-  fi
+    # Setup the real builder to run
+    os.chdir(MYDIR)
+    if not args.no_checkout:
+        # Make a copy of the repo to use. A real git repo is needed
+        # since the build later queries the current commit.
+        srcdir = os.path.join(BUILDDIR, 'src')
+        shutil.rmtree(srcdir, ignore_errors=True)
+        os.makedirs(BUILDDIR, exist_ok=True)
+        shutil.copytree(MYDIR, srcdir, symlinks=True)
+        os.chdir(srcdir)
 
-  cd $MYDIR
-  if [ -z "$EIB_NO_CHECKOUT" ]; then
-    # Make a copy of the repo to use. A real git repo is needed since
-    # the build later queries the current commit.
-    SRCDIR="$BUILDDIR"/src
-    rm -rf "$SRCDIR"
-    mkdir -p "$BUILDDIR"
-    cp -r "$MYDIR" "$SRCDIR"
-    cd "$SRCDIR"
+        # Fetch the current code before launching the actual build.
+        # Assume that if the job is running from jenkins that it has
+        # already fetched the latest.
+        if 'JENKINS_HOME' not in os.environ:
+            subprocess.check_call(['git', 'fetch', 'origin'])
+        subprocess.check_call(['git', 'checkout', 'origin/' + args.branch])
+        subprocess.check_call(['git', 'clean', '-xdf'])
 
-    # Fetch the current code before launching the actual build. Assume
-    # that if the job is running from jenkins that it has already
-    # fetched the latest.
-    if [ -z "$JENKINS_HOME" ]; then
-      git fetch origin
-    fi
-    git checkout origin/"$branch"
-    git clean -xdf
-  fi
-
-  ./run-build "${orig_args[@]}"
-) 9>/var/lock/eos-image-builder.lock
+    # Run the real builder
+    subprocess.check_call(['./run-build'] + sys.argv[1:])
