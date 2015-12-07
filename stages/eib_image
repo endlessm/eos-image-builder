@@ -46,8 +46,8 @@ tmp_ostree admin init-fs "${EIB_OSTREE_CHECKOUT}"
 tmp_ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" os-init ${EIB_OSTREE_OS}
 tmp_ostree --repo="${REPOPATH}" remote add ${EIB_OSTREE_OS} ${EIB_OSTREE_URL} \
   ${EIB_OSTREE_BRANCH_DEPLOY}
-tmp_ostree --repo="${REPOPATH}" pull-local --remote=${EIB_OSTREE_OS} \
-  ${EIB_OSTREE} ${EIB_OSTREE_BRANCH_DEPLOY}
+tmp_ostree --repo="${REPOPATH}" pull-local --disable-fsync \
+  --remote=${EIB_OSTREE_OS} ${EIB_OSTREE} ${EIB_OSTREE_BRANCH_DEPLOY}
 
 # Basic bootloader setup
 if [[ "${EIB_ARCH}" == "armhf" ]]; then
