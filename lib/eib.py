@@ -46,6 +46,7 @@ def add_cli_options(argparser):
     assert(isinstance(argparser, ArgumentParser))
     argparser.add_argument('-p', '--product', default='eos',
                            help='product to build')
+    argparser.add_argument('-a', '--arch', help='architecture to build')
     argparser.add_argument('--platform', help='platform to build')
     argparser.add_argument('-P', '--personalities', default='base',
                            help='personalities to build')

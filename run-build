@@ -44,10 +44,13 @@ class ImageBuilder(object):
                  'email_replyto', 'email_to', 'jenkins_url',
                  'jenkins_user', 'jenkins_token']
 
-    def __init__(self, product, branch, platform, personality,
+    SUPPORTED_ARCHES = ['i386', 'armhf']
+
+    def __init__(self, product, branch, arch, platform, personality,
                  force=False, dry_run=False):
         self.product = product
         self.branch = branch
+        self.arch = arch
         self.platform = platform
         self.personality = personality
         self.force = force
@@ -69,13 +72,18 @@ class ImageBuilder(object):
     def configure(self):
         """Build settings determined from options"""
         # Architecture and platform
-        machine = os.uname().machine
-        if machine == 'x86_64' or fnmatch.fnmatch(machine, 'i?86'):
-            self.arch = 'i386'
-        elif machine.startswith('arm'):
-            self.arch = 'armhf'
-        else:
-            raise ImageBuildError('Machine', machine, 'not supported')
+        if not self.arch:
+            # Auto-detect from host arch
+            machine = os.uname().machine
+            if machine == 'x86_64' or fnmatch.fnmatch(machine, 'i?86'):
+                self.arch = 'i386'
+            elif machine.startswith('arm'):
+                self.arch = 'armhf'
+            else:
+                raise ImageBuildError('Machine', machine, 'not supported')
+
+        if self.arch not in self.SUPPORTED_ARCHES:
+            raise ImageBuildError('Architecture', self.arch, 'not supported')
 
         if not self.platform:
             if self.arch == 'armhf':
@@ -281,6 +289,7 @@ def main():
     for personality in args.personalities.strip().split():
         builder = ImageBuilder(product=args.product,
                                branch=args.branch,
+                               arch=args.arch,
                                platform=args.platform,
                                personality=personality,
                                force=args.force,
