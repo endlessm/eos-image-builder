@@ -34,15 +34,17 @@ import eib
 class ImageBuilder(object):
     # Attributes to be exported to environment
     ENV_ATTRS = ['product', 'branch', 'platform', 'personality',
-                 'force', 'dry_run', 'sysconf', 'build_version', 'arch',
-                 'split_images', 'obs_repo', 'image_signing_keyid',
-                 'ostree_branch', 'ostree_repo', 'ostree_os',
-                 'ostree_checkout', 'ostree', 'ostree_branch_deploy',
-                 'ostree_url', 'ostree_int_url', 'ostree_tmpdir',
-                 'image_host_short', 'image_host', 'image_user',
-                 'image_path', 'image_url_root', 'email_from',
-                 'email_replyto', 'email_to', 'jenkins_url',
-                 'jenkins_user', 'jenkins_token']
+                 'force', 'dry_run', 'srcdir', 'datadir', 'helpersdir',
+                 'builddir', 'tmpdir', 'ostree_tmpdir', 'contentdir',
+                 'apps_contentdir', 'outrootdir', 'cachedir',
+                 'sysconfdir', 'build_version', 'arch', 'split_images',
+                 'obs_repo', 'image_signing_keyid', 'ostree_branch',
+                 'ostree_repo', 'ostree_os', 'ostree_checkout',
+                 'ostree_repodir', 'ostree_branch_deploy', 'ostree_url',
+                 'ostree_int_url', 'image_host_short', 'image_host',
+                 'image_user', 'image_path', 'image_url_root',
+                 'email_from', 'email_replyto', 'email_to',
+                 'jenkins_url', 'jenkins_user', 'jenkins_token']
 
     SUPPORTED_ARCHES = ['i386', 'armhf']
 
@@ -64,9 +66,9 @@ class ImageBuilder(object):
         self.ostree_tmpdir = os.path.join(self.tmpdir, 'ostree-bin')
         self.contentdir = os.path.join(self.builddir, 'content')
         self.apps_contentdir = os.path.join(self.contentdir, 'apps')
-        self.outdir = os.path.join(self.builddir, 'out')
+        self.outrootdir = os.path.join(self.builddir, 'out')
         self.cachedir = os.path.join(self.builddir, 'cache')
-        self.sysconf = eib.SYSCONFDIR
+        self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
 
     def configure(self):
@@ -125,7 +127,8 @@ class ImageBuilder(object):
             self.ostree_os = 'eos'
 
         # OSTree directories
-        self.ostree = os.path.join(self.builddir, 'ostree', self.ostree_repo)
+        self.ostree_repodir = os.path.join(self.builddir, 'ostree',
+                                           self.ostree_repo)
         self.ostree_checkout = os.path.join(self.builddir, 'ostree-co')
 
         # Multiple stable minor version branches may be in use, but the
@@ -167,7 +170,7 @@ class ImageBuilder(object):
         # Jenkins triggering
         self.jenkins_url = 'http://ci.endlessm-sf.com:8080'
         self.jenkins_user = 'image-builder'
-        self.jenkins_token = os.path.join(self.sysconf, 'jenkins-token')
+        self.jenkins_token = os.path.join(self.sysconfdir, 'jenkins-token')
 
     def setenv(self, attr):
         """Export attribute as variable in EIB namespace"""
@@ -182,15 +185,6 @@ class ImageBuilder(object):
     def set_environment(self):
         """Setup environment variables for stages and hooks"""
         # Standard builder environment
-        os.environ['EIB_SRC'] = self.srcdir
-        os.environ['EIB_HELPERS'] = self.helpersdir
-        os.environ['EIB_SCRATCH'] = self.builddir
-        os.environ['EIB_DATA'] = self.datadir
-        os.environ['EIB_TMPDIR'] = self.tmpdir
-        os.environ['EIB_CONTENT'] = self.contentdir
-        os.environ['EIB_APPS_CONTENT'] = self.apps_contentdir
-        os.environ['EIB_OUT_ROOT'] = self.outdir
-        os.environ['EIB_CACHEDIR'] = self.cachedir
         os.environ['EIB_BASELIB'] = os.path.join(self.srcdir, 'lib/eib.sh')
         os.environ['PATH'] = '%s:%s' %(os.path.join(self.srcdir, 'stages'),
                                        os.environ['PATH'])
@@ -260,7 +254,7 @@ class ImageBuilder(object):
                     subprocess.check_call(['chattr', '-i'] + realfiles)
 
         # Cleanup files from previous build
-        eib.recreate_dir(self.outdir)
+        eib.recreate_dir(self.outrootdir)
         eib.recreate_dir(self.ostree_checkout)
         eib.recreate_dir(self.tmpdir)
 
@@ -279,7 +273,7 @@ class ImageBuilder(object):
         # Unless this is a dry run, the output files have been published
         # and can be deleted.
         if not self.dry_run:
-            shutil.rmtree(self.outdir, ignore_errors=True)
+            shutil.rmtree(self.outrootdir, ignore_errors=True)
 
 def main():
     aparser = ArgumentParser(description='Build and publish images for Endless')

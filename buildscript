@@ -9,9 +9,10 @@ stage_error() {
 trap stage_error ERR
 
 # Ensure all needed settings are available from the environment.
-for var in EIB_BASELIB EIB_SCRATCH EIB_OSTREE_CHECKOUT EIB_OSTREE \
-  EIB_DATA EIB_HELPERS EIB_OUT_ROOT EIB_CACHEDIR EIB_TMPDIR \
-  EIB_OSTREE_TMPDIR EIB_CONTENT EIB_APPS_CONTENT
+for var in EIB_BASELIB EIB_SRCDIR EIB_BUILDDIR EIB_OSTREE_CHECKOUT \
+  EIB_OSTREE_REPODIR EIB_DATADIR EIB_HELPERSDIR EIB_OUTROOTDIR \
+  EIB_CACHEDIR EIB_TMPDIR EIB_OSTREE_TMPDIR EIB_CONTENTDIR \
+  EIB_APPS_CONTENTDIR
 do
   if [ ! -v $var ]; then
     echo "error: required variable $var not set" >&2
@@ -20,10 +21,10 @@ do
 done
 
 # Read system config overrides
-[[ -e "${EIB_SYSCONF}"/config ]] && . "${EIB_SYSCONF}"/config
+[[ -e "${EIB_SYSCONFDIR}"/config ]] && . "${EIB_SYSCONFDIR}"/config
 
 # Read user config overrides
-[[ -e "${EIB_SRC}"/config ]] && . "${EIB_SRC}"/config
+[[ -e "${EIB_SRCDIR}"/config ]] && . "${EIB_SRCDIR}"/config
 
 . "${EIB_BASELIB}"
 

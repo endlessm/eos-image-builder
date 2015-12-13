@@ -164,7 +164,7 @@ image customization
 At the start of the image stage, the customization hooks under `content`
 are run. These hooks are intended to ensure that all content for the
 current personality is available on host disk, to be used later.
-`${EIB_CONTENT}` should be used for storing this, and
+`${EIB_CONTENTDIR}` should be used for storing this, and
 `${EIB_PERSONALITY}` states which personality is being built.
 
 Once the ostree has been checked out (onto the host disk), customization
@@ -198,5 +198,5 @@ error customization
 
 Like the publish stage, the error stage simply calls the customization
 hooks kept in `error`. These hooks should take the `build.txt` file from
-`${EIB_OUT_ROOT}` and push it to the final destination. This stage should
+`${EIB_OUTROOTDIR}` and push it to the final destination. This stage should
 also clean up for subsequent builds.

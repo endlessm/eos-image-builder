@@ -147,7 +147,7 @@ split_image() {
   eib_partx_scan "${DISK1_LOOP}"
   local disk1_parts=( "${DISK1_LOOP}"p* )
   ROOT_LOOP="${disk1_parts[-1]}"
-  ROOT=${EIB_SCRATCH}/mnt
+  ROOT=${EIB_BUILDDIR}/mnt
   recreate_dir "${ROOT}"
   eib_mount -t ext4 "${ROOT_LOOP}" "${ROOT}"
 

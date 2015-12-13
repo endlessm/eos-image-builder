@@ -17,14 +17,14 @@ run_hooks() {
   local install_root=$2
 
   # Combine hooks from all and product dirs, but sort them by basename
-  pushd "${EIB_SRC}"/customization &>/dev/null
+  pushd "${EIB_SRCDIR}"/customization &>/dev/null
   local files=$(printf "%s\n" {all,${EIB_PRODUCT}}/$1/* | sort -t '/' -k 3)
   popd &>/dev/null
 
   for hook in ${files}; do
     # Skip backup files
     [ "${hook: -1}" = "~" ] && continue
-    hookpath="${EIB_SRC}"/customization/${hook}
+    hookpath="${EIB_SRCDIR}"/customization/${hook}
     if [ "${hook: -7}" == ".chroot" ]; then
       if [ -z "$install_root" ]; then
         echo "Skipping hook, no chroot available: ${hook}"
@@ -58,7 +58,7 @@ eib_version() {
 
 # Generate full path to output directory
 eib_outdir() {
-  echo ${EIB_OUT_ROOT}/${EIB_PERSONALITY}
+  echo ${EIB_OUTROOTDIR}/${EIB_PERSONALITY}
 }
 
 # Generate full path to output file
@@ -130,7 +130,7 @@ eib_cachefile() {
 # Provide the path to the keyring file. If it doesn't exist, create it.
 eib_keyring() {
   local keyring="${EIB_TMPDIR}"/eib-keyring.gpg
-  local keysdir="${EIB_DATA}"/keys
+  local keysdir="${EIB_DATADIR}"/keys
   local -a keys
   local keyshome key
 
@@ -282,7 +282,7 @@ ostree_gid() {
 sign_file() {
   local file=${1:?No file supplied to ${FUNCNAME}}
 
-  gpg --homedir=${EIB_SYSCONF}/gnupg \
+  gpg --homedir=${EIB_SYSCONFDIR}/gnupg \
       --armour \
       --sign-with ${EIB_IMAGE_SIGNING_KEYID} \
       --detach-sign \
@@ -313,7 +313,7 @@ make_tmp_ostree() {
     --variant=minbase --include="${packages}" \
     --components=core,endless,extra ${EIB_BRANCH} \
     "${EIB_OSTREE_TMPDIR}" "${EIB_OBS_REPO}" \
-    "${EIB_DATA}"/debootstrap.script
+    "${EIB_DATADIR}"/debootstrap.script
 }
 
 # Run the temporary ostree within the chroot.

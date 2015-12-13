@@ -33,10 +33,10 @@ BOOT=${EIB_OSTREE_CHECKOUT}/boot
 
 # Bind mount the ostree repo and checkout to the same locations in the
 # ostree chroot.
-EIB_OSTREE_CHROOT="${EIB_OSTREE_TMPDIR}${EIB_OSTREE}"
+EIB_OSTREE_CHROOT="${EIB_OSTREE_TMPDIR}${EIB_OSTREE_REPODIR}"
 EIB_OSTREE_CO_CHROOT="${EIB_OSTREE_TMPDIR}${EIB_OSTREE_CHECKOUT}"
 mkdir -p "${EIB_OSTREE_CHROOT}" "${EIB_OSTREE_CO_CHROOT}"
-eib_mount --bind "${EIB_OSTREE}" "${EIB_OSTREE_CHROOT}"
+eib_mount --bind "${EIB_OSTREE_REPODIR}" "${EIB_OSTREE_CHROOT}"
 eib_mount --bind "${EIB_OSTREE_CHECKOUT}" "${EIB_OSTREE_CO_CHROOT}"
 eib_mount -t sysfs sysfs "${EIB_OSTREE_TMPDIR}"/sys
 eib_mount -t proc proc "${EIB_OSTREE_TMPDIR}"/proc
@@ -47,7 +47,7 @@ tmp_ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" os-init ${EIB_OSTREE_OS}
 tmp_ostree --repo="${REPOPATH}" remote add ${EIB_OSTREE_OS} ${EIB_OSTREE_URL} \
   ${EIB_OSTREE_BRANCH_DEPLOY}
 tmp_ostree --repo="${REPOPATH}" pull-local --disable-fsync \
-  --remote=${EIB_OSTREE_OS} ${EIB_OSTREE} ${EIB_OSTREE_BRANCH_DEPLOY}
+  --remote=${EIB_OSTREE_OS} ${EIB_OSTREE_REPODIR} ${EIB_OSTREE_BRANCH_DEPLOY}
 
 # Basic bootloader setup
 if [[ "${EIB_ARCH}" == "armhf" ]]; then
@@ -58,7 +58,7 @@ if [[ "${EIB_ARCH}" == "armhf" ]]; then
   ln -s loader/uEnv.txt "${BOOT}"/uEnv.txt
 elif [[ "${EIB_ARCH}" == "i386" ]]; then
   mkdir -p "${BOOT}"/grub
-  cp "${EIB_DATA}"/grub.cfg "${BOOT}"/grub/grub.cfg
+  cp "${EIB_DATADIR}"/grub.cfg "${BOOT}"/grub/grub.cfg
 fi
 
 kargs=(--karg=root=LABEL=ostree --karg=rw --karg=splash \
@@ -131,7 +131,7 @@ create_image() {
   fi
 
   mke2fs -t ext4 -O dir_index,^huge_file -m1 -L ostree ${root_loop}
-  ROOT="${EIB_SCRATCH}"/mnt
+  ROOT="${EIB_BUILDDIR}"/mnt
   DEPLOY="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
   mkdir -p "${ROOT}"
   eib_mount ${root_loop} "${ROOT}"
@@ -192,7 +192,7 @@ create_image() {
 
   # Create split image for 2 disk systems if required.
   if [ "${EIB_SPLIT_IMAGES}" = true ]; then
-    "${EIB_HELPERS}"/split-image "${img}"
+    "${EIB_HELPERSDIR}"/split-image "${img}"
   fi
 
   rm -f "${img}"
@@ -217,4 +217,4 @@ create_image "$(eib_outfile img.gz)"
 # Make the deployment root mutable to delete it
 mutable_deployment
 
-rm -rf "${EIB_OSTREE_CHECKOUT}" "${EIB_APPS_CONTENT}"
+rm -rf "${EIB_OSTREE_CHECKOUT}" "${EIB_APPS_CONTENTDIR}"
