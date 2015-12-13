@@ -3,21 +3,12 @@
 shopt -s nullglob
 shopt -s extglob
 
+# Make sure ERR traps follow through to shell functions
+set -E
+
 # Show current script and time when xtrace (set -x) enabled. Will look
 # like "+ run-build 10:13:40: some command".
 export PS4='+ ${BASH_SOURCE[0]##*/} \t: '
-
-EIB_SCRATCH=/var/cache/eos-image-builder
-EIB_OSTREE_CHECKOUT=${EIB_SCRATCH}/ostree-co
-export EIB_OSTREE=${EIB_SCRATCH}/ostree/${EIB_OSTREE_REPO}
-export EIB_DATA=${EIB_SRC}/data
-EIB_HELPERS=${EIB_SRC}/helpers
-EIB_OUT_ROOT=${EIB_SCRATCH}/out
-EIB_CACHEDIR=${EIB_SCRATCH}/cache
-EIB_TMPDIR=${EIB_SCRATCH}/tmp
-EIB_OSTREE_TMPDIR=${EIB_TMPDIR}/ostree-bin
-export EIB_CONTENT=${EIB_SCRATCH}/content
-export EIB_APPS_CONTENT=${EIB_CONTENT}/apps
 
 # Run hooks under customization/
 run_hooks() {
@@ -123,40 +114,6 @@ eib_umount_all() {
   # Clear and re-declare the array
   unset EIB_MOUNTS
   declare -a EIB_MOUNTS
-}
-
-# Cleanup the scratch space and prep for a new build.
-eib_prep_scratchdir() {
-  local mounts=()
-  local realdir
-  local device
-  local dir
-  local rest
-  local -i n
-
-  # If the scratch space exists, unmount any filesystems in it and make
-  # all paths mutable.
-  if [ -d "${EIB_SCRATCH}" ]; then
-    # Fully resolve the scratch path to match what's in the mount info
-    realdir=$(readlink -f "${EIB_SCRATCH}")
-    while read device dir rest; do
-      [[ ${dir} =~ ^${realdir}/ ]] && mounts+=("$dir")
-    done < /proc/mounts
-
-    # Work from the end of the array to unmount submounts first
-    for ((n = ${#mounts[@]} - 1; n >= 0; n--)); do
-      umount "${mounts[n]}"
-    done
-
-    # Make everything mutable. This is only valid on files and
-    # directories, so skip everything else.
-    find "${EIB_SCRATCH}" -type d -o -type f -exec chattr -i '{}' '+'
-  fi
-
-  # Cleanup files from previous build
-  recreate_dir "${EIB_OUT_ROOT}"
-  recreate_dir "${EIB_OSTREE_CHECKOUT}"
-  recreate_dir "${EIB_TMPDIR}"
 }
 
 # Path to the build specific cache directory. The build version is not

@@ -1,200 +1,312 @@
-#!/bin/bash -ex
-# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
-export EIB_SRC=$(dirname $(readlink -f $0))
-export EIB_SYSCONF=/etc/eos-image-builder
-export EIB_BASELIB="${EIB_SRC}"/lib/eib.sh
-export PATH=$EIB_SRC/stages:$PATH
-export PYTHONPATH=$EIB_SRC/lib
+#!/usr/bin/python3
+# -*- mode: Python; coding: utf-8 -*-
 
-export LANG=C
-unset LANGUAGE LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
-unset LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT LC_IDENTIFICATION
-unset LC_ALL
+# Endless image builder
+#
+# Copyright (C) 2014-2015  Endless Mobile, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-# Make sure ERR traps follow through to shell functions
-set -E
+from argparse import ArgumentParser
+import datetime
+import fnmatch
+import os
+import shutil
+import subprocess
+import sys
 
-usage() {
-  cat <<EOF
-Usage: eos-image-builder [OPTION]... [BRANCH]
-Build and publish images for Endless
+class ImageBuildError(Exception):
+    """Errors from the image builder"""
+    def __init__(self, *args):
+        self.msg = ' '.join(map(str, args))
 
-  -p, --product         product to build
-  --platform            platform to build
-  -P, --personalities   personalities to build
-  -f, --force           run build even when no new assets found
-  -n, --dry-run         don't publish images
-  --no-checkout         use current builder branch
-  -h, --help            display this help and exit
+    def __str__(self):
+        return str(self.msg)
 
-If BRANCH is not specified, master is used.
-EOF
-}
+class ImageBuilder(object):
+    # Attributes to be exported to environment
+    ENV_ATTRS = ['product', 'branch', 'platform', 'personality',
+                 'force', 'dry_run', 'sysconf', 'build_version', 'arch',
+                 'split_images', 'obs_repo', 'image_signing_keyid',
+                 'ostree_branch', 'ostree_repo', 'ostree_os',
+                 'ostree_checkout', 'ostree', 'ostree_branch_deploy',
+                 'ostree_url', 'ostree_int_url', 'ostree_tmpdir',
+                 'image_host_short', 'image_host', 'image_user',
+                 'image_path', 'image_url_root', 'email_from',
+                 'email_replyto', 'email_to', 'jenkins_url',
+                 'jenkins_user', 'jenkins_token']
 
-args=$(getopt -o "p:P:fnh" \
-  -l "product:,platform:,personalities:,force,dry-run,no-checkout,help" \
-  -n "eos-image-builder" -- "$@")
-eval set -- "${args}"
+    def __init__(self, product, branch, platform, personality,
+                 force=False, dry_run=False):
+        self.product = product
+        self.branch = branch
+        self.platform = platform
+        self.personality = personality
+        self.force = force
+        self.dry_run = dry_run
 
-while true; do
-  case "$1" in
-    -p|--product)
-      EIB_PRODUCT=$2
-      shift 2
-      ;;
-    --platform)
-      EIB_PLATFORM=$2
-      shift 2
-      ;;
-    -P|--personalities)
-      EIB_PERSONALITIES=$2
-      shift 2
-      ;;
-    -f|--force)
-      export EIB_FORCE=true
-      shift
-      ;;
-    -n|--dry-run)
-      export EIB_DRY_RUN=true
-      shift
-      ;;
-    --no-checkout)
-      # Ignored, only used in top level script
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    --)
-      shift
-      break
-      ;;
-  esac
-done
+        self.srcdir = os.path.dirname(os.path.realpath(__file__))
+        self.datadir = os.path.join(self.srcdir, 'data')
+        self.helpersdir = os.path.join(self.srcdir, 'helpers')
+        self.builddir = '/var/cache/eos-image-builder'
+        self.tmpdir = os.path.join(self.builddir, 'tmp')
+        self.ostree_tmpdir = os.path.join(self.tmpdir, 'ostree-bin')
+        self.contentdir = os.path.join(self.builddir, 'content')
+        self.apps_contentdir = os.path.join(self.contentdir, 'apps')
+        self.outdir = os.path.join(self.builddir, 'out')
+        self.cachedir = os.path.join(self.builddir, 'cache')
+        self.sysconf = '/etc/eos-image-builder'
+        self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
 
-# Some configuration defaults
-# Debian package repository from where OS packages will be obtained
-export EIB_OBS_REPO=http://obs-master.endlessm-sf.com:82/shared/eos
+    def configure(self):
+        """Build settings determined from options"""
+        # Architecture and platform
+        machine = os.uname().machine
+        if machine == 'x86_64' or fnmatch.fnmatch(machine, 'i?86'):
+            self.arch = 'i386'
+        elif machine.startswith('arm'):
+            self.arch = 'armhf'
+        else:
+            raise ImageBuildError('Machine', machine, 'not supported')
 
-export EIB_BRANCH=${1:-master}
-export EIB_PRODUCT=${EIB_PRODUCT:-eos}
+        if not self.platform:
+            if self.arch == 'armhf':
+                # Default to odroidu2 (should probably be ec100)
+                self.platform = 'odroidu2'
+            else:
+                # Assume platform neutral arch
+                self.platform = self.arch
 
-# GPG private key ID for signing images
-export EIB_IMAGE_SIGNING_KEYID=587A279C
+        # Create 2 disk split images for everything except eosdev
+        if self.product == 'eosdev':
+            self.split_images = False
+        else:
+            self.split_images = True
 
-case "$(uname -m)" in
-  x86_64|i?86)
-    export EIB_ARCH=i386
-    export EIB_PLATFORM=${EIB_PLATFORM:-i386}
-    ;;
+        # Debian package repository from where OS packages will be obtained
+        self.obs_repo = 'http://obs-master.endlessm-sf.com:82/shared/eos'
 
-  arm*)
-    export EIB_ARCH=armhf
-    export EIB_PLATFORM=${EIB_PLATFORM:-odroidu2}
-    ;;
-esac
+        # GPG private key ID for signing images
+        self.image_signing_keyid = '587A279C'
 
-# By default, only the base personality image is built.
-export EIB_PERSONALITIES=${EIB_PERSONALITIES:-base}
+        # OSTree defaults
+        self.ostree_branch = '%s/%s' %(self.branch, self.platform)
+        self.ostree_repo = '%s-%s' %(self.product, self.arch)
+        self.ostree_os = self.product
 
-# Create 2 disk split images for everything except eosdev.
-case "${EIB_PRODUCT}" in
-  eosdev)
-    EIB_SPLIT_IMAGES=false
-    ;;
-  *)
-    EIB_SPLIT_IMAGES=true
-    ;;
-esac
-export EIB_SPLIT_IMAGES
+        # The eos and eosnonfree products are handled a bit
+        # counterintuitively. For both products, we want to continue
+        # using the eos OS name. For eos, we will temporarily use a
+        # separate repo called eosfree-$arch. For eosnonfree, it will
+        # continue using the eos-$arch repo so our users with codecs
+        # continue to get updates. Later, when the OS is clean again,
+        # the eosfree-$arch repo will go away and both will use the
+        # eos-$arch repo.
+        if self.product == 'eos':
+            self.ostree_repo = 'eosfree-' + self.arch
+        elif self.product == 'eosnonfree':
+            self.ostree_repo = 'eos-' + self.arch
+            self.ostree_os = 'eos'
 
-export EIB_BUILD_VERSION=$(date +%y%m%d-%H%M%S)
-export EIB_OSTREE_BRANCH=${EIB_BRANCH}/${EIB_PLATFORM}
-export EIB_OSTREE_REPO=${EIB_PRODUCT}-${EIB_ARCH}
-export EIB_OSTREE_OS=${EIB_PRODUCT}
+        # OSTree directories
+        self.ostree = os.path.join(self.builddir, 'ostree', self.ostree_repo)
+        self.ostree_checkout = os.path.join(self.builddir, 'ostree-co')
 
-# The eos and eosnonfree products are handled a bit counterintuitively.
-# For both products, we want to continue using the eos OS name. For eos,
-# we will temporarily use a separate repo called eosfree-$arch. For
-# eosnonfree, it will continue using the eos-$arch repo so our users
-# with codecs continue to get updates. Later, when the OS is clean
-# again, the eosfree-$arch repo will go away and both will use the
-# eos-$arch repo.
-case "${EIB_PRODUCT}" in
-  eos)
-    EIB_OSTREE_REPO=eosfree-${EIB_ARCH}
-    ;;
-  eosnonfree)
-    EIB_OSTREE_REPO=eos-${EIB_ARCH}
-    EIB_OSTREE_OS=eos
-    ;;
-esac
+        # Multiple stable minor version branches may be in use, but the
+        # deployed ostree configuration should use only the major
+        # version. E.g., the real branch may be eos2.2, but the deployed
+        # configuration should use eos2.
+        self.ostree_branch_deploy = '%s/%s' %(self.branch.rsplit('.', 1)[0],
+                                              self.platform)
 
-# Multiple stable minor version branches may be in use, but the deployed
-# ostree configuration should use only the major version. E.g., the real
-# branch may be eos2.2, but the deployed configuration should use eos2.
-export EIB_OSTREE_BRANCH_DEPLOY=${EIB_BRANCH%.*}/${EIB_PLATFORM}
+        # The ostree URL that the final system will query for updates.
+        # Not used during build time. The product (e.g. eos) and arch is
+        # taken as a subdirectory of this address.
+        ostree_url_root = 'https://endless:***REMOVED***@ostree.endlessm.com'
+        if self.branch == 'master':
+            ostree_url_base = '%s/staging/dev' %ostree_url_root
+        else:
+            ostree_url_base = '%s/ostree' % ostree_url_root
+        self.ostree_url = '%s/%s' %(ostree_url_base, self.ostree_repo)
 
-# The ostree URL that the final system will query for updates. Not used
-# during build time. The product (e.g. eos) and arch is taken as a
-# subdirectory of this address.
-export EIB_OSTREE_URL_ROOT="https://endless:***REMOVED***@ostree.endlessm.com"
-if [[ "${EIB_BRANCH}" == "master" ]]; then
-  export EIB_OSTREE_URL_BASE="${EIB_OSTREE_URL_ROOT}/staging/dev"
-else
-  export EIB_OSTREE_URL_BASE="${EIB_OSTREE_URL_ROOT}/ostree"
-fi
-export EIB_OSTREE_URL=${EIB_OSTREE_URL_BASE}/${EIB_OSTREE_REPO}
+        # Internal ostree server URL. This is used to pull the most
+        # recent commit.
+        ostree_int_host = 'ostree.endlessm-sf.com'
+        self.ostree_int_url = 'http://%s/%s' %(ostree_int_host, self.ostree_repo)
 
-# Internal ostree server URL. This is used to pull the most recent
-# commit.
-export EIB_OSTREE_INT_HOST=ostree.endlessm-sf.com
-export EIB_OSTREE_INT_USER=uploader
-export EIB_OSTREE_INT_DIR="/srv/ostree/www/${EIB_OSTREE_REPO}"
-export EIB_OSTREE_INT_URL="http://${EIB_OSTREE_INT_HOST}/${EIB_OSTREE_REPO}"
+        # Image uploading
+        self.image_host_short = 'obs-repository'
+        self.image_host = '%s.endlessm-sf.com' % self.image_host_short
+        self.image_user = 'uploader'
+        self.image_path = '/srv/images/www'
 
-# Image uploading
-export EIB_IMAGE_HOST_SHORT=obs-repository
-export EIB_IMAGE_HOST=${EIB_IMAGE_HOST_SHORT}.endlessm-sf.com
-export EIB_IMAGE_USER=uploader
-export EIB_IMAGE_PATH=/srv/images/www
+        # Image URLs
+        self.image_url_root = 'http://images.endlessm-sf.com/'
 
-# Image URLs
-export EIB_IMAGE_URL_ROOT="http://images.endlessm-sf.com/"
+        # Email settings
+        self.email_from = 'image-builder@endlessm.com'
+        self.email_replyto = 'endless-dev@endlessm.com'
+        self.email_to = 'endless-dev-status@endlessm.com'
 
-# Email settings
-EIB_EMAIL_FROM=image-builder@endlessm.com
-EIB_EMAIL_REPLYTO=endless-dev@endlessm.com
-EIB_EMAIL_TO=endless-dev-status@endlessm.com
-export EIB_EMAIL_FROM EIB_EMAIL_REPLYTO EIB_EMAIL_TO
+        # Jenkins triggering
+        self.jenkins_url = 'http://ci.endlessm-sf.com:8080'
+        self.jenkins_user = 'image-builder'
+        self.jenkins_token = os.path.join(self.sysconf, 'jenkins-token')
 
-# Jenkins triggering
-EIB_JENKINS_URL="http://ci.endlessm-sf.com:8080"
-EIB_JENKINS_USER=image-builder
-EIB_JENKINS_TOKEN="${EIB_SYSCONF}"/jenkins-token
-export EIB_JENKINS_URL EIB_JENKINS_USER EIB_JENKINS_TOKEN
+    def setenv(self, attr):
+        """Export attribute as variable in EIB namespace"""
+        value = getattr(self, attr)
+        if isinstance(value, bool):
+            value = 'true' if value else 'false'
+        else:
+            value = str(value)
+        var = 'EIB_' + attr.upper()
+        os.environ[var] = value
 
-# Read system config overrides
-[[ -e "${EIB_SYSCONF}"/config ]] && . "${EIB_SYSCONF}"/config
+    def set_environment(self):
+        """Setup environment variables for stages and hooks"""
+        # Standard builder environment
+        os.environ['EIB_SRC'] = self.srcdir
+        os.environ['EIB_HELPERS'] = self.helpersdir
+        os.environ['EIB_SCRATCH'] = self.builddir
+        os.environ['EIB_DATA'] = self.datadir
+        os.environ['EIB_TMPDIR'] = self.tmpdir
+        os.environ['EIB_CONTENT'] = self.contentdir
+        os.environ['EIB_APPS_CONTENT'] = self.apps_contentdir
+        os.environ['EIB_OUT_ROOT'] = self.outdir
+        os.environ['EIB_CACHEDIR'] = self.cachedir
+        os.environ['EIB_BASELIB'] = os.path.join(self.srcdir, 'lib/eib.sh')
+        os.environ['PATH'] = '%s:%s' %(os.path.join(self.srcdir, 'stages'),
+                                       os.environ['PATH'])
+        pypath = os.path.join(self.srcdir, 'lib')
+        if 'PYTHONPATH' in os.environ:
+            os.environ['PYTHONPATH'] = '%s:%s' %(pypath,
+                                                 os.environ['PYTHONPATH'])
+        else:
+            os.environ['PYTHONPATH'] = pypath
 
-# Read user config overrides
-[[ -e "${EIB_SRC}"/config ]] && . "${EIB_SRC}"/config
+        # Clean language settings
+        os.environ['LANG'] = 'C'
+        for langenv in ['LANGUAGE', 'LC_CTYPE', 'LC_NUMERIC', 'LC_TIME',
+                        'LC_COLLATE', 'LC_MONETARY', 'LC_MESSAGES',
+                        'LC_PAPER', 'LC_NAME', 'LC_ADDRESS', 'LC_TELEPHONE',
+                        'LC_MEASUREMENT', 'LC_IDENTIFICATION', 'LC_ALL']:
+            if langenv in os.environ:
+                del os.environ[langenv]
 
-. "${EIB_BASELIB}"
+        # Build specific environment attributes
+        for attr in self.ENV_ATTRS:
+            self.setenv(attr)
 
-eib_prep_scratchdir
-exec > >(tee "${EIB_TMPDIR}"/build.txt)
-exec 2>&1
+    @staticmethod
+    def recreate_dir(path):
+        shutil.rmtree(path, ignore_errors=True)
+        os.makedirs(path, exist_ok=True)
 
-mkdir -p "${EIB_CONTENT}"
+    def prep_builddir(self):
+        """Cleanup the scratch space and prep for a new build"""
+        # If the scratch space exists, unmount any filesystems in it and
+        # make all paths mutable.
+        if os.path.isdir(self.builddir):
+            # Fully resolve the build path to match what's in the mount
+            # info
+            realdir = os.path.realpath(self.builddir)
+            mounts = []
+            with open('/proc/mounts') as mountf:
+                for line in mountf:
+                    mountdir = line.split()[1]
+                    # Search for all mounts that begin with $builddir/.
+                    # The trailing / is added for 2 reasons.
+                    #
+                    # 1. It makes sure that $builddir itself is not
+                    # matched. If someone has mounted the build
+                    # directory itself, that was probably done
+                    # intentionally and wasn't done by the builder.
+                    #
+                    # 2. It ensures that only paths below $builddir are
+                    # matched and not $builddir-backup or anything else
+                    # that begins with the same characters.
+                    if mountdir.startswith(self.builddir + '/'):
+                        # Prepend to the list so submounts are at the
+                        # beginning of the list
+                        mounts.insert(0, mountdir)
 
-# Run buildscript once per personality
-export EIB_PERSONALITY
-for EIB_PERSONALITY in ${EIB_PERSONALITIES}; do
-  . "${EIB_SRC}"/buildscript
-done
+            for path in mounts:
+                subprocess.check_call(['umount', path])
 
-# Unless this is a dry run, the output files have been published and can
-# be deleted.
-[ -n "${EIB_DRY_RUN}" ] || rm -rf "${EIB_OUT_ROOT}"
+            # Make everything mutable. This is only valid on files and
+            # directories, so skip everything else.
+            for root, dirs, files in os.walk(self.builddir, followlinks=False):
+                # Make the directory itself mutable
+                subprocess.check_call(['chattr', '-i', root])
+
+                # Make real files in the directory mutable
+                realfiles = []
+                for f in files:
+                    if os.path.isfile(f) and not os.path.islink(f):
+                        realfiles.append(f)
+                if len(realfiles) > 0:
+                    subprocess.check_call(['chattr', '-i'] + realfiles)
+
+        # Cleanup files from previous build
+        self.recreate_dir(self.outdir)
+        self.recreate_dir(self.ostree_checkout)
+        self.recreate_dir(self.tmpdir)
+
+        # Create the content directory
+        os.makedirs(self.contentdir, exist_ok=True)
+
+    def run(self):
+        self.configure()
+        self.prep_builddir()
+        self.set_environment()
+
+        # Run the buildscript
+        sys.stdout.flush()
+        subprocess.check_call([os.path.join(self.srcdir, 'buildscript')])
+
+        # Unless this is a dry run, the output files have been published
+        # and can be deleted.
+        if not self.dry_run:
+            shutil.rmtree(self.outdir, ignore_errors=True)
+
+def main():
+    aparser = ArgumentParser(description='Build and publish images for Endless')
+    aparser.add_argument('-p', '--product', default='eos',
+                         help='product to build')
+    aparser.add_argument('--platform', help='platform to build')
+    aparser.add_argument('-P', '--personalities', default='base',
+                         help='personalities to build')
+    aparser.add_argument('-f', '--force', action='store_true',
+                         help='run build even when no new assets found')
+    aparser.add_argument('-n', '--dry-run', action='store_true',
+                         help="don't publish images")
+    aparser.add_argument('--no-checkout', action='store_true',
+                         help='use current builder branch')
+    aparser.add_argument('branch', nargs='?', default='master',
+                         help='branch to build')
+    args = aparser.parse_args()
+
+    for personality in args.personalities.strip().split():
+        builder = ImageBuilder(product=args.product,
+                               branch=args.branch,
+                               platform=args.platform,
+                               personality=personality,
+                               force=args.force,
+                               dry_run=args.dry_run)
+        builder.run()
+
+if __name__ == '__main__':
+    main()

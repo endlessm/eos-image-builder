@@ -1,3 +1,4 @@
+#!/bin/bash -ex
 # -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
 # Run the eib_error stage on errors. Return code 2 is used for image
 # build failures to differentiate from locking failures.
@@ -7,9 +8,20 @@ stage_error() {
 }
 trap stage_error ERR
 
-# Check if build needed and return early if not
+# Read system config overrides
+[[ -e "${EIB_SYSCONF}"/config ]] && . "${EIB_SYSCONF}"/config
+
+# Read user config overrides
+[[ -e "${EIB_SRC}"/config ]] && . "${EIB_SRC}"/config
+
+. "${EIB_BASELIB}"
+
+exec > >(tee "${EIB_TMPDIR}"/build.txt)
+exec 2>&1
+
+# Check if build needed and exit early if not
 if eib_check_update && [ -z "${EIB_FORCE}" ]; then
-  return 0
+  exit 0
 fi
 
 # Real build stages
