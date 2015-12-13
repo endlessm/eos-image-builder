@@ -27,13 +27,9 @@ import shutil
 import subprocess
 import sys
 
-class ImageBuildError(Exception):
-    """Errors from the image builder"""
-    def __init__(self, *args):
-        self.msg = ' '.join(map(str, args))
-
-    def __str__(self):
-        return str(self.msg)
+SRCDIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(1, os.path.join(SRCDIR, 'lib'))
+import eib
 
 class ImageBuilder(object):
     # Attributes to be exported to environment
@@ -57,17 +53,17 @@ class ImageBuilder(object):
         self.force = force
         self.dry_run = dry_run
 
-        self.srcdir = os.path.dirname(os.path.realpath(__file__))
+        self.srcdir = SRCDIR
         self.datadir = os.path.join(self.srcdir, 'data')
         self.helpersdir = os.path.join(self.srcdir, 'helpers')
-        self.builddir = '/var/cache/eos-image-builder'
+        self.builddir = eib.BUILDDIR
         self.tmpdir = os.path.join(self.builddir, 'tmp')
         self.ostree_tmpdir = os.path.join(self.tmpdir, 'ostree-bin')
         self.contentdir = os.path.join(self.builddir, 'content')
         self.apps_contentdir = os.path.join(self.contentdir, 'apps')
         self.outdir = os.path.join(self.builddir, 'out')
         self.cachedir = os.path.join(self.builddir, 'cache')
-        self.sysconf = '/etc/eos-image-builder'
+        self.sysconf = eib.SYSCONFDIR
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
 
     def configure(self):
@@ -210,11 +206,6 @@ class ImageBuilder(object):
         for attr in self.ENV_ATTRS:
             self.setenv(attr)
 
-    @staticmethod
-    def recreate_dir(path):
-        shutil.rmtree(path, ignore_errors=True)
-        os.makedirs(path, exist_ok=True)
-
     def prep_builddir(self):
         """Cleanup the scratch space and prep for a new build"""
         # If the scratch space exists, unmount any filesystems in it and
@@ -261,9 +252,9 @@ class ImageBuilder(object):
                     subprocess.check_call(['chattr', '-i'] + realfiles)
 
         # Cleanup files from previous build
-        self.recreate_dir(self.outdir)
-        self.recreate_dir(self.ostree_checkout)
-        self.recreate_dir(self.tmpdir)
+        eib.recreate_dir(self.outdir)
+        eib.recreate_dir(self.ostree_checkout)
+        eib.recreate_dir(self.tmpdir)
 
         # Create the content directory
         os.makedirs(self.contentdir, exist_ok=True)
@@ -284,19 +275,7 @@ class ImageBuilder(object):
 
 def main():
     aparser = ArgumentParser(description='Build and publish images for Endless')
-    aparser.add_argument('-p', '--product', default='eos',
-                         help='product to build')
-    aparser.add_argument('--platform', help='platform to build')
-    aparser.add_argument('-P', '--personalities', default='base',
-                         help='personalities to build')
-    aparser.add_argument('-f', '--force', action='store_true',
-                         help='run build even when no new assets found')
-    aparser.add_argument('-n', '--dry-run', action='store_true',
-                         help="don't publish images")
-    aparser.add_argument('--no-checkout', action='store_true',
-                         help='use current builder branch')
-    aparser.add_argument('branch', nargs='?', default='master',
-                         help='branch to build')
+    eib.add_cli_options(aparser)
     args = aparser.parse_args()
 
     for personality in args.personalities.strip().split():

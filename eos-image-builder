@@ -29,8 +29,9 @@ import sys
 import time
 
 MYDIR = os.path.dirname(os.path.realpath(__file__))
-BUILDDIR = '/var/cache/eos-image-builder'
-LOCKFILE = '/var/lock/eos-image-builder.lock'
+sys.path.insert(1, os.path.join(MYDIR, 'lib'))
+import eib
+
 LOCKTIMEOUT = 60
 
 def set_close_on_exec(fd):
@@ -67,21 +68,11 @@ def lock_builder(lockf):
 # This option list must stay in sync with run-build. It's repeated here
 # so that the branch to checkout can be reliably determined.
 aparser = ArgumentParser(description='Build and publish images for Endless')
-aparser.add_argument('-p', '--product', help='product to build')
-aparser.add_argument('--platform', help='platform to build')
-aparser.add_argument('-P', '--personalities', help='personalities to build')
-aparser.add_argument('-f', '--force', action='store_true',
-                     help='run build even when no new assets found')
-aparser.add_argument('-n', '--dry-run', action='store_true',
-                     help="don't publish images")
-aparser.add_argument('--no-checkout', action='store_true',
-                     help='use current builder branch')
-aparser.add_argument('branch', nargs='?', default='master',
-                     help='branch to build')
+eib.add_cli_options(aparser)
 args = aparser.parse_args()
 
-os.makedirs(os.path.dirname(LOCKFILE), exist_ok=True)
-with open(LOCKFILE, 'r+') as lf:
+os.makedirs(os.path.dirname(eib.LOCKFILE), exist_ok=True)
+with open(eib.LOCKFILE, 'r+') as lf:
     lock_builder(lf)
 
     # Set the close-on-exec bit so the lock file isn't inherited by
@@ -95,9 +86,9 @@ with open(LOCKFILE, 'r+') as lf:
     if not args.no_checkout:
         # Make a copy of the repo to use. A real git repo is needed
         # since the build later queries the current commit.
-        srcdir = os.path.join(BUILDDIR, 'src')
+        srcdir = os.path.join(eib.BUILDDIR, 'src')
         shutil.rmtree(srcdir, ignore_errors=True)
-        os.makedirs(BUILDDIR, exist_ok=True)
+        os.makedirs(eib.BUILDDIR, exist_ok=True)
         shutil.copytree(MYDIR, srcdir, symlinks=True)
         os.chdir(srcdir)
 
