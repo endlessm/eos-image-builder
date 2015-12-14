@@ -199,29 +199,20 @@ create_image() {
   wait
 }
 
-export EIB_PERSONALITY
-for EIB_PERSONALITY in ${EIB_PERSONALITIES}; do
-  echo "Create image for personality ${EIB_PERSONALITY}"
+echo "Create image for personality ${EIB_PERSONALITY}"
 
-  # Mount kernel filesystems into deployment for image hooks
-  eib_mount -t sysfs sysfs "${OSTREE_DEPLOYMENT}"/sys
-  eib_mount -t proc proc "${OSTREE_DEPLOYMENT}"/proc
-  eib_mount --bind /dev "${OSTREE_DEPLOYMENT}"/dev
+# Mount kernel filesystems into deployment for image hooks
+eib_mount -t sysfs sysfs "${OSTREE_DEPLOYMENT}"/sys
+eib_mount -t proc proc "${OSTREE_DEPLOYMENT}"/proc
+eib_mount --bind /dev "${OSTREE_DEPLOYMENT}"/dev
 
-  # Bind mount OS /var over deployment's /var for image hooks
-  eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
+# Bind mount OS /var over deployment's /var for image hooks
+eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 
-  recreate_dir "$(eib_outdir)"
-  run_hooks image "${OSTREE_DEPLOYMENT}"
-  eib_umount_all
-  create_image "$(eib_outfile img.gz)"
-  if [ -z "${EIB_DRY_RUN}" ]; then
-      # Publish this personality's files and cleanup the local output if
-      # this is not a dry run
-      run_hooks publish
-      rm -rf "$(eib_outdir)"
-  fi
-done
+recreate_dir "$(eib_outdir)"
+run_hooks image "${OSTREE_DEPLOYMENT}"
+eib_umount_all
+create_image "$(eib_outfile img.gz)"
 
 # Make the deployment root mutable to delete it
 mutable_deployment

@@ -43,11 +43,15 @@ image stage
 -----------
 
 This stage checks out the latest ostree into a new directory, configures
-the bootloader, adds content, and creates output images. This stage has
-an internal loop which creates images for each personality. After
+the bootloader, adds content, and creates output images. After
 completing the image, a 2nd set of images for use in a 2 disk setup is
-created. After the images are created for each personality, they're
-immediately published to the remote image server.
+created.
+
+publish stage
+-------------
+
+This stage does a final publishing of the output directory to the remote
+image server.
 
 error stage
 -----------
@@ -158,38 +162,36 @@ image customization
 -------------------
 
 At the start of the image stage, the customization hooks under `content`
-are run. These hooks are intended to ensure that all content for all
-personalities is available on host disk, to be used later.
-`${EIB_CONTENT}` should be used for storing this.
-
-Once the ostree has been checked out (onto the host disk), customization
-hooks under `image` are run, *once for each personality*.
-`${OSTREE_DEPLOYMENT}` contains the path to the checkout, and
+are run. These hooks are intended to ensure that all content for the
+current personality is available on host disk, to be used later.
+`${EIB_CONTENT}` should be used for storing this, and
 `${EIB_PERSONALITY}` states which personality is being built.
 
-For reasons of speed, the ostree deployment is not recreated for each
-personality. This means that *all customization scripts here should
-unconditionally wipe out the results of previous runs* before making any
-changes, otherwise changes from previous personalities might spill over
-into the current one.
+Once the ostree has been checked out (onto the host disk), customization
+hooks under `image` are run. `${OSTREE_DEPLOYMENT}` contains the path to
+the checkout, and `${EIB_PERSONALITY}` states which personality is being
+built.
 
-Image splitting needs to occur for each full image file created, so the
-`split` hooks are run *once for each personality*.
-`${OSTREE_DEPLOYMENT}` contains the path to the checkout,
-`${EXTRA_MOUNT}` contains the chroot-relative path to the extra storage
-(currently `/var/endless-extra`), and `${PERSONALITY}` states which
-personality is being built.
+After the full image file has been created, the `split` hooks to prepare
+the 2 filesystems. `${OSTREE_DEPLOYMENT}` contains the path to the
+checkout, `${EXTRA_MOUNT}` contains the chroot-relative path to the
+extra storage (currently `/var/endless-extra`), and `${PERSONALITY}`
+states which personality is being built.
 
 The ostree deployment /var is bind mounted at `${OSTREE_DEPLOYMENT}/var`
 to resemble a real booted system. The 2nd disk filesystem is then
 mounted at `${OSTREE_DEPLOYMENT}/${EXTRA_MOUNT}`. Hooks are intended to
 migrate content from the root into this filesystem. The filesystem is a
-fixed size (currenlty 8 GB), so hooks are required to ignore failures
+fixed size (currently 8 GB), so hooks are required to ignore failures
 due to insufficient space and revert to the original layout.
 
-After image files are created, customization hooks under `publish` are
-run, *once for each personality*. These hooks should publish that
-personality's image files to the remote image server.
+publish customization
+---------------------
+
+Keeping with the design that the core is simple and the meat is kept
+under customization, the publish stage does nothing more than call into
+customization hooks kept in `publish`. These hooks should take the
+output of `$(eib_outdir)` and push it to the final destination.
 
 error customization
 -------------------
