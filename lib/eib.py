@@ -19,6 +19,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 from argparse import ArgumentParser
+import configparser
 import os
 import shutil
 
@@ -33,6 +34,48 @@ class ImageBuildError(Exception):
 
     def __str__(self):
         return str(self.msg)
+
+class ImageConfigParser(configparser.ConfigParser):
+    """Configuration parser for the image builder. This uses configparser's
+    ExtendedInterpolation to expand values like variables."""
+
+    defaultsect = 'build'
+
+    def __init__(self, *args, **kwargs):
+        kwargs['interpolation'] = configparser.ExtendedInterpolation()
+        kwargs['default_section'] = self.defaultsect
+        super().__init__(*args, **kwargs)
+
+    def items_no_default(self, section, raw=False):
+        """Return the items in a section without including defaults"""
+        # This is a nasty hack to overcome the behavior of the normal
+        # items(). The default section needs to be merged in to resolve
+        # the interpolation, but we only want the keys from the section
+        # itself.
+        d = self.defaults().copy()
+        sect = self._sections[section]
+        d.update(sect)
+        if raw:
+            value_getter = lambda option: d[option]
+        else:
+            value_getter = \
+                lambda option: self._interpolation.before_get(self,
+                                                              section,
+                                                              option,
+                                                              d[option],
+                                                              d)
+        return [(option, value_getter(option)) for option in sect.keys()]
+
+    def setboolean(self, section, option, value):
+        """Convenience method to store boolean's in shell style
+        true/false
+        """
+        assert(isinstance(value, bool))
+        if value:
+            value = 'true'
+        else:
+            value = 'false'
+        self.set(section, option, value)
 
 def recreate_dir(path):
     """Delete and recreate a directory"""

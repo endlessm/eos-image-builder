@@ -33,49 +33,58 @@ import eib
 
 class ImageBuilder(object):
     # Attributes to be exported to environment
-    ENV_ATTRS = ['product', 'branch', 'platform', 'personality',
-                 'force', 'dry_run', 'srcdir', 'datadir', 'helpersdir',
-                 'builddir', 'tmpdir', 'ostree_tmpdir', 'contentdir',
-                 'apps_contentdir', 'outrootdir', 'cachedir',
-                 'sysconfdir', 'build_version', 'arch', 'split_images',
-                 'obs_repo', 'image_signing_keyid', 'ostree_branch',
-                 'ostree_repo', 'ostree_os', 'ostree_checkout',
-                 'ostree_repodir', 'ostree_branch_deploy', 'ostree_url',
-                 'ostree_int_url', 'image_host_short', 'image_host',
-                 'image_user', 'image_path', 'image_url_root',
-                 'email_from', 'email_replyto', 'email_to',
-                 'jenkins_url', 'jenkins_user', 'jenkins_token']
-
+    CONFIG_ATTRS = ['product', 'branch', 'arch', 'platform',
+                    'personality', 'force', 'dry_run', 'series',
+                    'srcdir', 'datadir', 'helpersdir', 'builddir',
+                    'tmpdir', 'ostree_tmpdir', 'contentdir',
+                    'apps_contentdir', 'outrootdir', 'cachedir',
+                    'sysconfdir', 'build_version']
+    BOOLEAN_ATTRS = ['force', 'dry_run']
     SUPPORTED_ARCHES = ['i386', 'armhf']
+
+    def __getattr__(self, attr):
+        """Proxy this object's attributes into the config object"""
+        if attr in self.CONFIG_ATTRS:
+            # Proxy through to the config object's default section
+            if attr in self.BOOLEAN_ATTRS:
+                return self.config.getboolean(self.config.defaultsect,
+                                              attr)
+            return self.config.get(self.config.defaultsect, attr)
+        else:
+            # Chain up for normal attribute access
+            return super().__getattribute__(attr)
+
+    def __setattr__(self, attr, value):
+        """Proxy the value to the config object"""
+        if attr in self.CONFIG_ATTRS:
+            # Proxy through to the config object's default section
+            if attr in self.BOOLEAN_ATTRS:
+                self.config.setboolean(None, attr, value)
+            else:
+                self.config.set(None, attr, value)
+        else:
+            # Chain up for normal attribute setting
+            super().__setattr__(attr, value)
 
     def __init__(self, product, branch, arch, platform, personality,
                  force=False, dry_run=False):
+        # Create the config option first to allow the proxying between
+        # it and this object's attributes.
+        self.config = eib.ImageConfigParser()
         self.product = product
         self.branch = branch
-        self.arch = arch
-        self.platform = platform
         self.personality = personality
         self.force = force
         self.dry_run = dry_run
 
-        self.srcdir = SRCDIR
-        self.datadir = os.path.join(self.srcdir, 'data')
-        self.helpersdir = os.path.join(self.srcdir, 'helpers')
-        self.builddir = eib.BUILDDIR
-        self.tmpdir = os.path.join(self.builddir, 'tmp')
-        self.ostree_tmpdir = os.path.join(self.tmpdir, 'ostree-bin')
-        self.contentdir = os.path.join(self.builddir, 'content')
-        self.apps_contentdir = os.path.join(self.contentdir, 'apps')
-        self.outrootdir = os.path.join(self.builddir, 'out')
-        self.cachedir = os.path.join(self.builddir, 'cache')
-        self.sysconfdir = eib.SYSCONFDIR
-        self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
+        # Release series. E.g., eos2.4 is in series eos2 while master is
+        # in series master.
+        self.series = self.branch.rsplit('.', 1)[0]
 
-    def configure(self):
-        """Build settings determined from options"""
-        # Architecture and platform
-        if not self.arch:
-            # Auto-detect from host arch
+        # Detect architecture and platform if not provided
+        if arch:
+            self.arch = arch
+        else:
             machine = os.uname().machine
             if machine == 'x86_64' or fnmatch.fnmatch(machine, 'i?86'):
                 self.arch = 'i386'
@@ -87,7 +96,9 @@ class ImageBuilder(object):
         if self.arch not in self.SUPPORTED_ARCHES:
             raise ImageBuildError('Architecture', self.arch, 'not supported')
 
-        if not self.platform:
+        if platform:
+            self.platform = platform
+        else:
             if self.arch == 'armhf':
                 # Default to odroidu2 (should probably be ec100)
                 self.platform = 'odroidu2'
@@ -95,22 +106,44 @@ class ImageBuilder(object):
                 # Assume platform neutral arch
                 self.platform = self.arch
 
+        # Load other common settings, but use the configparser
+        # interpolation syntax. This will allow the user to override
+        # things easily.
+        self.srcdir = SRCDIR
+        self.datadir = '${srcdir}/data'
+        self.helpersdir = '${srcdir}/helpers'
+        self.builddir = eib.BUILDDIR
+        self.tmpdir = '${builddir}/tmp'
+        self.ostree_tmpdir = '${tmpdir}/ostree-bin'
+        self.contentdir = '${builddir}/content'
+        self.apps_contentdir = '${contentdir}/apps'
+        self.outrootdir = '${builddir}/out'
+        self.cachedir = '${builddir}/cache'
+        self.sysconfdir = eib.SYSCONFDIR
+        self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
+
+    def configure(self):
+        """Build settings determined from options"""
+        # Add sections to the config
+        for sect in ['image', 'ostree', 'email', 'jenkins']:
+            self.config.add_section(sect)
+
         # Create 2 disk split images for everything except eosdev
-        if self.product == 'eosdev':
-            self.split_images = False
-        else:
-            self.split_images = True
+        self.config.setboolean(None, 'split_images',
+                               self.product != 'eosdev')
 
         # Debian package repository from where OS packages will be obtained
-        self.obs_repo = 'http://obs-master.endlessm-sf.com:82/shared/eos'
+        self.config.set(None, 'obs_repo',
+                        'http://obs-master.endlessm-sf.com:82/shared/eos')
 
         # GPG private key ID for signing images
-        self.image_signing_keyid = '587A279C'
+        self.config['image']['signing_keyid'] = '587A279C'
 
         # OSTree defaults
-        self.ostree_branch = '%s/%s' %(self.branch, self.platform)
-        self.ostree_repo = '%s-%s' %(self.product, self.arch)
-        self.ostree_os = self.product
+        ostree = self.config['ostree']
+        ostree['branch'] = '${build:branch}/${platform}'
+        ostree['repo'] = '${product}-${arch}'
+        ostree['os'] = '${product}'
 
         # The eos and eosnonfree products are handled a bit
         # counterintuitively. For both products, we want to continue
@@ -121,22 +154,20 @@ class ImageBuilder(object):
         # the eosfree-$arch repo will go away and both will use the
         # eos-$arch repo.
         if self.product == 'eos':
-            self.ostree_repo = 'eosfree-' + self.arch
+            ostree['repo'] = 'eosfree-${arch}'
         elif self.product == 'eosnonfree':
-            self.ostree_repo = 'eos-' + self.arch
-            self.ostree_os = 'eos'
+            ostree['repo'] = 'eos-${arch}'
+            ostree['os'] = 'eos'
 
         # OSTree directories
-        self.ostree_repodir = os.path.join(self.builddir, 'ostree',
-                                           self.ostree_repo)
-        self.ostree_checkout = os.path.join(self.builddir, 'ostree-co')
+        ostree['repodir'] = '${builddir}/ostree/${repo}'
+        ostree['checkout'] = '${builddir}/ostree-co'
 
         # Multiple stable minor version branches may be in use, but the
         # deployed ostree configuration should use only the major
         # version. E.g., the real branch may be eos2.2, but the deployed
         # configuration should use eos2.
-        self.ostree_branch_deploy = '%s/%s' %(self.branch.rsplit('.', 1)[0],
-                                              self.platform)
+        ostree['branch_deploy'] = '${series}/${platform}'
 
         # The ostree URL that the final system will query for updates.
         # Not used during build time. The product (e.g. eos) and arch is
@@ -146,49 +177,53 @@ class ImageBuilder(object):
             ostree_url_base = '%s/staging/dev' %ostree_url_root
         else:
             ostree_url_base = '%s/ostree' % ostree_url_root
-        self.ostree_url = '%s/%s' %(ostree_url_base, self.ostree_repo)
+        ostree['url'] = '%s/${repo}' % ostree_url_base
 
         # Internal ostree server URL. This is used to pull the most
         # recent commit.
         ostree_int_host = 'ostree.endlessm-sf.com'
-        self.ostree_int_url = 'http://%s/%s' %(ostree_int_host, self.ostree_repo)
+        ostree['int_url'] = 'http://%s/${repo}' % ostree_int_host
 
         # Image uploading
-        self.image_host_short = 'obs-repository'
-        self.image_host = '%s.endlessm-sf.com' % self.image_host_short
-        self.image_user = 'uploader'
-        self.image_path = '/srv/images/www'
+        image = self.config['image']
+        image['host_short'] = 'obs-repository'
+        image['host'] = '${host_short}.endlessm-sf.com'
+        image['user'] = 'uploader'
+        image['path'] = '/srv/images/www'
 
         # Image URLs
-        self.image_url_root = 'http://images.endlessm-sf.com/'
+        image['url_root'] = 'http://images.endlessm-sf.com/'
 
         # Email settings
-        self.email_from = 'image-builder@endlessm.com'
-        self.email_replyto = 'endless-dev@endlessm.com'
-        self.email_to = 'endless-dev-status@endlessm.com'
+        email = self.config['email']
+        email['from'] = 'image-builder@endlessm.com'
+        email['replyto'] = 'endless-dev@endlessm.com'
+        email['to'] = 'endless-dev-status@endlessm.com'
 
         # Jenkins triggering
-        self.jenkins_url = 'http://ci.endlessm-sf.com:8080'
-        self.jenkins_user = 'image-builder'
-        self.jenkins_token = os.path.join(self.sysconfdir, 'jenkins-token')
+        jenkins = self.config['jenkins']
+        jenkins['url'] = 'http://ci.endlessm-sf.com:8080'
+        jenkins['user'] = 'image-builder'
+        jenkins['token'] = '${sysconfdir}/jenkins-token'
 
-    def setenv(self, attr):
-        """Export attribute as variable in EIB namespace"""
-        value = getattr(self, attr)
-        if isinstance(value, bool):
-            value = 'true' if value else 'false'
-        else:
-            value = str(value)
-        var = 'EIB_' + attr.upper()
+    def setenv(self, section, option, value):
+        """Export config values as variable in EIB namespace"""
+        # Convert boolean's to true/false to be handled easily in shell
+        if value in ['True', 'False']:
+            value = value.lower()
+        var = 'EIB_'
+        if section:
+            var += section.upper() + '_'
+        var += option.upper()
         os.environ[var] = value
 
     def set_environment(self):
         """Setup environment variables for stages and hooks"""
         # Standard builder environment
-        os.environ['EIB_BASELIB'] = os.path.join(self.srcdir, 'lib/eib.sh')
-        os.environ['PATH'] = '%s:%s' %(os.path.join(self.srcdir, 'stages'),
+        os.environ['EIB_BASELIB'] = os.path.join(SRCDIR, 'lib/eib.sh')
+        os.environ['PATH'] = '%s:%s' %(os.path.join(SRCDIR, 'stages'),
                                        os.environ['PATH'])
-        pypath = os.path.join(self.srcdir, 'lib')
+        pypath = os.path.join(SRCDIR, 'lib')
         if 'PYTHONPATH' in os.environ:
             os.environ['PYTHONPATH'] = '%s:%s' %(pypath,
                                                  os.environ['PYTHONPATH'])
@@ -204,9 +239,12 @@ class ImageBuilder(object):
             if langenv in os.environ:
                 del os.environ[langenv]
 
-        # Build specific environment attributes
-        for attr in self.ENV_ATTRS:
-            self.setenv(attr)
+        # Build specific environment attributes.
+        for option, value in self.config.items(self.config.defaultsect):
+            self.setenv(None, option, value)
+        for sect in self.config.sections():
+            for option, value in self.config.items_no_default(sect):
+                self.setenv(sect, option, value)
 
     def prep_builddir(self):
         """Cleanup the scratch space and prep for a new build"""
@@ -255,7 +293,7 @@ class ImageBuilder(object):
 
         # Cleanup files from previous build
         eib.recreate_dir(self.outrootdir)
-        eib.recreate_dir(self.ostree_checkout)
+        eib.recreate_dir(self.config['ostree']['checkout'])
         eib.recreate_dir(self.tmpdir)
 
         # Create the content directory
