@@ -206,6 +206,12 @@ class ImageBuilder(object):
         jenkins['user'] = 'image-builder'
         jenkins['token'] = '${sysconfdir}/jenkins-token'
 
+        # Now read in any system and local overrides.
+        sysconfig = os.path.join(self.sysconfdir, 'config.ini')
+        localconfig = os.path.join(self.srcdir, 'config', 'local.ini')
+        for path in self.config.read([sysconfig, localconfig]):
+            print('Loaded configuration file', path)
+
     def setenv(self, section, option, value):
         """Export config values as variable in EIB namespace"""
         # Convert boolean's to true/false to be handled easily in shell

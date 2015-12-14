@@ -20,12 +20,6 @@ do
   fi
 done
 
-# Read system config overrides
-[[ -e "${EIB_SYSCONFDIR}"/config ]] && . "${EIB_SYSCONFDIR}"/config
-
-# Read user config overrides
-[[ -e "${EIB_SRCDIR}"/config ]] && . "${EIB_SRCDIR}"/config
-
 . "${EIB_BASELIB}"
 
 exec > >(tee "${EIB_TMPDIR}"/build.txt)
