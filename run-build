@@ -38,7 +38,7 @@ class ImageBuilder(object):
                     'srcdir', 'datadir', 'helpersdir', 'builddir',
                     'tmpdir', 'ostree_tmpdir', 'contentdir',
                     'apps_contentdir', 'outrootdir', 'cachedir',
-                    'sysconfdir', 'build_version']
+                    'configdir', 'sysconfdir', 'build_version']
     BOOLEAN_ATTRS = ['force', 'dry_run']
     SUPPORTED_ARCHES = ['i386', 'armhf']
 
@@ -119,97 +119,31 @@ class ImageBuilder(object):
         self.apps_contentdir = '${contentdir}/apps'
         self.outrootdir = '${builddir}/out'
         self.cachedir = '${builddir}/cache'
+        self.configdir = '${srcdir}/config'
         self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
 
     def configure(self):
-        """Build settings determined from options"""
-        # Add sections to the config
-        for sect in ['image', 'ostree', 'email', 'jenkins']:
-            self.config.add_section(sect)
-
-        # Create 2 disk split images for everything except eosdev
-        self.config.setboolean(None, 'split_images',
-                               self.product != 'eosdev')
-
-        # Debian package repository from where OS packages will be obtained
-        self.config.set(None, 'obs_repo',
-                        'http://obs-master.endlessm-sf.com:82/shared/eos')
-
-        # GPG private key ID for signing images
-        self.config['image']['signing_keyid'] = '587A279C'
-
-        # OSTree defaults
-        ostree = self.config['ostree']
-        ostree['branch'] = '${build:branch}/${platform}'
-        ostree['repo'] = '${product}-${arch}'
-        ostree['os'] = '${product}'
-
-        # The eos and eosnonfree products are handled a bit
-        # counterintuitively. For both products, we want to continue
-        # using the eos OS name. For eos, we will temporarily use a
-        # separate repo called eosfree-$arch. For eosnonfree, it will
-        # continue using the eos-$arch repo so our users with codecs
-        # continue to get updates. Later, when the OS is clean again,
-        # the eosfree-$arch repo will go away and both will use the
-        # eos-$arch repo.
-        if self.product == 'eos':
-            ostree['repo'] = 'eosfree-${arch}'
-        elif self.product == 'eosnonfree':
-            ostree['repo'] = 'eos-${arch}'
-            ostree['os'] = 'eos'
-
-        # OSTree directories
-        ostree['repodir'] = '${builddir}/ostree/${repo}'
-        ostree['checkout'] = '${builddir}/ostree-co'
-
-        # Multiple stable minor version branches may be in use, but the
-        # deployed ostree configuration should use only the major
-        # version. E.g., the real branch may be eos2.2, but the deployed
-        # configuration should use eos2.
-        ostree['branch_deploy'] = '${series}/${platform}'
-
-        # The ostree URL that the final system will query for updates.
-        # Not used during build time. The product (e.g. eos) and arch is
-        # taken as a subdirectory of this address.
-        ostree_url_root = 'https://endless:***REMOVED***@ostree.endlessm.com'
-        if self.branch == 'master':
-            ostree_url_base = '%s/staging/dev' %ostree_url_root
-        else:
-            ostree_url_base = '%s/ostree' % ostree_url_root
-        ostree['url'] = '%s/${repo}' % ostree_url_base
-
-        # Internal ostree server URL. This is used to pull the most
-        # recent commit.
-        ostree_int_host = 'ostree.endlessm-sf.com'
-        ostree['int_url'] = 'http://%s/${repo}' % ostree_int_host
-
-        # Image uploading
-        image = self.config['image']
-        image['host_short'] = 'obs-repository'
-        image['host'] = '${host_short}.endlessm-sf.com'
-        image['user'] = 'uploader'
-        image['path'] = '/srv/images/www'
-
-        # Image URLs
-        image['url_root'] = 'http://images.endlessm-sf.com/'
-
-        # Email settings
-        email = self.config['email']
-        email['from'] = 'image-builder@endlessm.com'
-        email['replyto'] = 'endless-dev@endlessm.com'
-        email['to'] = 'endless-dev-status@endlessm.com'
-
-        # Jenkins triggering
-        jenkins = self.config['jenkins']
-        jenkins['url'] = 'http://ci.endlessm-sf.com:8080'
-        jenkins['user'] = 'image-builder'
-        jenkins['token'] = '${sysconfdir}/jenkins-token'
-
-        # Now read in any system and local overrides.
-        sysconfig = os.path.join(self.sysconfdir, 'config.ini')
-        localconfig = os.path.join(self.srcdir, 'config', 'local.ini')
-        for path in self.config.read([sysconfig, localconfig]):
+        """Build settings from configuration files"""
+        # Build up a list of config files to load. The order goes like so:
+        #
+        # 1. Default settings - $configdir/defaults.ini.
+        # 2. Product, branch, arch, platform and personality settings.
+        #    These are in $configdir subdirectories. For example,
+        #    $configdir/product/$product.ini.
+        # 3. System config settings - $sysconfdir/config.ini.
+        # 4. Local user settings - $configdir/local.ini.
+        config_files = [
+            os.path.join(self.configdir, 'defaults.ini'),
+            os.path.join(self.configdir, 'product', self.product + '.ini'),
+            os.path.join(self.configdir, 'branch', self.branch + '.ini'),
+            os.path.join(self.configdir, 'arch', self.arch + '.ini'),
+            os.path.join(self.configdir, 'platform', self.platform + '.ini'),
+            os.path.join(self.configdir, 'personality', self.personality + '.ini'),
+            os.path.join(self.sysconfdir, 'config.ini'),
+            os.path.join(self.configdir, 'local.ini'),
+        ]
+        for path in self.config.read(config_files):
             print('Loaded configuration file', path)
 
     def setenv(self, section, option, value):
