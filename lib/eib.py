@@ -93,6 +93,8 @@ def add_cli_options(argparser):
     argparser.add_argument('--platform', help='platform to build')
     argparser.add_argument('-P', '--personalities', default='base',
                            help='personalities to build')
+    argparser.add_argument('--show-config', action='store_true',
+                           help='show configuration and exit')
     argparser.add_argument('-f', '--force', action='store_true',
                            help='run build even when no new assets found')
     argparser.add_argument('-n', '--dry-run', action='store_true',

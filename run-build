@@ -67,13 +67,14 @@ class ImageBuilder(object):
             super().__setattr__(attr, value)
 
     def __init__(self, product, branch, arch, platform, personality,
-                 force=False, dry_run=False):
+                 show_config=False, force=False, dry_run=False):
         # Create the config option first to allow the proxying between
         # it and this object's attributes.
         self.config = eib.ImageConfigParser()
         self.product = product
         self.branch = branch
         self.personality = personality
+        self.show_config = show_config
         self.force = force
         self.dry_run = dry_run
 
@@ -241,6 +242,11 @@ class ImageBuilder(object):
 
     def run(self):
         self.configure()
+        if self.show_config:
+            # Just show the configuration without doing anything
+            self.config.write(sys.stdout)
+            return
+
         self.prep_builddir()
         self.set_environment()
 
@@ -264,6 +270,7 @@ def main():
                                arch=args.arch,
                                platform=args.platform,
                                personality=personality,
+                               show_config=args.show_config,
                                force=args.force,
                                dry_run=args.dry_run)
         builder.run()
