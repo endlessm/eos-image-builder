@@ -211,6 +211,7 @@ class ImageBuilder(object):
         if os.path.isdir(self.builddir):
             # Fully resolve the build path to match what's in the mount
             # info
+            print('Cleaning up mounts in', self.builddir, flush=True)
             realdir = os.path.realpath(self.builddir)
             mounts = []
             with open('/proc/mounts') as mountf:
@@ -237,6 +238,8 @@ class ImageBuilder(object):
 
             # Make everything mutable. This is only valid on files and
             # directories, so skip everything else.
+            print('Ensuring all paths mutable in', self.builddir,
+                  flush=True)
             for root, dirs, files in os.walk(self.builddir, followlinks=False):
                 # Make the directory itself mutable
                 subprocess.check_call(['chattr', '-i', root])
@@ -250,6 +253,7 @@ class ImageBuilder(object):
                     subprocess.check_call(['chattr', '-i'] + realfiles)
 
         # Cleanup files from previous build
+        print('Recreating build specific directories', flush=True)
         eib.recreate_dir(self.outrootdir)
         eib.recreate_dir(self.config['ostree']['checkout'])
         eib.recreate_dir(self.tmpdir)
@@ -266,23 +270,29 @@ class ImageBuilder(object):
             self.config.write(out)
 
     def run(self):
+        print('Configuring image build', flush=True)
         self.configure()
         if self.show_config:
             # Just show the configuration without doing anything
             self.config.write(sys.stdout)
             return
 
+        print('Preparing build directory', flush=True)
         self.prep_builddir()
+        print('Exporting configuration to environment', flush=True)
         self.set_environment()
+        print('Output merged configuration file to', self.tmpconfig,
+              flush=True)
         self.create_tmp_config()
 
         # Run the buildscript
-        sys.stdout.flush()
+        print('Running image buildscript', flush=True)
         subprocess.check_call([os.path.join(self.srcdir, 'buildscript')])
 
         # Unless this is a dry run, the output files have been published
         # and can be deleted.
         if not self.dry_run:
+            print('Cleaning up output in', self.outrootdir, flush=True)
             shutil.rmtree(self.outrootdir, ignore_errors=True)
 
 def main():
