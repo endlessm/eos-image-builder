@@ -191,7 +191,7 @@ create_image() {
   cp "${EIB_TMPDIR}"/packages.txt "$(eib_outfile packages.txt)"
 
   # Create split image for 2 disk systems if required.
-  if [ "${EIB_SPLIT_IMAGES}" = true ]; then
+  if [ "${EIB_IMAGE_SPLIT}" = true ]; then
     "${EIB_HELPERSDIR}"/split-image "${img}"
   fi
 
