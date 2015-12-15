@@ -273,7 +273,7 @@ make_tmp_ostree() {
   debootstrap --arch=${EIB_ARCH} --keyring="${keyring}" \
     --variant=minbase --include="${packages}" \
     --components=core,endless,extra ${EIB_BRANCH} \
-    "${EIB_OSTREE_TMPDIR}" "${EIB_OBS_REPO}" \
+    "${EIB_OSTREE_TMPDIR}" "${EIB_OSTREE_PKGREPO}" \
     "${EIB_DATADIR}"/debootstrap.script
 }
 
