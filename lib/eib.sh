@@ -57,16 +57,6 @@ eib_outfile() {
   echo ${EIB_OUTDIR}/${EIB_OUTVERSION}.$1
 }
 
-# Generate full remote output directory
-eib_image_dest() {
-  echo ${EIB_IMAGE_PATH}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_PERSONALITY}/${EIB_BUILD_VERSION}
-}
-
-# Generate full remote url
-eib_image_url() {
-  echo ${EIB_IMAGE_URL_ROOT}/${EIB_PRODUCT}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_BRANCH}/${EIB_PERSONALITY}/${EIB_BUILD_VERSION}
-}
-
 # Encode the original image version and personality as an xattr of the
 # root directory of each partition.
 # Usage: <root directory path> <personality>
@@ -156,7 +146,7 @@ eib_fix_boot_checksum() {
 # Create a .inprogress file on the remote image server to indicate that
 # this build has started publishing files.
 eib_start_publishing() {
-  local destdir="$(eib_image_dest)"
+  local destdir="${EIB_IMAGE_DESTDIR}"
 
   # Skip on dry runs
   [ -n "${EIB_DRY_RUN}" ] && return 0
@@ -174,7 +164,7 @@ eib_start_publishing() {
 # Delete the .inprogress file on the remote image server to indicate
 # that this build has finished publishing files.
 eib_end_publishing() {
-  local destdir="$(eib_image_dest)"
+  local destdir="${EIB_IMAGE_DESTDIR}"
 
   # Skip on dry runs
   [ -n "${EIB_DRY_RUN}" ] && return 0
@@ -189,7 +179,7 @@ eib_end_publishing() {
 
 # Delete the in progess image publishing directory on failure.
 eib_fail_publishing() {
-  local destdir="$(eib_image_dest)"
+  local destdir="${EIB_IMAGE_DESTDIR}"
 
   # Skip on dry runs
   [ -n "${EIB_DRY_RUN}" ] && return 0
