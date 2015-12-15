@@ -22,8 +22,13 @@ run_hooks() {
   popd &>/dev/null
 
   for hook in ${files}; do
-    # Skip backup files
-    [ "${hook: -1}" = "~" ] && continue
+    # Skip backups and compiled python objects
+    case "${hook}" in
+      *~|*.py[co]|*/__pycache__)
+        continue
+        ;;
+    esac
+
     hookpath="${EIB_SRCDIR}"/customization/${hook}
     if [ "${hook: -7}" == ".chroot" ]; then
       if [ -z "$install_root" ]; then
