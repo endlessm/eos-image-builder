@@ -111,17 +111,6 @@ eib_umount_all() {
   declare -a EIB_MOUNTS
 }
 
-# Path to the build specific cache directory. The build version is not
-# included since the files will be persistent.
-eib_cachedir() {
-  echo "${EIB_CACHEDIR}"/${EIB_PRODUCT}-${EIB_BRANCH}-${EIB_ARCH}-${EIB_PLATFORM}/${EIB_PERSONALITY}
-}
-
-# Generate full path to cache file.
-eib_cachefile() {
-  echo "$(eib_cachedir)/$1"
-}
-
 # Provide the path to the keyring file. If it doesn't exist, create it.
 eib_keyring() {
   local keyring="${EIB_TMPDIR}"/eib-keyring.gpg

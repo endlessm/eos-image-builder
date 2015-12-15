@@ -38,8 +38,8 @@ class ImageBuilder(object):
                     'srcdir', 'datadir', 'helpersdir', 'builddir',
                     'tmpdir', 'ostree_tmpdir', 'contentdir',
                     'apps_contentdir', 'outrootdir', 'outdir',
-                    'cachedir', 'configdir', 'sysconfdir',
-                    'build_version']
+                    'cacherootdir', 'cachedir', 'configdir',
+                    'sysconfdir', 'build_version']
     BOOLEAN_ATTRS = ['force', 'dry_run']
     SUPPORTED_ARCHES = ['i386', 'armhf']
 
@@ -121,7 +121,8 @@ class ImageBuilder(object):
         self.apps_contentdir = '${contentdir}/apps'
         self.outrootdir = '${builddir}/out'
         self.outdir = '${outrootdir}/${personality}'
-        self.cachedir = '${builddir}/cache'
+        self.cacherootdir = '${builddir}/cache'
+        self.cachedir = '${cacherootdir}/${product}-${branch}-${arch}-${platform}/${personality}'
         self.configdir = '${srcdir}/config'
         self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')

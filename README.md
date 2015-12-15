@@ -145,8 +145,7 @@ check_update customization
 The check_update stage calls the `cache` customization hooks. The
 intention is to determine facts about the current build and compare them
 to cached facts from the previous build. Facts are stored in the build
-specific cache directory, determined from the function `eib_cachedir`.
-Cache files should be named using the eib_cachefile function.
+specific cache directory, `${EIB_CACHEDIR}`.
 
 The check_update stage determines if an update is needed by seeing if
 the modification times for any files in the cache directory have been
