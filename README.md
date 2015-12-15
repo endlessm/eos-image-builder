@@ -67,6 +67,7 @@ Required packages:
  * pigz rsync
  * ostree
  * python3-apt
+ * python3-debian
  * attr
  * x86: grub2
  * arm: mkimage, device-tree-compiler
