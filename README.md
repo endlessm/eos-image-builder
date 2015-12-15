@@ -163,7 +163,7 @@ image customization
 
 At the start of the image stage, the customization hooks under `content`
 are run. These hooks are intended to ensure that all content for the
-current personality is available on host disk, to be used later.
+current personality is available on the host disk, to be used later.
 `${EIB_CONTENTDIR}` should be used for storing this, and
 `${EIB_PERSONALITY}` states which personality is being built.
 
@@ -172,9 +172,9 @@ hooks under `image` are run. `${OSTREE_DEPLOYMENT}` contains the path to
 the checkout, and `${EIB_PERSONALITY}` states which personality is being
 built.
 
-After the full image file has been created, the `split` hooks to prepare
-the 2 filesystems. `${OSTREE_DEPLOYMENT}` contains the path to the
-checkout, `${EXTRA_MOUNT}` contains the chroot-relative path to the
+After the full image file has been created, the `split` hooks are run to
+prepare the 2 filesystems. `${OSTREE_DEPLOYMENT}` contains the path to
+the checkout, `${EXTRA_MOUNT}` contains the chroot-relative path to the
 extra storage (currently `/var/endless-extra`), and `${PERSONALITY}`
 states which personality is being built.
 
