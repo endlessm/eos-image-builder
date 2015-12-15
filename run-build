@@ -43,6 +43,13 @@ class ImageBuilder(object):
     BOOLEAN_ATTRS = ['force', 'dry_run']
     SUPPORTED_ARCHES = ['i386', 'armhf']
 
+    # Config options that will be merged together from multiple
+    # $prefix_add_* and $prefix_del_* options. This is a list of
+    # (section, prefix) tuples.
+    CONFIG_MERGE_PREFIXES = [('apps', 'install'),
+                             ('apps', 'extra'),
+                             ('apps', 'nosplit')]
+
     def __getattr__(self, attr):
         """Proxy this object's attributes into the config object"""
         if attr in self.CONFIG_ATTRS:
@@ -150,6 +157,10 @@ class ImageBuilder(object):
         ]
         for path in self.config.read(config_files):
             print('Loaded configuration file', path)
+
+        # Handle merged key prefixes
+        for section, prefix in self.CONFIG_MERGE_PREFIXES:
+            self.config.merge_option_prefix(section, prefix)
 
     def setenv(self, section, option, value):
         """Export config values as variable in EIB namespace"""
