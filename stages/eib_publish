@@ -8,4 +8,4 @@
 run_hooks publish
 
 # Cleanup local output no longer needed to save space.
-rm -rf "$(eib_outdir)"
+rm -rf "${EIB_OUTDIR}"

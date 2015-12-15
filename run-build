@@ -37,8 +37,9 @@ class ImageBuilder(object):
                     'personality', 'force', 'dry_run', 'series',
                     'srcdir', 'datadir', 'helpersdir', 'builddir',
                     'tmpdir', 'ostree_tmpdir', 'contentdir',
-                    'apps_contentdir', 'outrootdir', 'cachedir',
-                    'configdir', 'sysconfdir', 'build_version']
+                    'apps_contentdir', 'outrootdir', 'outdir',
+                    'cachedir', 'configdir', 'sysconfdir',
+                    'build_version']
     BOOLEAN_ATTRS = ['force', 'dry_run']
     SUPPORTED_ARCHES = ['i386', 'armhf']
 
@@ -119,6 +120,7 @@ class ImageBuilder(object):
         self.contentdir = '${builddir}/content'
         self.apps_contentdir = '${contentdir}/apps'
         self.outrootdir = '${builddir}/out'
+        self.outdir = '${outrootdir}/${personality}'
         self.cachedir = '${builddir}/cache'
         self.configdir = '${srcdir}/config'
         self.sysconfdir = eib.SYSCONFDIR

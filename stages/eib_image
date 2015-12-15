@@ -209,7 +209,7 @@ eib_mount --bind /dev "${OSTREE_DEPLOYMENT}"/dev
 # Bind mount OS /var over deployment's /var for image hooks
 eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 
-recreate_dir "$(eib_outdir)"
+recreate_dir "${EIB_OUTDIR}"
 run_hooks image "${OSTREE_DEPLOYMENT}"
 eib_umount_all
 create_image "$(eib_outfile img.gz)"

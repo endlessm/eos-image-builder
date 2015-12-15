@@ -56,14 +56,9 @@ eib_version() {
   echo ${EIB_PRODUCT}-${EIB_BRANCH}-${EIB_ARCH}-${EIB_PLATFORM}.${EIB_BUILD_VERSION}.${EIB_PERSONALITY}
 }
 
-# Generate full path to output directory
-eib_outdir() {
-  echo ${EIB_OUTROOTDIR}/${EIB_PERSONALITY}
-}
-
 # Generate full path to output file
 eib_outfile() {
-  echo $(eib_outdir)/$(eib_version).$1
+  echo ${EIB_OUTDIR}/$(eib_version).$1
 }
 
 # Generate full remote output directory
