@@ -39,7 +39,7 @@ class ImageBuilder(object):
                     'tmpdir', 'ostree_tmpdir', 'contentdir',
                     'apps_contentdir', 'outrootdir', 'outdir',
                     'cacherootdir', 'cachedir', 'configdir',
-                    'sysconfdir', 'build_version']
+                    'sysconfdir', 'build_version', 'outversion']
     BOOLEAN_ATTRS = ['force', 'dry_run']
     SUPPORTED_ARCHES = ['i386', 'armhf']
 
@@ -126,6 +126,7 @@ class ImageBuilder(object):
         self.configdir = '${srcdir}/config'
         self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
+        self.outversion = '${product}-${branch}-${arch}-${platform}.${build_version}.${personality}'
 
     def configure(self):
         """Build settings from configuration files"""

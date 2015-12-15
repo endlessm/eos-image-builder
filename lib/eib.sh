@@ -52,13 +52,9 @@ run_hooks() {
   done
 }
 
-eib_version() {
-  echo ${EIB_PRODUCT}-${EIB_BRANCH}-${EIB_ARCH}-${EIB_PLATFORM}.${EIB_BUILD_VERSION}.${EIB_PERSONALITY}
-}
-
 # Generate full path to output file
 eib_outfile() {
-  echo ${EIB_OUTDIR}/$(eib_version).$1
+  echo ${EIB_OUTDIR}/${EIB_OUTVERSION}.$1
 }
 
 # Generate full remote output directory
@@ -75,7 +71,7 @@ eib_image_url() {
 # root directory of each partition.
 # Usage: <root directory path> <personality>
 eib_write_version_xattr() {
-  attr -s eos-image-version -V "$(eib_version).$2" "$1"
+  attr -s eos-image-version -V "${EIB_OUTVERSION}.$2" "$1"
 }
 
 # Declare the EIB_MOUNTS array, but don't reinitialize it.
