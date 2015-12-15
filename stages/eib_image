@@ -186,9 +186,10 @@ create_image() {
   pigz --no-name -c "${img}" > ${outfile}
   sign_file ${outfile} &
 
-  # Copy ostree and package info to per-personality outdir.
+  # Copy ostree, package and config info to per-personality outdir.
   cp "${EIB_TMPDIR}"/ostree.txt "$(eib_outfile ostree.txt)"
   cp "${EIB_TMPDIR}"/packages.txt "$(eib_outfile packages.txt)"
+  cp "${EIB_TMPDIR}"/config.ini "$(eib_outfile config.ini)"
 
   # Create split image for 2 disk systems if required.
   if [ "${EIB_IMAGE_SPLIT}" = true ]; then

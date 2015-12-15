@@ -39,7 +39,8 @@ class ImageBuilder(object):
                     'tmpdir', 'ostree_tmpdir', 'contentdir',
                     'apps_contentdir', 'outrootdir', 'outdir',
                     'cacherootdir', 'cachedir', 'configdir',
-                    'sysconfdir', 'build_version', 'outversion']
+                    'sysconfdir', 'build_version', 'outversion',
+                    'tmpconfig']
     BOOLEAN_ATTRS = ['force', 'dry_run']
     SUPPORTED_ARCHES = ['i386', 'armhf']
 
@@ -134,6 +135,7 @@ class ImageBuilder(object):
         self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
         self.outversion = '${product}-${branch}-${arch}-${platform}.${build_version}.${personality}'
+        self.tmpconfig = '${tmpdir}/config.ini'
 
     def configure(self):
         """Build settings from configuration files"""
@@ -255,6 +257,14 @@ class ImageBuilder(object):
         # Create the content directory
         os.makedirs(self.contentdir, exist_ok=True)
 
+    def create_tmp_config(self):
+        """Take the merged configuration and output it to a single file
+        in the tmp directory.
+        """
+        with open(self.tmpconfig, 'w') as out:
+            out.write('# Configuration for %s\n' % self.outversion)
+            self.config.write(out)
+
     def run(self):
         self.configure()
         if self.show_config:
@@ -264,6 +274,7 @@ class ImageBuilder(object):
 
         self.prep_builddir()
         self.set_environment()
+        self.create_tmp_config()
 
         # Run the buildscript
         sys.stdout.flush()
