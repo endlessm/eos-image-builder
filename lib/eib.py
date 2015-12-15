@@ -20,6 +20,7 @@
 
 from argparse import ArgumentParser
 import configparser
+import fnmatch
 import os
 import shutil
 
@@ -76,6 +77,34 @@ class ImageConfigParser(configparser.ConfigParser):
         else:
             value = 'false'
         self.set(section, option, value)
+
+    def merge_option_prefix(self, section, prefix):
+        """Merge multiple options named like <prefix>_add_* and
+        <prefix>_del_*. The original options will be deleted.
+        If an option named <prefix> already exists, it is not changed.
+        """
+        sect = self[section]
+        add_opts = fnmatch.filter(sect.keys(), prefix + '_add_*')
+        del_opts = fnmatch.filter(sect.keys(), prefix + '_del_*')
+
+        # If the prefix doesn't exist, merge together the add and del
+        # options and set it.
+        if prefix not in sect:
+            add_vals = set()
+            for opt in add_opts:
+                add_vals.update(sect[opt].split())
+            del_vals = set()
+            for opt in del_opts:
+                del_vals.update(sect[opt].split())
+
+            # Set the prefix to the difference of the sets. Merge
+            # the values together with newlines like they were in
+            # the original configuration.
+            sect[prefix] = '\n'.join(sorted(add_vals - del_vals))
+
+        # Remove the add/del options to cleanup the section
+        for opt in add_opts + del_opts:
+            del sect[opt]
 
 def recreate_dir(path):
     """Delete and recreate a directory"""
