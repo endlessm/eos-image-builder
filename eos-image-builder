@@ -39,8 +39,8 @@ def set_close_on_exec(fd):
     flags |= fcntl.FD_CLOEXEC
     fcntl.fcntl(fd, fcntl.F_SETFD, flags)
 
-def lock_builder(lockf):
-    wait = LOCKTIMEOUT
+def lock_builder(lockf, timeout):
+    wait = timeout
     while True:
         try:
             # Grab the lock exclusively non-blocking
@@ -48,12 +48,12 @@ def lock_builder(lockf):
             break
         except IOError as err:
             if err.errno in [errno.EACCES, errno.EAGAIN]:
-                if wait == LOCKTIMEOUT:
+                if wait == timeout:
                     lockpid = lockf.read().strip()
                     print(LOCKFILE, 'currently locked by pid', lockpid,
                           file=sys.stderr)
                 wait -= 1
-                if wait == 0:
+                if wait <= 0:
                     raise Exception('Could not lock file %s' % LOCKFILE)
                 time.sleep(1)
             else:
@@ -73,7 +73,7 @@ args = aparser.parse_args()
 
 os.makedirs(os.path.dirname(eib.LOCKFILE), exist_ok=True)
 with open(eib.LOCKFILE, 'r+') as lf:
-    lock_builder(lf)
+    lock_builder(lf, args.lock_timeout)
 
     # Set the close-on-exec bit so the lock file isn't inherited by
     # child processes. This isn't actually required since subprocess

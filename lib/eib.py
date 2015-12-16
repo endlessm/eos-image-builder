@@ -27,6 +27,7 @@ import shutil
 BUILDDIR = '/var/cache/eos-image-builder'
 SYSCONFDIR = '/etc/eos-image-builder'
 LOCKFILE = '/var/lock/eos-image-builder.lock'
+LOCKTIMEOUT = 60
 
 class ImageBuildError(Exception):
     """Errors from the image builder"""
@@ -130,5 +131,7 @@ def add_cli_options(argparser):
                            help="don't publish images")
     argparser.add_argument('--no-checkout', action='store_true',
                            help='use current builder branch')
+    argparser.add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,
+                           help='time in seconds to acquire lock before exiting')
     argparser.add_argument('branch', nargs='?', default='master',
                            help='branch to build')
