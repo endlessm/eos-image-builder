@@ -10,12 +10,18 @@ OSTree filesystem trees. Its main functions are:
 Design
 ======
 
-EIB is designed to be simple. It is written in bash script and has just
-enough flexibility to meet our needs. The simplicity allows us to have a
-complete in-house understanding of the build system, enabling smooth
-organic growth as our requirements evolve. The build master(s) who
-maintain this system are not afraid of encoding our requirements in
-simple bash script.
+EIB is designed to be simple but flexible. The core is written in bash
+script and has just enough flexibility to our needs. The simplicity
+allows us to have a complete in-house understanding of the build system,
+enabling smooth organic growth as our requirements evolve. The build
+master(s) who maintain this system are not afraid of encoding our
+requirements in simple bash script.
+
+The top level entry point is written in python. This is done to provide
+a rich configuration environment that allows Endless to quickly adjust
+to different product needs. See the [Configuration](#Configuration)
+section below for a detailed description of the image builder
+configuration.
 
 When added complexity is minimal, we prefer calling into lower level
 tools directly rather than utilizing abstraction layers (e.g. we call
@@ -82,21 +88,79 @@ the configuration.
 Configuration
 =============
 
-The base configuration is kept in the run-build script. Some
-configuration is static, and some is dynamic. Update this file directly
-when making changes that are semi-permanent or permanent.
+The image builder configuration is built up from a series of INI files.
+The configuration files are stored in the `config` directory of the
+builder. The order of configuration files read in is:
 
-For one-off builds that require a different configuration, create a file
-named config and put `export key=value` pairs there to override the
-defaults. However, this file is sourced by the run-build script, so any
-bash can be used to set the variables. Delete this file after the
-one-off build has been made.
+  * Default settings - `config/defaults.ini`
+  * Product settings - `config/product/$product.ini`
+  * Branch settings - `config/branch/$branch.ini`
+  * Architecture settings - `config/arch/$arch.ini`
+  * Platform settings - `config/platform/$platform.ini`
+  * Personality settings - `config/personality/$personality.ini`
+  * System config settings - `/etc/eos-image-builder/config.ini`
+  * Local build settings - `config/local.ini`
 
-More permanent configuration changes can be kept in a system
-configuration file at /etc/eos-image-builder/config. This is sourced
-before the local config file to allow it to override the system
-settings. The same rules apply for the contents of the system config
-file.
+None of these files are required to be present, but the `defaults.ini`
+file contains many settings that are expected throughout the core of the
+build.
+
+New configuration options should be added and documented in
+`defaults.ini`. See the existing file for options that are available to
+customize. Settings in the default `build` section are usually set in
+the `ImageBuilder` class as they're static across all builds.
+
+Format
+------
+
+The format of the configuration files is INI as mentioned above.
+However, a form of interpolation is used to allow referring to other
+options. For instance, an option `foo` can use the value from an option
+`bar` by using `${bar}` in its value. If `bar` was in a different
+section, it can be referred to by prepending the other section in the
+form of `${other:bar}`. The `build` section is the default section. Any
+interpolation without an explicit section can fallback to a value in the
+`build` section. For example, if `bar` doesn't exist in the current
+section, it will also be looked for in the `build` section.
+
+The INI file parsing is done using the `configparser` `python` module.
+The interpolation feature is provided by its `ExtendedInterpolation`
+class. See the `python`
+[documentation](https://docs.python.org/3/library/configparser.html#configparser.ExtendedInterpolation)
+for a more detailed discussion of this feature.
+
+The system and local configuration files are not typically used. They
+can allow for a permanent or temporary override for a particular host or
+build.
+
+Merged options
+--------------
+
+In some cases, an option needs to represent a set of values rather than
+a single setting. Adding or removing items from the list is not possible
+with the features in the configuration parser.
+
+To allow some method of building these lists, the builder will take
+multiple options of the form `$prefix_add_*` and `$prefix_del_*` and
+merge them together into one option named `$prefix`. Values in the
+various `$prefix_add_*` options are added to a set, and then values in
+the various `$prefix_del_*` options are removed from the set. If the
+option `$prefix` already exists, it is not changed. This allows a
+configuration file to override all of the various `add` and `del`
+options from other files to provide the list exactly in the form it
+wants.
+
+The current merged options are `apps:install`, `apps:extra` and
+`apps:nosplit`. See the `defaults.ini` file for a description of these
+options.
+
+Accessing options
+-----------------
+
+The build core accesses these settings via environment variables. The
+variables take the form of `EIB_$SECTION_$OPTION`. The `build` section
+is special and these settings are exported in the form `EIB_$OPTION`
+without the section in the variable name.
 
 Execution
 =========
