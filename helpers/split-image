@@ -47,7 +47,8 @@ shrink_disk1_image() {
   # actual "16 GB" eMMC device on Intel Sqwerty was 15758000128 bytes,
   # but we'll assume 98% available space, which is 15680000000 bytes.
   # Fail if the image won't fit in this space.
-  local disk1_max_img_size=$(python -c "print int(16 * 10**9 * 0.98)")
+  disk1_size=${EIB_IMAGE_DISK1_SIZE}
+  local disk1_max_img_size=$(python -c "print int(${disk1_size} * 0.98)")
   ((disk1_max_img_size -= 1 * 2**30))
   if ((new_disk1_img_size > disk1_max_img_size)); then
     echo "ERROR: ${EIB_PERSONALITY} disk1 image exceeds" \
@@ -162,7 +163,8 @@ split_image() {
   # The actual size might vary and we want to be a little connservative,
   # so use 98% of 16 GB, which is 15680000000 bytes.
   rm -f "${disk2_img}"
-  local disk2_img_size=$(python -c "print int(16 * 10**9 * 0.98)")
+  disk2_size=${EIB_IMAGE_DISK2_SIZE}
+  local disk2_img_size=$(python -c "print int(${disk2_size} * 0.98)")
   truncate -s ${disk2_img_size} "${disk2_img}"
 
   # Attr 55 indicates that the partition should be resized later.
