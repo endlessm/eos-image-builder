@@ -36,8 +36,7 @@ class ImageBuilder(object):
     CONFIG_ATTRS = ['product', 'branch', 'arch', 'platform',
                     'personality', 'force', 'dry_run', 'series',
                     'srcdir', 'datadir', 'helpersdir', 'builddir',
-                    'tmpdir', 'ostree_tmpdir', 'contentdir',
-                    'apps_contentdir', 'outrootdir', 'outdir',
+                    'tmpdir', 'contentdir', 'outrootdir', 'outdir',
                     'cacherootdir', 'cachedir', 'configdir',
                     'sysconfdir', 'build_version', 'outversion',
                     'tmpconfig']
@@ -124,9 +123,7 @@ class ImageBuilder(object):
         self.helpersdir = '${srcdir}/helpers'
         self.builddir = eib.BUILDDIR
         self.tmpdir = '${builddir}/tmp'
-        self.ostree_tmpdir = '${tmpdir}/ostree-bin'
         self.contentdir = '${builddir}/content'
-        self.apps_contentdir = '${contentdir}/apps'
         self.outrootdir = '${builddir}/out'
         self.outdir = '${outrootdir}/${personality}'
         self.cacherootdir = '${builddir}/cache'
