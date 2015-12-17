@@ -71,8 +71,11 @@ aparser = ArgumentParser(description='Build and publish images for Endless')
 eib.add_cli_options(aparser)
 args = aparser.parse_args()
 
+# Open the lock file a+ so it can be RW without truncating, but seek to
+# the beginning to either read or write the whole file.
 os.makedirs(os.path.dirname(eib.LOCKFILE), exist_ok=True)
-with open(eib.LOCKFILE, 'r+') as lf:
+with open(eib.LOCKFILE, 'a+') as lf:
+    lf.seek(0)
     lock_builder(lf, args.lock_timeout)
 
     # Set the close-on-exec bit so the lock file isn't inherited by
