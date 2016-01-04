@@ -3,7 +3,7 @@
 . "${EIB_BASELIB}"
 
 # Don't publish for a dry run.
-[ -n "${EIB_DRY_RUN}" ] && exit 0
+[ "${EIB_DRY_RUN}" = true ] && exit 0
 
 run_hooks publish
 
