@@ -154,7 +154,7 @@ eib_start_publishing() {
   local destdir="${EIB_IMAGE_DESTDIR}"
 
   # Skip on dry runs
-  [ -n "${EIB_DRY_RUN}" ] && return 0
+  [ "${EIB_DRY_RUN}" = true ] && return 0
 
   if [ "$(hostname -s)" != "${EIB_IMAGE_HOST_SHORT}" ]; then
     ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} mkdir -p "${destdir}"
@@ -172,7 +172,7 @@ eib_end_publishing() {
   local destdir="${EIB_IMAGE_DESTDIR}"
 
   # Skip on dry runs
-  [ -n "${EIB_DRY_RUN}" ] && return 0
+  [ "${EIB_DRY_RUN}" = true ] && return 0
 
   if [ "$(hostname -s)" != "${EIB_IMAGE_HOST_SHORT}" ]; then
     ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} rm -f \
@@ -187,7 +187,7 @@ eib_fail_publishing() {
   local destdir="${EIB_IMAGE_DESTDIR}"
 
   # Skip on dry runs
-  [ -n "${EIB_DRY_RUN}" ] && return 0
+  [ "${EIB_DRY_RUN}" = true ] && return 0
 
   # If the .inprogress file exists, delete the entire destdir. This is
   # pretty ugly because we need a shell command list and that would
