@@ -26,7 +26,7 @@ exec > >(tee "${EIB_TMPDIR}"/build.txt)
 exec 2>&1
 
 # Check if build needed and exit early if not
-if eib_check_update && [ -z "${EIB_FORCE}" ]; then
+if eib_check_update && [ "${EIB_FORCE}" != true ]; then
   exit 0
 fi
 
