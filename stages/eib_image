@@ -56,7 +56,8 @@ if [[ "${EIB_ARCH}" == "armhf" ]]; then
   # Empty uEnv.txt otherwise ostree gets upset
   > "${BOOT}"/loader/uEnv.txt
   ln -s loader/uEnv.txt "${BOOT}"/uEnv.txt
-elif [[ "${EIB_ARCH}" == "i386" ]]; then
+else
+  # Assume grub for all other architectures
   mkdir -p "${BOOT}"/grub
   cp "${EIB_DATADIR}"/grub.cfg "${BOOT}"/grub/grub.cfg
 fi
@@ -107,12 +108,14 @@ create_image() {
     # Empty space up to 1mb (for GPT, and for uboot on ARM)
     echo -n "start=2048, "
 
-    if [[ "${EIB_ARCH}" == "i386" ]]; then
-      # EFI system partition
-      echo "size=62MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
-      # GRUB BIOS BOOT partition
-      echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
-    fi
+    case "${EIB_ARCH}" in
+      i386|amd64)
+        # EFI system partition
+        echo "size=62MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+        # GRUB BIOS BOOT partition
+        echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
+        ;;
+    esac
 
     # Remaining space is root fs, with special the special 55 attr as a
     # marker indicating the partition should be resized later
@@ -122,13 +125,16 @@ create_image() {
   img_loop=$(losetup -f --show "${img}")
   eib_partx_scan "${img_loop}"
 
-  if [[ "${EIB_ARCH}" == "i386" ]]; then
-    esp_loop=${img_loop}p1
-    root_loop=${img_loop}p3
-    mkfs.vfat "${esp_loop}"
-  else
-    root_loop=${img_loop}p1
-  fi
+  case "${EIB_ARCH}" in
+    i386|amd64)
+      esp_loop=${img_loop}p1
+      root_loop=${img_loop}p3
+      mkfs.vfat "${esp_loop}"
+      ;;
+    *)
+      root_loop=${img_loop}p1
+      ;;
+  esac
 
   mke2fs -t ext4 -O dir_index,^huge_file -m1 -L ostree ${root_loop}
   ROOT="${EIB_BUILDDIR}"/mnt
@@ -137,11 +143,13 @@ create_image() {
   eib_mount ${root_loop} "${ROOT}"
   eib_write_version_xattr "${ROOT}" ${EIB_PERSONALITY}
 
-  if [[ "${EIB_ARCH}" == "i386" ]]; then
-    ESP="${ROOT}"/boot/efi
-    mkdir -p "${ESP}"
-    eib_mount ${esp_loop} "${ESP}"
-  fi
+  case "${EIB_ARCH}" in
+    i386|amd64)
+      ESP="${ROOT}"/boot/efi
+      mkdir -p "${ESP}"
+      eib_mount ${esp_loop} "${ESP}"
+      ;;
+  esac
 
   # Copy contents into image, preserving attributes, timestamps, hardlinks, etc.
   cp -a "${EIB_OSTREE_CHECKOUT}"/* "${ROOT}"
@@ -150,32 +158,49 @@ create_image() {
   chattr +i "${DEPLOY}"
 
   # Install bootloader
-  if [[ "${EIB_PLATFORM}" == "odroidu2" ]]; then
-    # from hardkernel u-boot sd_fusing.sh
-    local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/exynos4_odroid
-    dd conv=notrunc if="${UBOOT_PATH}"/bl1.HardKernel of=${img} seek=1
-    dd conv=notrunc if="${UBOOT_PATH}"/bl2.HardKernel of=${img} seek=31
-    dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} seek=63
-    dd conv=notrunc if="${UBOOT_PATH}"/tzsw.HardKernel of=${img} seek=2111
-  elif [[ "${EIB_PLATFORM}" == "sqwerty" ]]; then
-    local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/exynos4_sqwerty
-    dd conv=notrunc if="${UBOOT_PATH}"/bl1.Sqwerty of=${img} seek=1
-    dd conv=notrunc if="${UBOOT_PATH}"/bl2.Sqwerty of=${img} seek=31
-    dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} seek=63
-    dd conv=notrunc if="${UBOOT_PATH}"/tzsw.Sqwerty of=${img} seek=2111
-  elif [[ "${EIB_PLATFORM}" == "ec100" ]]; then
-    local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/meson8b_m201
-    dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=1 count=442
-    dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=17408 skip=1 seek=1
-  elif [[ "${EIB_ARCH}" == "i386" ]]; then
-    # MBR bootloader install
-    grub-install --boot-directory=${ROOT}/boot \
-                 --modules="ext2 part_msdos part_gpt" \
-                 --directory="${DEPLOY}"/usr/lib/grub/i386-pc \
-                 ${img}
-    # UEFI bootloader install
-    cp -a "${DEPLOY}"/boot/efi/EFI "${ESP}"
-  fi
+  case "${EIB_ARCH}" in
+    armhf)
+      case "${EIB_PLATFORM}" in
+        odroidu2)
+          # from hardkernel u-boot sd_fusing.sh
+          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/exynos4_odroid
+          dd conv=notrunc if="${UBOOT_PATH}"/bl1.HardKernel of=${img} seek=1
+          dd conv=notrunc if="${UBOOT_PATH}"/bl2.HardKernel of=${img} seek=31
+          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} seek=63
+          dd conv=notrunc if="${UBOOT_PATH}"/tzsw.HardKernel of=${img} seek=2111
+          ;;
+        sqwerty)
+          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/exynos4_sqwerty
+          dd conv=notrunc if="${UBOOT_PATH}"/bl1.Sqwerty of=${img} seek=1
+          dd conv=notrunc if="${UBOOT_PATH}"/bl2.Sqwerty of=${img} seek=31
+          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} seek=63
+          dd conv=notrunc if="${UBOOT_PATH}"/tzsw.Sqwerty of=${img} seek=2111
+          ;;
+        ec100)
+          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/meson8b_m201
+          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=1 count=442
+          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=17408 skip=1 seek=1
+          ;;
+        *)
+          echo "Unrecognized armhf platform ${EIB_ARCH}" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    i386|amd64)
+      # MBR bootloader install
+      grub-install --boot-directory=${ROOT}/boot \
+                   --modules="ext2 part_msdos part_gpt" \
+                   --directory="${DEPLOY}"/usr/lib/grub/i386-pc \
+                   ${img}
+      # UEFI bootloader install
+      cp -a "${DEPLOY}"/boot/efi/EFI "${ESP}"
+      ;;
+    *)
+      echo "Unrecognized architecture ${EIB_ARCH}" >&2
+      return 1
+      ;;
+  esac
 
   eib_fix_boot_checksum "${img_loop}" "${DEPLOY}"
 
