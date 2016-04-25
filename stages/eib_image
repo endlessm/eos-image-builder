@@ -62,7 +62,8 @@ else
   cp "${EIB_DATADIR}"/grub.cfg "${BOOT}"/grub/grub.cfg
 fi
 
-kargs=(--karg=root=LABEL=ostree --karg=rw --karg=splash \
+uuid=$(uuidgen)
+kargs=(--karg=root=UUID=${uuid} --karg=rw --karg=splash \
     --karg=plymouth.ignore-serial-consoles --karg=quiet)
 tmp_ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" deploy \
   --os=${EIB_OSTREE_OS} "${kargs[@]}" \
@@ -136,7 +137,7 @@ create_image() {
       ;;
   esac
 
-  mke2fs -t ext4 -O dir_index,^huge_file -m1 -L ostree ${root_loop}
+  mke2fs -t ext4 -O dir_index,^huge_file -m1 -L ostree -U ${uuid} ${root_loop}
   ROOT="${EIB_BUILDDIR}"/mnt
   DEPLOY="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
   mkdir -p "${ROOT}"
