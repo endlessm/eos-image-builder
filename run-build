@@ -41,7 +41,11 @@ class ImageBuilder(object):
                     'sysconfdir', 'build_version', 'outversion',
                     'tmpconfig']
     BOOLEAN_ATTRS = ['force', 'dry_run']
-    SUPPORTED_ARCHES = ['i386', 'armhf']
+    SUPPORTED_ARCHES = [
+        'i386',
+        'amd64',
+        'armhf'
+    ]
 
     # Config options that will be merged together from multiple
     # $prefix_add_* and $prefix_del_* options. This is a list of
