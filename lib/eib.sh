@@ -157,9 +157,10 @@ eib_start_publishing() {
   [ "${EIB_DRY_RUN}" = true ] && return 0
 
   if [ "$(hostname -s)" != "${EIB_IMAGE_HOST_SHORT}" ]; then
-    ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} mkdir -p "${destdir}"
-    ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} touch \
-      "${destdir}"/.inprogress
+    ssh ${EIB_SSH_OPTIONS} ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} \
+      mkdir -p "${destdir}"
+    ssh ${EIB_SSH_OPTIONS} ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} \
+      touch "${destdir}"/.inprogress
   else
     sudo -u ${EIB_IMAGE_USER} mkdir -p "${destdir}"
     sudo -u ${EIB_IMAGE_USER} touch "${destdir}"/.inprogress
@@ -175,8 +176,8 @@ eib_end_publishing() {
   [ "${EIB_DRY_RUN}" = true ] && return 0
 
   if [ "$(hostname -s)" != "${EIB_IMAGE_HOST_SHORT}" ]; then
-    ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} rm -f \
-      "${destdir}"/.inprogress
+    ssh ${EIB_SSH_OPTIONS} ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} \
+      rm -f "${destdir}"/.inprogress
   else
     sudo -u ${EIB_IMAGE_USER} rm -f "${destdir}"/.inprogress
   fi
@@ -193,10 +194,11 @@ eib_fail_publishing() {
   # pretty ugly because we need a shell command list and that would
   # require quite a bit of magic escaping.
   if [ "$(hostname -s)" != "${EIB_IMAGE_HOST_SHORT}" ]; then
-    if ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} \
+    if ssh ${EIB_SSH_OPTIONS} ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} \
       test -f "${destdir}"/.inprogress
     then
-      ssh ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} rm -rf "${destdir}"
+      ssh ${EIB_SSH_OPTIONS} ${EIB_IMAGE_USER}@${EIB_IMAGE_HOST} \
+        rm -rf "${destdir}"
     fi
   else
     if sudo -u ${EIB_IMAGE_USER} test -f "${destdir}"/.inprogress; then
