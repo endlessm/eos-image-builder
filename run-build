@@ -39,7 +39,7 @@ class ImageBuilder(object):
                     'tmpdir', 'contentdir', 'outrootdir', 'outdir',
                     'cacherootdir', 'cachedir', 'configdir',
                     'sysconfdir', 'build_version', 'outversion',
-                    'tmpconfig']
+                    'tmpconfig', 'ssh_options']
     BOOLEAN_ATTRS = ['force', 'dry_run']
     SUPPORTED_ARCHES = [
         'i386',
@@ -137,6 +137,7 @@ class ImageBuilder(object):
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
         self.outversion = '${product}-${branch}-${arch}-${platform}.${build_version}.${personality}'
         self.tmpconfig = '${tmpdir}/config.ini'
+        self.ssh_options = '-o StrictHostKeyChecking=no'
 
     def configure(self):
         """Build settings from configuration files"""
