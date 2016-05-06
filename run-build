@@ -50,9 +50,17 @@ class ImageBuilder(object):
     # Config options that will be merged together from multiple
     # $prefix_add_* and $prefix_del_* options. This is a list of
     # (section, prefix) tuples.
-    CONFIG_MERGE_PREFIXES = [('apps', 'install'),
-                             ('apps', 'extra'),
-                             ('apps', 'nosplit')]
+    CONFIG_MERGE_PREFIXES = [
+        ('cache', 'hooks'),
+        ('content', 'hooks'),
+        ('image', 'hooks'),
+        ('split', 'hooks'),
+        ('apps', 'install'),
+        ('apps', 'extra'),
+        ('apps', 'nosplit'),
+        ('publish', 'hooks'),
+        ('error', 'hooks'),
+    ]
 
     def __getattr__(self, attr):
         """Proxy this object's attributes into the config object"""

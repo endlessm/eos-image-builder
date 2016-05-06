@@ -151,9 +151,19 @@ configuration file to override all of the various `add` and `del`
 options from other files to provide the list exactly in the form it
 wants.
 
-The current merged options are `apps:install`, `apps:extra` and
-`apps:nosplit`. See the `defaults.ini` file for a description of these
-options.
+The current merged options are:
+
+* `cache:hooks`
+* `content:hooks`
+* `image:hooks`
+* `split:hooks`
+* `apps:install`
+* `apps:extra`
+* `apps:nosplit`
+* `publish:hooks`
+* `error:hooks`
+
+See the `defaults.ini` file for a description of these options.
 
 Accessing options
 -----------------
@@ -184,12 +194,17 @@ Customization
 =============
 
 The core of EIB is just a wrapper. The real content of the output is
-defined by customization scripts found under customization/. These
-scripts have access to environment variables and library functions
-allowing them to integrate correctly with the core.
+defined by customization scripts found under hooks/. These scripts have
+access to environment variables and library functions allowing them to
+integrate correctly with the core.
 
-The scripts for each product are kept under `customization/PRODUCT`.
-`customization/all` is special, it is run on all builds.
+The scripts to run are organized under `hooks/GROUP` where `GROUP` is a
+group of hooks run by a particular stage. The hooks to run are managed
+in the configuration with merged `hooks` keys under each group. For
+instance, the `image` group hooks to run are defined in the
+`image:hooks` configuration key. This allows easy customization for
+different OS variants. These are merged options as described above, so
+they can be added to or pruned by specific products.
 
 If a script has an executable bit, it is executed directly. Otherwise it
 is executed through bash and will have access to the library functions.

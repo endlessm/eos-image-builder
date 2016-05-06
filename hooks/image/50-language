@@ -1,0 +1,4 @@
+# Set LANG in /etc/locale.conf for the default language.
+if [ -n "${EIB_IMAGE_LANGUAGE}" ]; then
+  echo "LANG=${EIB_IMAGE_LANGUAGE}" > ${OSTREE_DEPLOYMENT}/etc/locale.conf
+fi
