@@ -1,0 +1,8 @@
+# Set the default timezone by changing the /etc/localtime symlink. On
+# debian, this also adds the timezone name to /etc/timezone for some
+# reason.
+if [ -n "${EIB_IMAGE_TIMEZONE}" ]; then
+  ln -sf ../usr/share/zoneinfo/"${EIB_IMAGE_TIMEZONE}" \
+    ${OSTREE_DEPLOYMENT}/etc/localtime
+  echo "${EIB_IMAGE_TIMEZONE}" > ${OSTREE_DEPLOYMENT}/etc/timezone
+fi

@@ -1,0 +1,5 @@
+# Rebuild the linker cache so that the aux cache is shipped on new
+# images in /var/cache/ldconfig. This allows the subsequent ldconfig run
+# on upgrade to be fast since it can use the existing aux cache.
+
+ldconfig -X

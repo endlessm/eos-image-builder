@@ -12,24 +12,23 @@ export PS4='+ ${BASH_SOURCE[0]##*/} \t: '
 
 # Run hooks under customization/
 run_hooks() {
-  echo "Running $1 customization"
   local hook interpreter
+  local group=$1
   local install_root=$2
 
-  # Combine hooks from all and product dirs, but sort them by basename
-  pushd "${EIB_SRCDIR}"/customization &>/dev/null
-  local files=$(printf "%s\n" {all,${EIB_PRODUCT}}/$1/* | sort -t '/' -k 3)
-  popd &>/dev/null
+  echo "Running $group hooks"
+
+  # Sort enabled hooks
+  eval local hooks="\${EIB_${group^^}_HOOKS}"
+  local files=$(echo "${hooks}" | tr ' ' '\n' | sort)
 
   for hook in ${files}; do
-    # Skip backups and compiled python objects
-    case "${hook}" in
-      *~|*.py[co]|*/__pycache__)
-        continue
-        ;;
-    esac
+    local hookpath="${EIB_SRCDIR}"/hooks/${group}/${hook}
+    if [ ! -f "${hookpath}" ]; then
+      echo "Missing hook ${hookpath}!" >&2
+      return 1
+    fi
 
-    hookpath="${EIB_SRCDIR}"/customization/${hook}
     if [ "${hook: -7}" == ".chroot" ]; then
       if [ -z "$install_root" ]; then
         echo "Skipping hook, no chroot available: ${hook}"
