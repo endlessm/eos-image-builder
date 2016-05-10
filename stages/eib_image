@@ -209,6 +209,9 @@ create_image() {
   eib_umount_all
   cleanup_devices
 
+  # Publish uncompressed file size.
+  stat -c "%s" "${img}" > "${outfile}.size"
+
   pigz --no-name -c "${img}" > ${outfile}
   sign_file ${outfile} &
 

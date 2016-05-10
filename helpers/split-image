@@ -210,6 +210,10 @@ split_image() {
   # Delete loop devices and cleanup variables for the next iteration.
   cleanup_devices
 
+  # Publish uncompressed file sizes.
+  stat -c "%s" "${disk1_img}" > "${disk1_img_gz}.size"
+  stat -c "%s" "${disk2_img}" > "${disk2_img_gz}.size"
+
   # gzip image files and remove uncompressed versions.
   pigz --no-name -c "${disk1_img}" > "${disk1_img_gz}"
   rm -f "${disk1_img}"
