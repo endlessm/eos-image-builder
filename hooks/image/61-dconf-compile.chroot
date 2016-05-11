@@ -1,0 +1,9 @@
+# Compiles the dconf overrides database and puts it in the location expected
+# by our dconf default user profile
+
+OVERRIDES_DIR=/tmp/dconf-overrides
+TARGET_DIR=/var/eos-image-defaults
+TARGET_DB=${TARGET_DIR}/settings
+
+mkdir -p ${TARGET_DIR}
+dconf compile ${TARGET_DB} ${OVERRIDES_DIR}
