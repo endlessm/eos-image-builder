@@ -118,9 +118,13 @@ create_image() {
         ;;
     esac
 
-    # Remaining space is root fs, with special the special 55 attr as a
-    # marker indicating the partition should be resized later
-    echo "type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, attrs=GUID:55"
+    if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
+      # Remaining space is root fs, with special the special 55 attr as a
+      # marker indicating the partition should be resized later
+      echo "type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, attrs=GUID:55"
+    else
+      echo "type=0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+    fi
   ) | sfdisk --force --label gpt "${img}"
 
   img_loop=$(losetup -f --show "${img}")
