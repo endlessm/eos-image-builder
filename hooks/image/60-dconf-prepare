@@ -1,0 +1,18 @@
+# Copy dconf overrides to the correct location in the image
+
+TGT=${OSTREE_DEPLOYMENT}/tmp/dconf-overrides
+mkdir -p ${TGT}
+
+LOCKS_DIR=${TGT}/locks
+mkdir -p ${LOCKS_DIR}
+
+LOCKS_FILE=${LOCKS_DIR}/locks
+rm -f ${LOCKS_FILE}
+
+for file in ${EIB_IMAGE_SETTINGS}; do
+    cp ${file} ${TGT}
+done
+
+for key in ${EIB_IMAGE_SETTINGS_LOCKS}; do
+    echo ${key} >> ${LOCKS_FILE}
+done

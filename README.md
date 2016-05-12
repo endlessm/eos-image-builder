@@ -156,6 +156,8 @@ The current merged options are:
 * `cache:hooks`
 * `content:hooks`
 * `image:hooks`
+* `image:settings`
+* `image:settings_locks`
 * `split:hooks`
 * `apps:install`
 * `apps:extra`
