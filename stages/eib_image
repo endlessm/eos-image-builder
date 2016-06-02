@@ -195,8 +195,9 @@ create_image() {
     i386|amd64)
       # MBR bootloader install
       grub-install --boot-directory=${ROOT}/boot \
-                   --modules="ext2 part_msdos part_gpt" \
+                   --modules="ext2 part_msdos part_gpt search_fs_type search" \
                    --directory="${DEPLOY}"/usr/lib/grub/i386-pc \
+                   --config="${EIB_DATADIR}"/grub_embedded.cfg \
                    ${img}
       # UEFI bootloader install
       cp -a "${DEPLOY}"/boot/efi/EFI "${ESP}"
