@@ -159,9 +159,6 @@ create_image() {
   # Copy contents into image, preserving attributes, timestamps, hardlinks, etc.
   cp -a "${EIB_OSTREE_CHECKOUT}"/* "${ROOT}"
 
-  # Restore the immutable attribute on the deployment root lost via cp
-  chattr +i "${DEPLOY}"
-
   # Install bootloader
   case "${EIB_ARCH}" in
     armhf)
@@ -194,11 +191,20 @@ create_image() {
       ;;
     i386|amd64)
       # MBR bootloader install
-      grub-install --boot-directory=${ROOT}/boot \
+      > "${DEPLOY}"/img
+      cp "${EIB_DATADIR}"/grub_embedded.cfg "${DEPLOY}"
+      mount --bind "${img}" "${DEPLOY}"/img
+      mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
+      mount --bind /dev "${DEPLOY}"/dev
+      mount --bind /proc "${DEPLOY}"/proc
+      chroot "${DEPLOY}" /usr/sbin/grub-install \
                    --modules="ext2 part_msdos part_gpt search_fs_type search" \
-                   --directory="${DEPLOY}"/usr/lib/grub/i386-pc \
-                   --config="${EIB_DATADIR}"/grub_embedded.cfg \
-                   ${img}
+                   --directory=/usr/lib/grub/i386-pc \
+                   --config=/grub_embedded.cfg \
+                   /img
+      umount "${DEPLOY}"/{boot,dev,img,proc}
+      rm -f "${DEPLOY}"/img "${DEPLOY}"/grub_embedded.cfg
+
       # UEFI bootloader install
       cp -a "${DEPLOY}"/boot/efi/EFI "${ESP}"
       ;;
@@ -209,6 +215,9 @@ create_image() {
   esac
 
   eib_fix_boot_checksum "${img_loop}" "${DEPLOY}"
+
+  # Restore the immutable attribute on the deployment root lost via cp
+  chattr +i "${DEPLOY}"
 
   # Cleanup mounts and devices
   eib_umount_all
