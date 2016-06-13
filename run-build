@@ -60,6 +60,7 @@ class ImageBuilder(object):
         ('apps', 'install'),
         ('apps', 'extra'),
         ('apps', 'nosplit'),
+        ('flatpak', 'install'),
         ('publish', 'hooks'),
         ('error', 'hooks'),
     ]
