@@ -118,12 +118,29 @@ create_image() {
         ;;
     esac
 
+    # Partition Type GUIDs
+    # https://www.freedesktop.org/wiki/Specifications/DiscoverablePartitionsSpec/
+    case "${EIB_ARCH}" in
+      i386|amd64)
+        # Root Partition (x86-64)
+        pt_guid="4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
+        ;;
+      armhf)
+        # Root Partition (32-bit ARM)
+        pt_guid="69DAD710-2CE4-4E3C-B16C-21A1D49ABED3"
+        ;;
+      *)
+        echo "Unrecognized architecture ${EIB_ARCH}" >&2
+        return 1
+        ;;
+    esac
+
     if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
       # Remaining space is root fs, with special the special 55 attr as a
       # marker indicating the partition should be resized later
-      echo "type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, attrs=GUID:55"
+      echo "type=${pt_guid}, attrs=GUID:55"
     else
-      echo "type=0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+      echo "type=${pt_guid}"
     fi
   ) | sfdisk --force --label gpt "${img}"
 
