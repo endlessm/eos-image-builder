@@ -63,7 +63,7 @@ else
 fi
 
 uuid=$(uuidgen)
-kargs=(--karg=root=UUID=${uuid} --karg=rw --karg=splash \
+kargs=(--karg=rw --karg=splash \
     --karg=plymouth.ignore-serial-consoles --karg=quiet)
 tmp_ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" deploy \
   --os=${EIB_OSTREE_OS} "${kargs[@]}" \
