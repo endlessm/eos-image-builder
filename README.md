@@ -75,7 +75,6 @@ Required packages:
  * python3-apt
  * python3-debian
  * attr
- * uuid-runtime
  * x86: grub2
  * arm: mkimage, device-tree-compiler
 
