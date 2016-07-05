@@ -39,7 +39,7 @@ class ImageBuilder(object):
                     'tmpdir', 'contentdir', 'outrootdir', 'outdir',
                     'cacherootdir', 'cachedir', 'configdir',
                     'sysconfdir', 'build_version', 'outversion',
-                    'tmpconfig', 'ssh_options']
+                    'tmpconfig', 'deb_host_gnu_cpu', 'ssh_options']
     BOOLEAN_ATTRS = ['force', 'dry_run']
     SUPPORTED_ARCHES = [
         'i386',
@@ -146,6 +146,13 @@ class ImageBuilder(object):
         self.outversion = '${product}-${branch}-${arch}-${platform}.${build_version}.${personality}'
         self.tmpconfig = '${tmpdir}/config.ini'
         self.ssh_options = '-o StrictHostKeyChecking=no'
+
+        # Pull in dpkg-architecture settings that are needed for the
+        # installation of flatpak bundles.
+        gnu_cpu = subprocess.check_output(['dpkg-architecture',
+                                           '-a' + self.arch,
+                                           '-qDEB_HOST_GNU_CPU'])
+        self.deb_host_gnu_cpu = gnu_cpu.decode().strip()
 
     def configure(self):
         """Build settings from configuration files"""
