@@ -277,4 +277,4 @@ create_image "$(eib_outfile img.gz)"
 # Make the deployment root mutable to delete it
 mutable_deployment
 
-rm -rf "${EIB_OSTREE_CHECKOUT}" "${EIB_APPS_CONTENTDIR}"
+rm -rf "${EIB_OSTREE_CHECKOUT}"
