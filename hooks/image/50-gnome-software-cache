@@ -1,0 +1,11 @@
+# Populate cache of gnome-software screenshots and thumbnails
+
+clone_dir=${EIB_CONTENTDIR}/gnome-software-data
+pushd $clone_dir
+  # Copy screenshots and thumbnails to deployment
+  mkdir -p ${OSTREE_VAR}/cache/gnome-software/screenshots
+  mkdir -p ${OSTREE_VAR}/cache/gnome-software/eos-popular-app-thumbnails
+  cp -a screenshots/* ${OSTREE_VAR}/cache/gnome-software/screenshots
+  cp -a thumbnails/* ${OSTREE_VAR}cache/gnome-software/eos-popular-app-thumbnails
+popd
+
