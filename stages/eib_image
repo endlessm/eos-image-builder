@@ -269,6 +269,10 @@ eib_mount --bind /dev "${OSTREE_DEPLOYMENT}"/dev
 # Bind mount OS /var over deployment's /var for image hooks
 eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 
+# Bind mount the checkout over deployment's /sysroot, so the ostree repo
+# is available for image hooks
+eib_mount --bind "${EIB_OSTREE_CHECKOUT}" "${OSTREE_DEPLOYMENT}"/sysroot
+
 recreate_dir "${EIB_OUTDIR}"
 run_hooks image "${OSTREE_DEPLOYMENT}"
 eib_umount_all
