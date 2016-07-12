@@ -1,0 +1,33 @@
+# Put KA Lite's content in the right place and write default config
+
+mediadir=${OSTREE_VAR}/lib/kalite
+configdir=${mediadir}/config
+rm -rf ${mediadir}
+
+# Skip if the kalite helper is not installed
+if ! test -f ${OSTREE_DEPLOYMENT}/lib/systemd/system/eos-kalite-systemd-helper.socket; then
+    exit 0
+fi
+
+mkdir -p ${mediadir}
+cp -r ${EIB_CONTENTDIR}/kalite/* ${mediadir}
+
+# set content permissions
+chown -R $(ostree_uid kalite):$(ostree_gid kalite) ${mediadir}/*
+find ${mediadir} -type f -exec chmod 664 '{}' ';'
+chmod 775 ${mediadir}/*
+
+mkdir -p ${configdir}
+lang=$(echo ${EIB_IMAGE_LANGUAGE} | sed s/'.utf8'/''/ | sed s/'_'/'-'/)
+cat <<EOF > ${configdir}/settings.py
+# This is the default location where the kalite command finds its settings
+# You can change the below lines to use different default settings or
+# you can run kalite <command> --settings=other_module
+
+from kalite.project.settings.base import *
+
+# from kalite.project.settings.dev import *
+# from kalite.project.settings.raspberry_pi import *
+
+LANGUAGE_CODE="${lang}"
+EOF
