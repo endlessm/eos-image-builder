@@ -265,6 +265,7 @@ echo "Create image for personality ${EIB_PERSONALITY}"
 eib_mount -t sysfs sysfs "${OSTREE_DEPLOYMENT}"/sys
 eib_mount -t proc proc "${OSTREE_DEPLOYMENT}"/proc
 eib_mount --bind /dev "${OSTREE_DEPLOYMENT}"/dev
+eib_mount --bind /dev/pts "${OSTREE_DEPLOYMENT}"/dev/pts
 
 # Bind mount OS /var over deployment's /var for image hooks
 eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
