@@ -61,11 +61,11 @@ eib_outfile() {
   echo ${EIB_OUTDIR}/${EIB_OUTVERSION}.$1
 }
 
-# Encode the original image version and personality as an xattr of the
-# root directory of each partition.
-# Usage: <root directory path> <personality>
+# Encode the original image version as an xattr of the root directory of
+# each partition.
+# Usage: <root directory path>
 eib_write_version_xattr() {
-  attr -s eos-image-version -V "${EIB_OUTVERSION}.$2" "$1"
+  attr -s eos-image-version -V "${EIB_OUTVERSION}" "$1"
 }
 
 # Declare the EIB_MOUNTS array, but don't reinitialize it.
