@@ -162,7 +162,7 @@ create_image() {
   DEPLOY="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
   mkdir -p "${ROOT}"
   eib_mount ${root_loop} "${ROOT}"
-  eib_write_version_xattr "${ROOT}" ${EIB_PERSONALITY}
+  eib_write_version_xattr "${ROOT}"
 
   case "${EIB_ARCH}" in
     i386|amd64)
