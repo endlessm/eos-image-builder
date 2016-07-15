@@ -1,20 +1,21 @@
 # Put KA Lite's content in the right place and write default config
 
 kalitehome=${OSTREE_VAR}/lib/kalite
-rm -rf ${kalitehome}
+preloaded=${kalitehome}/PRELOADED
 
 # Skip if the kalite helper is not installed
 if ! test -f ${OSTREE_DEPLOYMENT}/lib/systemd/system/eos-kalite-systemd-helper.socket; then
     exit 0
 fi
 
-mkdir -p ${kalitehome}
-cp -r ${EIB_CONTENTDIR}/kalite/* ${kalitehome}
+rm -rf ${kalitehome}/*
+mkdir -p ${preloaded}
+cp -r ${EIB_CONTENTDIR}/kalite/* ${preloaded}
 
 # set content permissions
-chown -R $(ostree_uid kalite):$(ostree_gid kalite) ${kalitehome}/*
-find ${kalitehome} -type f -exec chmod 664 '{}' ';'
-chmod 775 ${kalitehome}/*
+chown -R $(ostree_uid kalite):$(ostree_gid kalite) ${preloaded}
+find ${preloaded} -type f -exec chmod 664 '{}' ';'
+chmod 775 ${preloaded}
 
 lang=$(echo ${EIB_IMAGE_LANGUAGE} | sed s/'.utf8'/''/ | sed s/'_'/'-'/)
 cat <<EOF > ${kalitehome}/settings.py

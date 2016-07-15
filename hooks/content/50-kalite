@@ -24,8 +24,8 @@ get_possible_language_names() {
     done
 }
 
-mkdir -p "${dest}/content"
-cd ${dest}/content
+mkdir -p "${dest}"
+cd ${dest}
 
 found="false"
 for l in $(get_possible_language_names); do
