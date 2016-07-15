@@ -17,7 +17,18 @@ chown -R $(ostree_uid kalite):$(ostree_gid kalite) ${preloaded}
 find ${preloaded} -type f -exec chmod 664 '{}' ';'
 chmod 775 ${preloaded}
 
-lang=$(echo ${EIB_IMAGE_LANGUAGE} | sed s/'.utf8'/''/ | sed s/'_'/'-'/)
+# EIB_IMAGE_LANGUAGE could not be defined
+if [ -z "${EIB_IMAGE_LANGUAGE}" ]; then
+    exit 0
+fi
+current_lang=$(locale_to_iso_639_1 ${EIB_IMAGE_LANGUAGE})
+echo "LANG: ${current_lang}"
+
+# No need to set LANGUAGE_CODE for the default 'C' locale
+if [ "${current_lang}" = "C" ]; then
+    exit 0
+fi
+
 cat <<EOF > ${kalitehome}/settings.py
 # This is the default location where the kalite command finds its settings
 # You can change the below lines to use different default settings or

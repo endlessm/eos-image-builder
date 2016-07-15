@@ -15,7 +15,8 @@ content_url="${baseurl}/content/contentpacks"
 # if our lang is pt_BR.utf8 we will prefer in that order:
 # pt-BR-minimal, pt-BR, pt-minimal, pt, en-minimal
 get_possible_language_names() {
-    echo ${EIB_IMAGE_LANGUAGE} | sed s/'.utf8'/''/ | sed s/'_'/' '/ | while read lang country; do
+    language=${1}
+    echo ${language} | sed s/'-'/' '/ | while read lang country; do
         echo ${lang}-${country} \
              ${lang}-${country}-minimal \
              ${lang}-minimal \
@@ -24,11 +25,24 @@ get_possible_language_names() {
     done
 }
 
+# default language in case we fail to detect it below
+current_lang="en"
+
+# ${EIB_IMAGE_LANGUAGE} could not be defined
+if [ -n "${EIB_IMAGE_LANGUAGE}" ]; then
+    current_lang=$(locale_to_iso_639_1 ${EIB_IMAGE_LANGUAGE})
+
+    # For the default 'C' locale, we get the 'en-minimal' content pack
+    if [ "${current_lang}" = "C" ]; then
+        current_lang="en"
+    fi
+fi
+
 mkdir -p "${dest}"
 cd ${dest}
 
 found="false"
-for l in $(get_possible_language_names); do
+for l in $(get_possible_language_names $current_lang); do
     if wget -c ${content_url}/${l}.zip; then
         found=${l}
         break
