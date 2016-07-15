@@ -15,26 +15,28 @@ content_url="${baseurl}/content/contentpacks"
 # if our lang is pt_BR.utf8 we will prefer in that order:
 # pt-BR-minimal, pt-BR, pt-minimal, pt, en-minimal
 get_possible_language_names() {
-        echo ${EIB_IMAGE_LANGUAGE} | sed s/'.utf8'/''/ | sed s/'_'/' '/ | while read lang country; do
-                echo ${lang}-${country} \
-                     ${lang}-${country}-minimal \
-                     ${lang}-minimal \
-                     ${lang} \
-                     en-minimal # fallback to english-minimal
-        done
+    echo ${EIB_IMAGE_LANGUAGE} | sed s/'.utf8'/''/ | sed s/'_'/' '/ | while read lang country; do
+        echo ${lang}-${country} \
+             ${lang}-${country}-minimal \
+             ${lang}-minimal \
+             ${lang} \
+             en-minimal # fallback to english-minimal
+    done
 }
 
 mkdir -p "${dest}/content"
-(cd ${dest}/content &&
-     found="false"
-     for l in $(get_possible_language_names); do
-             if wget -c ${content_url}/${l}.zip; then
-                 found=${l}
-                 break
-             fi
-     done
-     if [ "${found}" = false ]; then
-         echo "ERROR: Could not download any kalite content file !"
-         exit 1
-     fi
-)
+cd ${dest}/content
+
+found="false"
+for l in $(get_possible_language_names); do
+    if wget -c ${content_url}/${l}.zip; then
+        found=${l}
+        break
+    fi
+done
+
+if [ "${found}" = false ]; then
+    echo "ERROR: Could not download any kalite content file !"
+    exit 1
+fi
+
