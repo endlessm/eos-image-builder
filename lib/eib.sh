@@ -235,6 +235,14 @@ recreate_dir() {
   mkdir -p $1
 }
 
+# Removes modifier, codeset and replace separator, so
+# that a code like br_FR.iso885915@euro becomes br-FR
+locale_to_iso_639_1() {
+    local no_modifier=$(echo "${1}" | cut -d '@' -f1)
+    local no_codeset=$(echo "${no_modifier}" | cut -d '.' -f1)
+    echo "${no_codeset}" | sed s/'_'/'-'/
+}
+
 # Read ID of named user account from ostree deployment
 ostree_uid() {
   grep ^${1}: ${OSTREE_DEPLOYMENT}/lib/passwd | cut -d : -f 3
