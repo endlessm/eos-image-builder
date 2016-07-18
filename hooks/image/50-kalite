@@ -4,7 +4,7 @@ kalitehome=${OSTREE_VAR}/lib/kalite
 preloaded=${kalitehome}/PRELOADED
 
 # Skip if the kalite helper is not installed
-if ! test -f ${OSTREE_DEPLOYMENT}/lib/systemd/system/eos-kalite-systemd-helper.socket; then
+if ! test -f ${OSTREE_DEPLOYMENT}/lib/systemd/system/eos-kalite-system-helper.socket; then
     exit 0
 fi
 

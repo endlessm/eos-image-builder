@@ -1,7 +1,7 @@
 # Get all ka-lite content we want at this point so it's cached
 
 # Skip download if the kalite helper is not installed
-if ! test -f ${OSTREE_DEPLOYMENT}/lib/systemd/system/eos-kalite-systemd-helper.socket; then
+if ! test -f ${OSTREE_DEPLOYMENT}/lib/systemd/system/eos-kalite-system-helper.socket; then
     exit 0
 fi
 
