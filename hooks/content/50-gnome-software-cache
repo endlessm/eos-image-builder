@@ -1,0 +1,13 @@
+# Cache the gnome-software-data package
+
+# Fetch the current media list checksums
+clone_dir="${EIB_CONTENTDIR}/gnome-software-data"
+
+if [ ! -d $clone_dir ] ; then
+  # Warning: This key should not be disclosed outside of this repository.
+  git clone "https://c5a7fd3e12c1d7b20bbff48a541d36f92d1e5a2d@github.com/endlessm/gnome-software-data.git" $clone_dir
+else
+  pushd $clone_dir
+    git pull origin master
+  popd
+fi
