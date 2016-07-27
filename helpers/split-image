@@ -143,6 +143,10 @@ split_image() {
   disk1_img_gz=$(eib_outfile disk1.img.gz)
   disk2_img_gz=$(eib_outfile disk2.img.gz)
 
+  local disk1_img_asc disk2_img_asc
+  disk1_img_asc=$(eib_outfile disk1.img.asc)
+  disk2_img_asc=$(eib_outfile disk2.img.asc)
+
   # Mount root filesystem from the last partition of the image file.
   DISK1_LOOP=$(losetup --show -f "${disk1_img}")
   eib_partx_scan "${DISK1_LOOP}"
@@ -214,16 +218,22 @@ split_image() {
   stat -c "%s" "${disk1_img}" > "${disk1_img_gz}.size"
   stat -c "%s" "${disk2_img}" > "${disk2_img_gz}.size"
 
-  # gzip image files and remove uncompressed versions.
-  pigz --no-name -c "${disk1_img}" > "${disk1_img_gz}"
-  rm -f "${disk1_img}"
-  pigz --no-name -c "${disk2_img}" > "${disk2_img_gz}"
-  rm -f "${disk2_img}"
+  # Create signatures for uncompressed images.
+  sign_file "${disk1_img}" "${disk1_img_asc}" &
+  sign_file "${disk2_img}" "${disk2_img_asc}" &
 
-  # Create signatures.
+  # gzip image files.
+  pigz --no-name -c "${disk1_img}" > "${disk1_img_gz}"
+  pigz --no-name -c "${disk2_img}" > "${disk2_img_gz}"
+
+  # Create signatures for compressed images.
   sign_file "${disk1_img_gz}" &
   sign_file "${disk2_img_gz}" &
+
+  # Remove uncompressed images once signatures have been created.
   wait
+  rm -f "${disk1_img}"
+  rm -f "${disk2_img}"
 }
 
 # Run main function for this image.
