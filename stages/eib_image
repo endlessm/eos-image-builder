@@ -239,10 +239,14 @@ create_image() {
   eib_umount_all
   cleanup_devices
 
+  # Sign uncompressed image (used when installing from a live image)
+  sign_file "${img}" "$(eib_outfile img.asc)" &
+
   # Publish uncompressed file size.
   stat -c "%s" "${img}" > "${outfile}.size"
 
   pigz --no-name -c "${img}" > ${outfile}
+  # Sign compressed image (used to verify download)
   sign_file ${outfile} &
 
   # Copy ostree, package and config info to per-personality outdir.
@@ -255,8 +259,9 @@ create_image() {
     "${EIB_HELPERSDIR}"/split-image "${img}"
   fi
 
-  rm -f "${img}"
+  # Await sign_file subprocesses
   wait
+  rm -f "${img}"
 }
 
 echo "Create image for personality ${EIB_PERSONALITY}"
