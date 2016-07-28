@@ -256,12 +256,13 @@ ostree_gid() {
 # Created a detached signature with gpg.
 sign_file() {
   local file=${1:?No file supplied to ${FUNCNAME}}
+  local outfile=${2:-${file}.asc}
 
   gpg --homedir=${EIB_SYSCONFDIR}/gnupg \
       --armour \
       --sign-with ${EIB_IMAGE_SIGNING_KEYID} \
       --detach-sign \
-      --output "${file}.asc" \
+      --output "${outfile}" \
       "${file}"
 }
 
