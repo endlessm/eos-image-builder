@@ -206,6 +206,9 @@ create_image() {
       esac
       ;;
     i386|amd64)
+      # Bootloader bundle to support booting image files
+      local boot_zip="$(eib_outfile boot.zip)"
+
       # MBR bootloader install
       > "${DEPLOY}"/img
       cp "${EIB_DATADIR}"/grub_embedded.cfg "${DEPLOY}"
@@ -223,6 +226,9 @@ create_image() {
 
       # UEFI bootloader install
       cp -a "${DEPLOY}"/boot/efi/EFI "${ESP}"
+      (cd "${DEPLOY}"/boot/efi && zip -r "${boot_zip}" EFI)
+
+      sign_file "${boot_zip}" &
       ;;
     *)
       echo "Unrecognized architecture ${EIB_ARCH}" >&2
