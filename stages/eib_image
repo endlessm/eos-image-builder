@@ -251,9 +251,10 @@ create_image() {
   cp "${EIB_TMPDIR}"/config.ini "$(eib_outfile config.ini)"
 
   # Create split image for 2 disk systems if required.
-  if [ "${EIB_IMAGE_SPLIT}" = true ]; then
-    "${EIB_HELPERSDIR}"/split-image "${img}"
-  fi
+  # Temporarily disabled until flatpaks are working on split disk
+  #if [ "${EIB_IMAGE_SPLIT}" = true ]; then
+  #  "${EIB_HELPERSDIR}"/split-image "${img}"
+  #fi
 
   rm -f "${img}"
   wait
