@@ -1,56 +1,12 @@
 # Get all ka-lite content we want at this point so it's cached
 
-# Skip download if the kalite helper is not installed
-if ! test -f ${OSTREE_DEPLOYMENT}/lib/systemd/system/eos-kalite-system-helper.socket; then
-    exit 0
-fi
+# Skip download if no KA LITE content is needed
+[ "${EIB_IMAGE_KALITE_CONTENT}" = true ] || exit 0
 
 dest=${EIB_CONTENTDIR}/kalite
-host="pantry.learningequality.org"
-
-ver="0.16"
-baseurl="http://${host}/downloads/ka-lite/${ver}"
-content_url="${baseurl}/content/contentpacks"
-
-# if our lang is pt_BR.utf8 we will prefer in that order:
-# pt-BR-minimal, pt-BR, pt-minimal, pt, en-minimal
-get_possible_language_names() {
-    language=${1}
-    echo ${language} | sed s/'-'/' '/ | while read lang country; do
-        echo ${lang}-${country} \
-             ${lang}-${country}-minimal \
-             ${lang}-minimal \
-             ${lang} \
-             en-minimal # fallback to english-minimal
-    done
-}
-
-# default language in case we fail to detect it below
-current_lang="en"
-
-# ${EIB_IMAGE_LANGUAGE} could not be defined
-if [ -n "${EIB_IMAGE_LANGUAGE}" ]; then
-    current_lang=$(locale_to_iso_639_1 ${EIB_IMAGE_LANGUAGE})
-
-    # For the default 'C' locale, we get the 'en-minimal' content pack
-    if [ "${current_lang}" = "C" ]; then
-        current_lang="en"
-    fi
-fi
-
+user=${EIB_IMAGE_KALITE_CONTENT_USER}
+host=${EIB_IMAGE_KALITE_CONTENT_HOST}
+path=${EIB_IMAGE_KALITE_CONTENT_PATH}
 mkdir -p "${dest}"
-cd ${dest}
-
-found="false"
-for l in $(get_possible_language_names $current_lang); do
-    if wget -c ${content_url}/${l}.zip; then
-        found=${l}
-        break
-    fi
-done
-
-if [ "${found}" = false ]; then
-    echo "ERROR: Could not download any kalite content file !"
-    exit 1
-fi
-
+rsync -av --delete -e "ssh ${EIB_SSH_OPTIONS}" \
+  "${user}@${host}:${path}/" "${dest}"/
