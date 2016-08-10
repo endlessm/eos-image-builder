@@ -149,6 +149,7 @@ create_image() {
   case "${EIB_ARCH}" in
     i386|amd64)
       esp_loop=${img_loop}p1
+      bios_boot_loop=${img_loop}p2
       root_loop=${img_loop}p3
       mkfs.vfat "${esp_loop}"
       ;;
@@ -206,23 +207,91 @@ create_image() {
       esac
       ;;
     i386|amd64)
+      # Bootloader bundle to support booting image files
+      local boot_zip_dir=${EIB_TMPDIR}/boot_zip
+      mkdir "${boot_zip_dir}"
+
       # MBR bootloader install
       > "${DEPLOY}"/img
-      cp "${EIB_DATADIR}"/grub_embedded.cfg "${DEPLOY}"
+      cp "${EIB_DATADIR}"/grub_embedded.cfg \
+        "${EIB_DATADIR}"/grub_embedded_live.cfg \
+        "${DEPLOY}"
       mount --bind "${img}" "${DEPLOY}"/img
       mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
       mount --bind /dev "${DEPLOY}"/dev
       mount --bind /proc "${DEPLOY}"/proc
+
+      # Capture BIOS-boot GRUB boot.img and core.img for live+installer USBs.
+      #
+      # grub-install invokes grub-mkimage, which writes a core.img file to
+      # /boot/grub/i386-pc/; it then invokes grub-bios-setup to write this
+      # file to the BIOS boot partition, and write an appropriate MBR (boot.img,
+      # as shipped with GRUB, patched with the offset to the BIOS boot
+      # partition).
+      #
+      # You might hope that we could just add core.img to $boot_zip, and later
+      # dd it verbatim onto the BIOS boot partition, but it transpires that
+      # grub-bios-setup modifies a few byte of core.img in passing, too. So we
+      # actually install this flavour of GRUB, capture it, and later overwrite
+      # it with the standard version.
+      /usr/sbin/grub-install \
+                   --modules="ext2 exfat ntfs part_msdos part_gpt search_fs_file search" \
+                   --directory=/usr/lib/grub/i386-pc \
+                   --config=/grub_embedded_live.cfg \
+                   /dev/sda
+      mkdir -p "${boot_zip_dir}/live"
+      dd if="${img_loop}" of="${boot_zip_dir}/live/boot.img" bs=446 count=1
+      dd if="${bios_boot_loop}" of="${boot_zip_dir}/live/core.img" \
+                   bs="$(wc -c <"${DEPLOY}/boot/grub/i386-pc/core.img")" \
+                   count=1
+
+      # Create BIOS-boot GRUB core.img for images on NTFS. Windows only supports
+      # BIOS-booting from MBR partition tables, so the pristine boot.img (with
+      # offset "1 sector") is fine. When written to that sector, core.img is not
+      # mangled by grub-bios-setup, either.
+      mkdir -p "${boot_zip_dir}/ntfs"
+      cp "${DEPLOY}/boot/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
+      /usr/bin/grub-mkimage \
+                   --directory=/usr/lib/grub/i386-pc \
+                   --config=/grub_embedded_live.cfg \
+                   --format=i386-pc \
+                   --output="${boot_zip_dir}/ntfs/core.img" \
+                   biosdisk ext2 ntfs part_msdos part_gpt search_fs_file
+      # Assuming the worst case:
+      # * the first partition starts at the second track
+      # * a track is 64 512-byte sectors
+      # * the MBR is one sector
+      # then we have (64 - 1) * 512 == 32256 of space.
+      local ntfs_core_img_bytes=$(wc -c <"${boot_zip_dir}/ntfs/core.img")
+      local max_ntfs_core_img_bytes=32256
+      if [ $ntfs_core_img_bytes -gt $max_ntfs_core_img_bytes ]; then
+          echo "${boot_zip_dir}/ntfs/core.img is ${ntfs_core_img_bytes}" &>2
+          echo "It must be <= ${max_ntfs_core_img_bytes}" >&2
+          return 1
+      fi
+
+      # Capture second-stage config and modules
+      cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
+
+      # Install the real MBR bootloader
       chroot "${DEPLOY}" /usr/sbin/grub-install \
                    --modules="ext2 part_msdos part_gpt search_fs_type search" \
                    --directory=/usr/lib/grub/i386-pc \
                    --config=/grub_embedded.cfg \
                    /img
       umount "${DEPLOY}"/{boot,dev,img,proc}
-      rm -f "${DEPLOY}"/img "${DEPLOY}"/grub_embedded.cfg
+      rm -f "${DEPLOY}"/img \
+        "${DEPLOY}"/grub_embedded.cfg \
+        "${DEPLOY}"/grub_embedded_live.cfg
 
       # UEFI bootloader install
       cp -a "${DEPLOY}"/boot/efi/EFI "${ESP}"
+      (cd "${DEPLOY}"/boot/efi && zip -r "${boot_zip}" EFI)
+
+      local boot_zip="$(eib_outfile boot.zip)"
+      (cd "${boot_zip_dir}" && zip "${boot_zip}" -r *)
+      rm -r "${boot_zip_dir}"
+      sign_file "${boot_zip}" &
       ;;
     *)
       echo "Unrecognized architecture ${EIB_ARCH}" >&2
