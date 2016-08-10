@@ -9,35 +9,36 @@ if ! test -f ${OSTREE_DEPLOYMENT}/lib/systemd/system/eos-kalite-system-helper.so
 fi
 
 rm -rf ${kalitehome}/*
-mkdir -p ${preloaded}
-cp -r ${EIB_CONTENTDIR}/kalite/* ${preloaded}
 
-# set content permissions
-chown -R $(ostree_uid kalite):$(ostree_gid kalite) ${preloaded}
-find ${preloaded} -type f -exec chmod 664 '{}' ';'
-chmod 775 ${preloaded}
+# Skip check if no sample media needed
+if [ "${EIB_IMAGE_KALITE_CONTENT}" != true ]; then
+    exit 0
+fi
 
 # EIB_IMAGE_LANGUAGE could not be defined
 if [ -z "${EIB_IMAGE_LANGUAGE}" ]; then
     exit 0
 fi
-current_lang=$(locale_to_iso_639_1 ${EIB_IMAGE_LANGUAGE})
-echo "LANG: ${current_lang}"
 
-# No need to set LANGUAGE_CODE for the default 'C' locale
-if [ "${current_lang}" = "C" ]; then
-    exit 0
+# We need to convert from a locale (e.g. pt_BR.utf8) to
+# a language code recognized by KA Lite (e.g. pt-BR).
+iso_lang=$(locale_to_iso_639_1 ${EIB_IMAGE_LANGUAGE})
+echo "ISO LANGUAGE: ${iso_lang}"
+
+# Pre-load select content videos (note: there's an fallback C directory)
+mkdir -p ${preloaded}
+content_dir="C"
+if [ -d ${EIB_CONTENTDIR}/kalite/${iso_lang} ]; then
+    content_dir="${iso_lang}"
 fi
 
-cat <<EOF > ${kalitehome}/settings.py
-# This is the default location where the kalite command finds its settings
-# You can change the below lines to use different default settings or
-# you can run kalite <command> --settings=other_module
+# Uncompress the first-run data then copy the videos to PRELOADED
+pushd ${preloaded}
+tar Jxvf ${EIB_CONTENTDIR}/kalite/${content_dir}/first-run-data.xz
+cp -r ${EIB_CONTENTDIR}/kalite/${content_dir}/content/* content/
+popd
 
-from kalite.project.settings.base import *
-
-# from kalite.project.settings.dev import *
-# from kalite.project.settings.raspberry_pi import *
-
-LANGUAGE_CODE="${lang}"
-EOF
+# set content permissions
+chown -R $(ostree_uid kalite):$(ostree_gid kalite) ${preloaded}
+find ${preloaded} -type f -exec chmod 664 '{}' ';'
+chmod 775 ${preloaded}
