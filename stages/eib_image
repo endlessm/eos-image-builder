@@ -234,7 +234,7 @@ create_image() {
       # grub-bios-setup modifies a few byte of core.img in passing, too. So we
       # actually install this flavour of GRUB, capture it, and later overwrite
       # it with the standard version.
-      /usr/sbin/grub-install \
+      chroot "${DEPLOY}" /usr/sbin/grub-install \
                    --modules="ext2 exfat ntfs part_msdos part_gpt search_fs_file search" \
                    --directory=/usr/lib/grub/i386-pc \
                    --config=/grub_embedded_live.cfg \
@@ -251,12 +251,12 @@ create_image() {
       # mangled by grub-bios-setup, either.
       mkdir -p "${boot_zip_dir}/ntfs"
       cp "${DEPLOY}/boot/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
-      /usr/bin/grub-mkimage \
+      chroot "${DEPLOY}" /usr/bin/grub-mkimage \
                    --directory=/usr/lib/grub/i386-pc \
                    --config=/grub_embedded_live.cfg \
                    --format=i386-pc \
-                   --output="${boot_zip_dir}/ntfs/core.img" \
-                   biosdisk ext2 ntfs part_msdos part_gpt search_fs_file
+                   biosdisk ext2 ntfs part_msdos part_gpt search_fs_file \
+                   > "${boot_zip_dir}/ntfs/core.img"
       # Assuming the worst case:
       # * the first partition starts at the second track
       # * a track is 64 512-byte sectors
