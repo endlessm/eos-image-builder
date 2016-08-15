@@ -76,7 +76,7 @@ Required packages:
  * python3-apt
  * python3-debian
  * attr
- * x86: grub2
+ * x86: grub2, zip
  * arm: mkimage, device-tree-compiler
 
 Image signing
