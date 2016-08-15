@@ -286,7 +286,7 @@ create_image() {
 
       # UEFI bootloader install
       cp -a "${DEPLOY}"/boot/efi/EFI "${ESP}"
-      (cd "${DEPLOY}"/boot/efi && zip -r "${boot_zip}" EFI)
+      cp -a "${DEPLOY}"/boot/efi/EFI "${boot_zip_dir}"
 
       local boot_zip="$(eib_outfile boot.zip)"
       (cd "${boot_zip_dir}" && zip "${boot_zip}" -r *)
