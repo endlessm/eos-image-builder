@@ -70,7 +70,8 @@ Setup
 
 Known to work on Debian Wheezy, Ubuntu 13.04 and Ubuntu 13.10.
 Required packages:
- * pigz rsync
+ * pigz
+ * rsync
  * ostree
  * python3-apt
  * python3-debian
