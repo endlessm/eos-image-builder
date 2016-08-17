@@ -70,12 +70,13 @@ Setup
 
 Known to work on Debian Wheezy, Ubuntu 13.04 and Ubuntu 13.10.
 Required packages:
- * pigz rsync
+ * pigz
+ * rsync
  * ostree
  * python3-apt
  * python3-debian
  * attr
- * x86: grub2
+ * x86: grub2, zip
  * arm: mkimage, device-tree-compiler
 
 Image signing

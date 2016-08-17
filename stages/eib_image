@@ -238,7 +238,7 @@ create_image() {
                    --modules="ext2 exfat ntfs part_msdos part_gpt search_fs_file search" \
                    --directory=/usr/lib/grub/i386-pc \
                    --config=/grub_embedded_live.cfg \
-                   /dev/sda
+                   /img
       mkdir -p "${boot_zip_dir}/live"
       dd if="${img_loop}" of="${boot_zip_dir}/live/boot.img" bs=446 count=1
       dd if="${bios_boot_loop}" of="${boot_zip_dir}/live/core.img" \
@@ -286,7 +286,7 @@ create_image() {
 
       # UEFI bootloader install
       cp -a "${DEPLOY}"/boot/efi/EFI "${ESP}"
-      (cd "${DEPLOY}"/boot/efi && zip -r "${boot_zip}" EFI)
+      cp -a "${DEPLOY}"/boot/efi/EFI "${boot_zip_dir}"
 
       local boot_zip="$(eib_outfile boot.zip)"
       (cd "${boot_zip_dir}" && zip "${boot_zip}" -r *)
