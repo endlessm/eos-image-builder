@@ -58,6 +58,8 @@ class ImageBuilder(object):
         ('image', 'settings_locks'),
         ('split', 'hooks'),
         ('flatpak', 'install'),
+        ('flatpak', 'extra'),
+        ('flatpak', 'nosplit'),
         ('publish', 'hooks'),
         ('error', 'hooks'),
     ]
