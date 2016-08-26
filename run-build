@@ -39,7 +39,8 @@ class ImageBuilder(object):
                     'tmpdir', 'contentdir', 'outrootdir', 'outdir',
                     'cacherootdir', 'cachedir', 'configdir',
                     'sysconfdir', 'build_version', 'outversion',
-                    'tmpconfig', 'deb_host_gnu_cpu', 'ssh_options']
+                    'tmpconfig', 'deb_host_gnu_cpu', 'deb_host_multiarch',
+                    'ssh_options']
     BOOLEAN_ATTRS = ['force', 'dry_run']
     SUPPORTED_ARCHES = [
         'i386',
@@ -155,6 +156,10 @@ class ImageBuilder(object):
                                            '-a' + self.arch,
                                            '-qDEB_HOST_GNU_CPU'])
         self.deb_host_gnu_cpu = gnu_cpu.decode().strip()
+        multiarch = subprocess.check_output(['dpkg-architecture',
+                                             '-a' + self.arch,
+                                             '-qDEB_HOST_MULTIARCH'])
+        self.deb_host_multiarch = multiarch.decode().strip()
 
     def configure(self):
         """Build settings from configuration files"""
