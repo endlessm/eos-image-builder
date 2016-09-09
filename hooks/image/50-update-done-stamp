@@ -1,5 +1,5 @@
 # Create the /etc/.updated and /var/.updated files so that the systemd
 # ConditionNeedsUpdate services don't run on first boot.
 
-touch ${OSTREE_DEPLOYMENT}/etc/.updated
-touch ${OSTREE_VAR}/.updated
+touch -r ${OSTREE_DEPLOYMENT}/usr ${OSTREE_DEPLOYMENT}/etc/.updated
+touch -r ${OSTREE_DEPLOYMENT}/usr ${OSTREE_VAR}/.updated
