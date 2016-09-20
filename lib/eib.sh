@@ -44,6 +44,7 @@ run_hooks() {
   local install_root=$2
 
   echo "Running $group hooks"
+  export EIB_HOOK_GROUP=$group
 
   # Sort enabled hooks
   eval local hooks="\${EIB_${group^^}_HOOKS}"
