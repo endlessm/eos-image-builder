@@ -156,12 +156,18 @@ split_image() {
   recreate_dir "${ROOT}"
   eib_mount -t ext4 "${ROOT_LOOP}" "${ROOT}"
 
+  # Redefine ostree variables based on ROOT mount point so they appear
+  # the same to split hooks
+  export OSTREE_DEPLOYMENT="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
+  export OSTREE_VAR="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/var
+
   # Bind mount the ostree /var into the current deployment so it
   # resembles the booted system.
-  export OSTREE_CURRENT="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
-  local ostree_var="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/var
-  OSTREE_CURRENT_VAR="${OSTREE_CURRENT}"/var
-  eib_mount --bind "${ostree_var}" "${OSTREE_CURRENT_VAR}"
+  eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
+
+  # Bind mount the root over deployment's /sysroot, so the ostree repo
+  # is available for split hooks
+  eib_mount --bind "${ROOT}" "${OSTREE_DEPLOYMENT}"/sysroot
 
   # Create disk2 image file with 1 partition for our "16 GB" SD card.
   # The actual size might vary and we want to be a little connservative,
@@ -189,16 +195,17 @@ split_image() {
   export EXTRA_MOUNT=/var/endless-extra
 
   # Mount kernel filesystems into deployment for split hooks
-  eib_mount -t sysfs sysfs "${OSTREE_CURRENT}"/sys
-  eib_mount -t proc proc "${OSTREE_CURRENT}"/proc
-  eib_mount --bind /dev "${OSTREE_CURRENT}"/dev
+  eib_mount -t sysfs sysfs "${OSTREE_DEPLOYMENT}"/sys
+  eib_mount -t proc proc "${OSTREE_DEPLOYMENT}"/proc
+  eib_mount --bind /dev "${OSTREE_DEPLOYMENT}"/dev
+  eib_mount --bind /dev/pts "${OSTREE_DEPLOYMENT}"/dev/pts
 
-  run_hooks split "${OSTREE_CURRENT}"
+  run_hooks split "${OSTREE_DEPLOYMENT}"
 
   # Enable /var/endless-extra mount unit for the split image.
-  mkdir -p "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.wants
+  mkdir -p "${OSTREE_DEPLOYMENT}"/etc/systemd/system/local-fs.target.wants
   ln -sf "/lib/systemd/system/var-endless\x2dextra.mount" \
-    "${OSTREE_CURRENT}"/etc/systemd/system/local-fs.target.wants/
+    "${OSTREE_DEPLOYMENT}"/etc/systemd/system/local-fs.target.wants/
 
   # Unmount the filesystems and shrink the image files.
   eib_umount_all
@@ -208,7 +215,7 @@ split_image() {
   # Temporarily remount the filesystem to fix the disk1 checksum using
   # the installed tool.
   eib_mount -t ext4 "${ROOT_LOOP}" "${ROOT}"
-  eib_fix_boot_checksum "${DISK1_LOOP}" "${OSTREE_CURRENT}"
+  eib_fix_boot_checksum "${DISK1_LOOP}" "${OSTREE_DEPLOYMENT}"
   eib_umount_all
 
   # Delete loop devices and cleanup variables for the next iteration.
