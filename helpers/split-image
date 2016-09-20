@@ -180,19 +180,19 @@ split_image() {
   # Attr 55 indicates that the partition should be resized later.
   echo "start=2048, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, attrs=GUID:55" | sfdisk --force --label gpt "${disk2_img}"
 
+  # Split files from the root filesystem into extra. Let the hooks know
+  # where the extra filesystem is mounted.
+  export EIB_EXTRA_MOUNT=/var/endless-extra
+
   # Create disk2 filesystem and mount it on top of the above bind mount.
   DISK2_LOOP=$(losetup --show -f "${disk2_img}")
   eib_partx_scan "${DISK2_LOOP}"
   EXTRA_LOOP="${DISK2_LOOP}p1"
   mke2fs -t ext4 -O dir_index,^huge_file -m1 -L extra "${EXTRA_LOOP}"
-  EXTRA="${OSTREE_CURRENT_VAR}"/endless-extra
+  EXTRA="${OSTREE_DEPLOYMENT}${EIB_EXTRA_MOUNT}"
   recreate_dir "${EXTRA}"
   eib_mount -t ext4 "${EXTRA_LOOP}" "${EXTRA}"
   eib_write_version_xattr "${EXTRA}"
-
-  # Split files from the root filesystem into extra. Let the hooks know
-  # where the extra filesystem is mounted.
-  export EXTRA_MOUNT=/var/endless-extra
 
   # Mount kernel filesystems into deployment for split hooks
   eib_mount -t sysfs sysfs "${OSTREE_DEPLOYMENT}"/sys

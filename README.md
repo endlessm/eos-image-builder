@@ -256,15 +256,15 @@ built.
 
 After the full image file has been created, the `split` hooks are run to
 prepare the 2 filesystems. `${OSTREE_DEPLOYMENT}` contains the path to
-the checkout, `${EXTRA_MOUNT}` contains the chroot-relative path to the
-extra storage (currently `/var/endless-extra`), and `${PERSONALITY}`
+the checkout, `${EIB_EXTRA_MOUNT}` contains the chroot-relative path to
+the extra storage (currently `/var/endless-extra`), and `${PERSONALITY}`
 states which personality is being built.
 
 The ostree deployment /var is bind mounted at `${OSTREE_DEPLOYMENT}/var`
 to resemble a real booted system. The 2nd disk filesystem is then
-mounted at `${OSTREE_DEPLOYMENT}/${EXTRA_MOUNT}`. Hooks are intended to
-migrate content from the root into this filesystem. The filesystem is a
-fixed size (currently 8 GB), so hooks are required to ignore failures
+mounted at `${OSTREE_DEPLOYMENT}/${EIB_EXTRA_MOUNT}`. Hooks are intended
+to migrate content from the root into this filesystem. The filesystem is
+a fixed size (currently 8 GB), so hooks are required to ignore failures
 due to insufficient space and revert to the original layout.
 
 publish customization
