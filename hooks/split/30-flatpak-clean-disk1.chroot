@@ -1,0 +1,40 @@
+# Wipe all the apps and runtimes from the disk1 flatpak directory
+
+set -x # verbose until this has been tested thoroughly
+shopt -s extglob
+
+[ "${EIB_FLATPAK_ENABLE}" = true ] || exit 0
+
+# We don't want to use flatpak for uninstalling because it will pick up
+# the disk2 directory if it exists. Brute for the cleanup with ostree
+# since that would be needed to finish up, anyway.
+
+# Aggressively wipe everything flatpak related that's not the ostree
+# repo itself.
+echo "Removing non-repo flatpak directories"
+rm -rf /var/lib/flatpak/!(repo)
+
+REPO=/var/lib/flatpak/repo
+
+# Manually wipe any flatpak refs and remotes.
+for remote in $(ostree --repo=$REPO remote list); do
+  # Skip EOS remote
+  [ "$remote" = ${EIB_OSTREE_OS} ] && continue
+
+  for prefix in app runtime appstream; do
+    refs=$(ostree --repo=$REPO refs --list "${remote}:${prefix}")
+    for ref in $refs; do
+      echo "Removing ref $ref"
+      ostree --repo=$REPO refs --delete $ref
+    done
+  done
+
+  # XXX: Leaving the remote configuration in place in case we want to
+  # start installing here again later.
+  # echo "Removing remote $remote"
+  # ostree --repo=$REPO remote delete "$remote"
+done
+
+# Prune the repo to really remove the objects.
+echo "Pruning repository $REPO"
+ostree --repo=$REPO prune --refs-only
