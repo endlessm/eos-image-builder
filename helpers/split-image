@@ -189,10 +189,10 @@ split_image() {
   eib_partx_scan "${DISK2_LOOP}"
   EXTRA_LOOP="${DISK2_LOOP}p1"
   mke2fs -t ext4 -O dir_index,^huge_file -m1 -L extra "${EXTRA_LOOP}"
-  EXTRA="${OSTREE_DEPLOYMENT}${EIB_EXTRA_MOUNT}"
-  recreate_dir "${EXTRA}"
-  eib_mount -t ext4 "${EXTRA_LOOP}" "${EXTRA}"
-  eib_write_version_xattr "${EXTRA}"
+  export OSTREE_EXTRA="${OSTREE_DEPLOYMENT}${EIB_EXTRA_MOUNT}"
+  recreate_dir "${OSTREE_EXTRA}"
+  eib_mount -t ext4 "${EXTRA_LOOP}" "${OSTREE_EXTRA}"
+  eib_write_version_xattr "${OSTREE_EXTRA}"
 
   # Mount kernel filesystems into deployment for split hooks
   eib_mount -t sysfs sysfs "${OSTREE_DEPLOYMENT}"/sys
