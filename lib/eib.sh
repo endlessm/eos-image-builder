@@ -64,7 +64,7 @@ run_hooks() {
       fi
 
       echo "Run hook in chroot: ${hook}"
-      [ -x "${hook}" ] && interpreter= || interpreter="bash -ex"
+      [ -x "${hookpath}" ] && interpreter= || interpreter="bash -ex"
       mkdir -p $install_root/tmp
       cp ${hookpath} $install_root/tmp/hook
       chroot $install_root $interpreter /tmp/hook
