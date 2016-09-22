@@ -292,8 +292,8 @@ create_image() {
         "${DEPLOY}"/grub_embedded_live.cfg
 
       # UEFI bootloader install
-      cp -a "${DEPLOY}"/boot/efi/EFI "${ESP}"
-      cp -a "${DEPLOY}"/boot/efi/EFI "${boot_zip_dir}"
+      cp -r "${DEPLOY}"/boot/efi/EFI "${ESP}"
+      cp -r "${DEPLOY}"/boot/efi/EFI "${boot_zip_dir}"
 
       local boot_zip="$(eib_outfile boot.zip)"
       (cd "${boot_zip_dir}" && zip "${boot_zip}" -r *)
