@@ -2,8 +2,8 @@
 # -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
 . "${EIB_BASELIB}"
 
-# Create a minimal ostree chroot to pull and deployments with. This
-# allows the build to be independent of the host's ostree.
+# Create a minimal ostree chroot to pull with. This allows the build to
+# be independent of the host's ostree.
 make_tmp_ostree
 
 # Cleanup for using the ostree chroot.

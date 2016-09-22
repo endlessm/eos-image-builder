@@ -299,6 +299,12 @@ make_tmp_ostree() {
   local packages=ostree
   local keyring
 
+  # Since the chroot is made in the temporary directory, we can assume
+  # that if the ostree tmpdir is there, it's setup correctly.
+  if [ -d "${EIB_OSTREE_TMPDIR}" ]; then
+    return 0
+  fi
+
   # Include the keyring package to verify pulled commits.
   packages+=",eos-keyring"
 
@@ -311,7 +317,7 @@ make_tmp_ostree() {
   # pinentry-gtk2 | pinentry-curses | pinentry correctly.
   packages+=",pinentry-curses"
 
-  recreate_dir "${EIB_OSTREE_TMPDIR}"
+  mkdir -p "${EIB_OSTREE_TMPDIR}"
   keyring=$(eib_keyring)
   debootstrap --arch=${EIB_ARCH} --keyring="${keyring}" \
     --variant=minbase --include="${packages}" \

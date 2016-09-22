@@ -6,6 +6,10 @@
 # an image, in preparation for later development where the image will be sized
 # dynamically based on how much data it includes.
 
+# Create a minimal ostree chroot to deploy with. This allows the build
+# to be independent of the host's ostree.
+make_tmp_ostree
+
 mutable_deployment() {
   if [ -n "${OSTREE_DEPLOYMENT}" ]; then
     chattr -i "${OSTREE_DEPLOYMENT}"
