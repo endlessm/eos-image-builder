@@ -1,0 +1,28 @@
+#!/bin/bash -e
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
+
+# Runs a command chrooted into a sanitized environment. This is useful
+# to have a controlled environment in which the values of certain
+# variables are well known, instead of inheriting the variables from the
+# current shell (which often will have host-specific values).
+
+env_vars=()
+
+# Variables with well-known fixed values.
+env_vars+=( PATH=/bin:/sbin:/usr/bin:/usr/sbin )
+env_vars+=( SHELL=/bin/bash )
+env_vars+=( LANG=C )
+
+# Variables inherited from the current environment.
+env_vars+=( SHLVL="${SHLVL}" )  # Makes shell debug output nest properly.
+env_vars+=( TERM="${TERM}" )    # Allows programs to do output nicely.
+env_vars+=( PS4="${PS4}" )      # Our custom xtrace prompt.
+
+# Add the EIB_* variables, which hooks use.
+for name in ${!EIB_*} ; do
+  eval value=\"\${${name}}\"
+  env_vars+=( "${name}=${value}" )
+done
+
+# Run the real chroot
+exec env - "${env_vars[@]}" "$(type -P chroot)" "$@"
