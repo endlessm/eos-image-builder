@@ -22,6 +22,7 @@
 from argparse import ArgumentParser
 import datetime
 import fnmatch
+import glob
 import os
 import shutil
 import subprocess
@@ -229,6 +230,8 @@ class ImageBuilder(object):
 
     def prep_builddir(self):
         """Cleanup the scratch space and prep for a new build"""
+        ostree_co_dir = self.config['ostree']['checkout']
+
         # If the scratch space exists, unmount any filesystems in it and
         # make all paths mutable.
         if os.path.isdir(self.builddir):
@@ -259,26 +262,20 @@ class ImageBuilder(object):
             for path in mounts:
                 subprocess.check_call(['umount', path])
 
-            # Make everything mutable. This is only valid on files and
-            # directories, so skip everything else.
-            print('Ensuring all paths mutable in', self.builddir,
-                  flush=True)
-            for root, dirs, files in os.walk(self.builddir, followlinks=False):
-                # Make the directory itself mutable
-                subprocess.check_call(['chattr', '-i', root])
-
-                # Make real files in the directory mutable
-                realfiles = []
-                for f in files:
-                    if os.path.isfile(f) and not os.path.islink(f):
-                        realfiles.append(f)
-                if len(realfiles) > 0:
-                    subprocess.check_call(['chattr', '-i'] + realfiles)
+        # Make ostree checkouts mutable
+        print('Ensuring all ostree checkouts mutable in', ostree_co_dir,
+              flush=True)
+        ostree_checkouts = os.path.join(ostree_co_dir,
+                                        'ostree/deploy/*/deploy/*')
+        for path in glob.iglob(ostree_checkouts):
+            # Only directories are checkouts
+            if os.path.isdir(path):
+                subprocess.check_call(['chattr', '-i', path])
 
         # Cleanup files from previous build
         print('Recreating build specific directories', flush=True)
         eib.recreate_dir(self.outrootdir)
-        eib.recreate_dir(self.config['ostree']['checkout'])
+        eib.recreate_dir(ostree_co_dir)
         eib.recreate_dir(self.tmpdir)
 
         # Create the content directory
