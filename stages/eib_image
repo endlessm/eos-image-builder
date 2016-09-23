@@ -180,6 +180,14 @@ create_image() {
   # Copy contents into image, preserving attributes, timestamps, hardlinks, etc.
   cp -a "${EIB_OSTREE_CHECKOUT}"/* "${ROOT}"
 
+  # Make the deployment root mutable and delete the checkout since it's
+  # no longer needed after this. Unset checkout derived variables so we
+  # don't try to operate on them later (e.g., making a non-existent
+  # OSTREE_DEPLOYMENT mutable at exit).
+  mutable_deployment
+  rm -rf "${EIB_OSTREE_CHECKOUT}"
+  unset OSTREE_DEPLOYMENT OSTREE_VAR
+
   # Install bootloader
   case "${EIB_ARCH}" in
     armhf)
@@ -359,8 +367,3 @@ recreate_dir "${EIB_OUTDIR}"
 run_hooks image "${OSTREE_DEPLOYMENT}"
 eib_umount_all
 create_image "$(eib_outfile img.gz)"
-
-# Make the deployment root mutable to delete it
-mutable_deployment
-
-rm -rf "${EIB_OSTREE_CHECKOUT}"
