@@ -163,7 +163,7 @@ create_image() {
   esac
 
   mke2fs -t ext4 -O dir_index,^huge_file -m1 -L ostree ${root_loop}
-  ROOT="${EIB_BUILDDIR}"/mnt
+  ROOT="${EIB_TMPDIR}"/mnt
   DEPLOY="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
   mkdir -p "${ROOT}"
   eib_mount ${root_loop} "${ROOT}"

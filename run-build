@@ -139,7 +139,7 @@ class ImageBuilder(object):
         self.builddir = eib.BUILDDIR
         self.tmpdir = '${builddir}/tmp'
         self.contentdir = '${builddir}/content'
-        self.outrootdir = '${builddir}/out'
+        self.outrootdir = '${tmpdir}/out'
         self.outdir = '${outrootdir}/${personality}'
         self.cacherootdir = '${builddir}/cache'
         self.cachedir = '${cacherootdir}/${product}-${branch}-${arch}-${platform}/${personality}'
@@ -273,10 +273,10 @@ class ImageBuilder(object):
                 subprocess.check_call(['chattr', '-i', path])
 
         # Cleanup files from previous build
-        print('Recreating build specific directories', flush=True)
-        eib.recreate_dir(self.outrootdir)
-        eib.recreate_dir(ostree_co_dir)
+        print('Recreating build specific temporary directories',
+              flush=True)
         eib.recreate_dir(self.tmpdir)
+        eib.recreate_dir(ostree_co_dir)
 
         # Create the content directory
         os.makedirs(self.contentdir, exist_ok=True)
