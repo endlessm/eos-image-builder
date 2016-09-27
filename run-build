@@ -43,11 +43,6 @@ class ImageBuilder(object):
                     'tmpconfig', 'deb_host_gnu_cpu', 'deb_host_multiarch',
                     'ssh_options']
     BOOLEAN_ATTRS = ['force', 'dry_run']
-    SUPPORTED_ARCHES = [
-        'i386',
-        'amd64',
-        'armhf'
-    ]
 
     # Config options that will be merged together from multiple
     # $prefix_add_* and $prefix_del_* options. This is a list of
@@ -117,7 +112,7 @@ class ImageBuilder(object):
             else:
                 raise eib.ImageBuildError('Machine', machine, 'not supported')
 
-        if self.arch not in self.SUPPORTED_ARCHES:
+        if self.arch not in eib.SUPPORTED_ARCHES:
             raise eib.ImageBuildError('Architecture', self.arch, 'not supported')
 
         if platform:
