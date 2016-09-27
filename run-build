@@ -115,10 +115,10 @@ class ImageBuilder(object):
             elif machine.startswith('arm'):
                 self.arch = 'armhf'
             else:
-                raise ImageBuildError('Machine', machine, 'not supported')
+                raise eib.ImageBuildError('Machine', machine, 'not supported')
 
         if self.arch not in self.SUPPORTED_ARCHES:
-            raise ImageBuildError('Architecture', self.arch, 'not supported')
+            raise eib.ImageBuildError('Architecture', self.arch, 'not supported')
 
         if platform:
             self.platform = platform
