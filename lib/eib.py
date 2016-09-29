@@ -29,6 +29,13 @@ SYSCONFDIR = '/etc/eos-image-builder'
 LOCKFILE = '/var/lock/eos-image-builder.lock'
 LOCKTIMEOUT = 60
 
+SUPPORTED_ARCHES = [
+    'i386',
+    'amd64',
+    'armhf'
+]
+
+
 class ImageBuildError(Exception):
     """Errors from the image builder"""
     def __init__(self, *args):
@@ -36,6 +43,7 @@ class ImageBuildError(Exception):
 
     def __str__(self):
         return str(self.msg)
+
 
 class ImageConfigParser(configparser.ConfigParser):
     """Configuration parser for the image builder. This uses configparser's
@@ -58,14 +66,15 @@ class ImageConfigParser(configparser.ConfigParser):
         sect = self._sections[section]
         d.update(sect)
         if raw:
-            value_getter = lambda option: d[option]
+            def value_getter(option):
+                return d[option]
         else:
-            value_getter = \
-                lambda option: self._interpolation.before_get(self,
-                                                              section,
-                                                              option,
-                                                              d[option],
-                                                              d)
+            def value_getter(option):
+                return self._interpolation.before_get(self,
+                                                      section,
+                                                      option,
+                                                      d[option],
+                                                      d)
         return [(option, value_getter(option)) for option in sect.keys()]
 
     def setboolean(self, section, option, value):
@@ -107,10 +116,12 @@ class ImageConfigParser(configparser.ConfigParser):
         for opt in add_opts + del_opts:
             del sect[opt]
 
+
 def recreate_dir(path):
     """Delete and recreate a directory"""
     shutil.rmtree(path, ignore_errors=True)
     os.makedirs(path, exist_ok=True)
+
 
 def add_cli_options(argparser):
     """Add command line options for eos-image-builder. This allows the
@@ -119,7 +130,8 @@ def add_cli_options(argparser):
     assert(isinstance(argparser, ArgumentParser))
     argparser.add_argument('-p', '--product', default='eos',
                            help='product to build')
-    argparser.add_argument('-a', '--arch', help='architecture to build')
+    argparser.add_argument('-a', '--arch', choices=SUPPORTED_ARCHES,
+                           help='architecture to build')
     argparser.add_argument('--platform', help='platform to build')
     argparser.add_argument('-P', '--personalities', default='base',
                            help='personalities to build')
@@ -132,6 +144,7 @@ def add_cli_options(argparser):
     argparser.add_argument('--no-checkout', action='store_true',
                            help='use current builder branch')
     argparser.add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,
-                           help='time in seconds to acquire lock before exiting')
+                           help='time in seconds to acquire lock before '
+                                'exiting')
     argparser.add_argument('branch', nargs='?', default='master',
                            help='branch to build')

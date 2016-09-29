@@ -219,10 +219,6 @@ create_image() {
       esac
       ;;
     i386|amd64)
-      # Bootloader bundle to support booting image files
-      local boot_zip_dir=${EIB_TMPDIR}/boot_zip
-      mkdir "${boot_zip_dir}"
-
       # MBR bootloader install
       > "${DEPLOY}"/img
       cp "${EIB_DATADIR}"/grub_embedded.cfg \
@@ -233,60 +229,65 @@ create_image() {
       mount --bind /dev "${DEPLOY}"/dev
       mount --bind /proc "${DEPLOY}"/proc
 
-      # Capture BIOS-boot GRUB boot.img and core.img for live+installer USBs.
-      #
-      # grub-install invokes grub-mkimage, which writes a core.img file to
-      # /boot/grub/i386-pc/; it then invokes grub-bios-setup to write this
-      # file to the BIOS boot partition, and write an appropriate MBR (boot.img,
-      # as shipped with GRUB, patched with the offset to the BIOS boot
-      # partition).
-      #
-      # You might hope that we could just add core.img to $boot_zip, and later
-      # dd it verbatim onto the BIOS boot partition, but it transpires that
-      # grub-bios-setup does more than this: it patches the partition offset
-      # here too, and (if there's extra space, which there is here) adds some
-      # redundancy to the image.
-      #
-      # We could disable the latter with --no-rs-codes, but we'd still have to
-      # add the offsets. So we actually install this flavour of GRUB,
-      # capture the boot sector and BIOS boot partition, and later overwrite
-      # them with the standard version.
-      chroot "${DEPLOY}" /usr/sbin/grub-install \
-                   --modules="ext2 exfat ntfs part_msdos part_gpt search_fs_file search" \
-                   --directory=/usr/lib/grub/i386-pc \
-                   --config=/grub_embedded_live.cfg \
-                   /img
-      mkdir -p "${boot_zip_dir}/live"
-      dd if="${img_loop}" of="${boot_zip_dir}/live/boot.img" bs=446 count=1
-      dd if="${bios_boot_loop}" of="${boot_zip_dir}/live/core.img" \
-                   bs=512 count=2048
+      if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
+        local boot_zip_dir=${EIB_TMPDIR}/boot_zip
+        mkdir "${boot_zip_dir}"
 
-      # Create BIOS-boot GRUB core.img for images on NTFS. Windows only supports
-      # BIOS-booting from MBR partition tables, so the pristine boot.img and
-      # core.img (which both have a 1-sector offset embedded in them) are fine.
-      mkdir -p "${boot_zip_dir}/ntfs"
-      cp "${DEPLOY}/boot/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
-      chroot "${DEPLOY}" /usr/bin/grub-mkimage \
-                   --directory=/usr/lib/grub/i386-pc \
-                   --config=/grub_embedded_live.cfg \
-                   --format=i386-pc \
-                   biosdisk ext2 ntfs part_msdos part_gpt search_fs_file \
-                   > "${boot_zip_dir}/ntfs/core.img"
-      # Assuming the worst case:
-      # * the first partition starts at the second track
-      # * a track is 64 512-byte sectors
-      # * the MBR is one sector
-      # then we have (64 - 1) * 512 == 32256 of space.
-      local ntfs_core_img_bytes=$(wc -c <"${boot_zip_dir}/ntfs/core.img")
-      local max_ntfs_core_img_bytes=32256
-      if [ $ntfs_core_img_bytes -gt $max_ntfs_core_img_bytes ]; then
-          echo "${boot_zip_dir}/ntfs/core.img is ${ntfs_core_img_bytes}" &>2
-          echo "It must be <= ${max_ntfs_core_img_bytes}" >&2
-          return 1
+        # Capture BIOS-boot GRUB boot.img and core.img for live+installer USBs.
+        #
+        # grub-install invokes grub-mkimage, which writes a core.img file to
+        # /boot/grub/i386-pc/; it then invokes grub-bios-setup to write this
+        # file to the BIOS boot partition, and write an appropriate MBR (boot.img,
+        # as shipped with GRUB, patched with the offset to the BIOS boot
+        # partition).
+        #
+        # You might hope that we could just add core.img to $boot_zip, and later
+        # dd it verbatim onto the BIOS boot partition, but it transpires that
+        # grub-bios-setup does more than this: it patches the partition offset
+        # here too, and (if there's extra space, which there is here) adds some
+        # redundancy to the image.
+        #
+        # We could disable the latter with --no-rs-codes, but we'd still have to
+        # add the offsets. So we actually install this flavour of GRUB,
+        # capture the boot sector and BIOS boot partition, and later overwrite
+        # them with the standard version.
+        chroot "${DEPLOY}" /usr/sbin/grub-install \
+                     --modules="ext2 exfat ntfs part_msdos part_gpt search_fs_file search" \
+                     --directory=/usr/lib/grub/i386-pc \
+                     --config=/grub_embedded_live.cfg \
+                     /img
+        mkdir -p "${boot_zip_dir}/live"
+        dd if="${img_loop}" of="${boot_zip_dir}/live/boot.img" bs=446 count=1
+        dd if="${bios_boot_loop}" of="${boot_zip_dir}/live/core.img" \
+                     bs=512 count=2048
+
+        # Create BIOS-boot GRUB core.img for images on NTFS. Windows only supports
+        # BIOS-booting from MBR partition tables, so the pristine boot.img and
+        # core.img (which both have a 1-sector offset embedded in them) are fine.
+        mkdir -p "${boot_zip_dir}/ntfs"
+        cp "${DEPLOY}/boot/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
+        chroot "${DEPLOY}" /usr/bin/grub-mkimage \
+                     --directory=/usr/lib/grub/i386-pc \
+                     --config=/grub_embedded_live.cfg \
+                     --format=i386-pc \
+                     biosdisk ext2 ntfs part_msdos part_gpt search_fs_file \
+                     > "${boot_zip_dir}/ntfs/core.img"
+        # Assuming the worst case:
+        # * the first partition starts at the second track
+        # * a track is 64 512-byte sectors
+        # * the MBR is one sector
+        # then we have (64 - 1) * 512 == 32256 of space.
+        local ntfs_core_img_bytes=$(wc -c <"${boot_zip_dir}/ntfs/core.img")
+        local max_ntfs_core_img_bytes=32256
+        if [ $ntfs_core_img_bytes -gt $max_ntfs_core_img_bytes ]; then
+            echo "${boot_zip_dir}/ntfs/core.img is ${ntfs_core_img_bytes}" &>2
+            echo "It must be <= ${max_ntfs_core_img_bytes}" >&2
+            return 1
+        fi
+
+        # Capture second-stage config and modules
+        cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
       fi
-
-      # Capture second-stage config and modules
-      cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
 
       # Install the real MBR bootloader
       chroot "${DEPLOY}" /usr/sbin/grub-install \
@@ -301,12 +302,17 @@ create_image() {
 
       # UEFI bootloader install
       cp -r "${DEPLOY}"/boot/efi/EFI "${ESP}"
-      cp -r "${DEPLOY}"/boot/efi/EFI "${boot_zip_dir}"
 
-      local boot_zip="$(eib_outfile boot.zip)"
-      (cd "${boot_zip_dir}" && zip "${boot_zip}" -r *)
-      rm -r "${boot_zip_dir}"
-      sign_file "${boot_zip}" &
+      if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
+        # Capture EFI GRUB for both live+installer and dual-boot image boots
+        cp -r "${DEPLOY}"/boot/efi/EFI "${boot_zip_dir}"
+
+        # Bundle all GRUB versions up for distribution
+        local boot_zip="$(eib_outfile boot.zip)"
+        (cd "${boot_zip_dir}" && zip "${boot_zip}" -r *)
+        rm -r "${boot_zip_dir}"
+        sign_file "${boot_zip}" &
+      fi
       ;;
     *)
       echo "Unrecognized architecture ${EIB_ARCH}" >&2
