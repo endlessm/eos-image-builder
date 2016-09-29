@@ -10,31 +10,9 @@ set -E
 # like "+ run-build 10:13:40: some command".
 export PS4='+ ${BASH_SOURCE[0]##*/} \t: '
 
-# Runs a command chrooted into a sanitized environment. This is useful to have
-# a controlled environment in which the values of certain variables are well
-# known, instead of inheriting the variables from the current shell (which
-# often will have host-specific values).
+# Runs a command chrooted with our helper script.
 chroot () {
-  local -a env_vars=( )
-
-  # Variables with well-known fixed values.
-  env_vars+=( PATH=/bin:/sbin:/usr/bin:/usr/sbin )
-  env_vars+=( SHELL=/bin/bash )
-  env_vars+=( LANG=C )
-
-  # Variables inherited from the current environment.
-  env_vars+=( SHLVL="${SHLVL}" )  # Makes shell debug output nest properly.
-  env_vars+=( TERM="${TERM}" )    # Allows programs to do output nicely.
-  env_vars+=( PS4="${PS4}" )      # Our custom xtrace prompt.
-
-  # Add the EIB_* variables, which hooks use.
-  local name value
-  for name in ${!EIB_*} ; do
-    eval value=\"\${${name}}\"
-    env_vars+=( "${name}=${value}" )
-  done
-
-  env - "${env_vars[@]}" "$(type -P chroot)" "$@"
+  "${EIB_HELPERSDIR}"/eib-chroot "$@"
 }
 
 # Run hooks under customization/
