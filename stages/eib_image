@@ -285,8 +285,9 @@ create_image() {
             return 1
         fi
 
-        # Create an El-Torito boot image for ISO generation
+        # Save boot_hybrid.img MBR code for the hybrid ISO and the El-Torito boot image
         mkdir -p "${boot_zip_dir}/iso"
+        cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot_hybrid.img" "${boot_zip_dir}/iso"
         chroot "${DEPLOY}" /usr/bin/grub-mkimage \
                      --directory=/usr/lib/grub/i386-pc \
                      --prefix=/endless/grub \
