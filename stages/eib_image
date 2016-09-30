@@ -287,6 +287,8 @@ create_image() {
 
         # Capture second-stage config and modules
         cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
+        # Save grub_embedded_live.cfg to be used for ISO generation
+        cp -a "${DEPLOY}/grub_embedded_live.cfg" "${boot_zip_dir}/grub"
       fi
 
       # Install the real MBR bootloader
