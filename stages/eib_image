@@ -349,7 +349,9 @@ create_image() {
   # Publish uncompressed file size.
   stat -c "%s" "${img}" > "${outfile}.size"
 
-  pigz --no-name -c "${img}" > ${outfile}
+  # Compress image file.
+  eib_compress_image "${img}" "${outfile}"
+
   # Sign compressed image (used to verify download)
   sign_file ${outfile} &
 
@@ -386,4 +388,4 @@ eib_mount --bind "${EIB_OSTREE_CHECKOUT}" "${OSTREE_DEPLOYMENT}"/sysroot
 recreate_dir "${EIB_OUTDIR}"
 run_hooks image "${OSTREE_DEPLOYMENT}"
 eib_umount_all
-create_image "$(eib_outfile img.gz)"
+create_image "$(eib_outfile img.${EIB_IMAGE_COMPRESSION})"

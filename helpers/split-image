@@ -139,9 +139,9 @@ split_image() {
   local disk1_img=$1
   local disk2_img=${EIB_TMPDIR}/disk2
 
-  local disk1_img_gz disk2_img_gz
-  disk1_img_gz=$(eib_outfile disk1.img.gz)
-  disk2_img_gz=$(eib_outfile disk2.img.gz)
+  local disk1_zimg disk2_zimg
+  disk1_zimg=$(eib_outfile disk1.img.${EIB_IMAGE_COMPRESSION})
+  disk2_zimg=$(eib_outfile disk2.img.${EIB_IMAGE_COMPRESSION})
 
   local disk1_img_asc disk2_img_asc
   disk1_img_asc=$(eib_outfile disk1.img.asc)
@@ -222,20 +222,20 @@ split_image() {
   cleanup_devices
 
   # Publish uncompressed file sizes.
-  stat -c "%s" "${disk1_img}" > "${disk1_img_gz}.size"
-  stat -c "%s" "${disk2_img}" > "${disk2_img_gz}.size"
+  stat -c "%s" "${disk1_img}" > "${disk1_zimg}.size"
+  stat -c "%s" "${disk2_img}" > "${disk2_zimg}.size"
 
   # Create signatures for uncompressed images.
   sign_file "${disk1_img}" "${disk1_img_asc}" &
   sign_file "${disk2_img}" "${disk2_img_asc}" &
 
-  # gzip image files.
-  pigz --no-name -c "${disk1_img}" > "${disk1_img_gz}"
-  pigz --no-name -c "${disk2_img}" > "${disk2_img_gz}"
+  # Compress image files.
+  eib_compress_image "${disk1_img}" "${disk1_zimg}"
+  eib_compress_image "${disk2_img}" "${disk2_zimg}"
 
   # Create signatures for compressed images.
-  sign_file "${disk1_img_gz}" &
-  sign_file "${disk2_img_gz}" &
+  sign_file "${disk1_zimg}" &
+  sign_file "${disk2_zimg}" &
 
   # Remove uncompressed images once signatures have been created.
   wait

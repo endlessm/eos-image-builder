@@ -332,4 +332,20 @@ jenkins_crumb() {
     "${EIB_JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)'
 }
 
+# Compress an image according to the configured compression type.
+eib_compress_image() {
+  case "${EIB_IMAGE_COMPRESSION}" in
+    xz)
+      xz -T0 -c "${1}" > "${2}"
+      ;;
+    gz)
+      pigz --no-name -c "${1}" > "${2}"
+      ;;
+    *)
+      echo "Unrecognized image compression ${EIB_IMAGE_COMPRESSION}" >&2
+      return 1
+      ;;
+  esac
+}
+
 true
