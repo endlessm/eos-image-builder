@@ -233,14 +233,14 @@ scripts, rather than having a small number of huge bash rambles.
 check_update customization
 --------------------------
 
-The check_update stage calls the `cache` customization hooks. The
+The check_update stage calls the `check` customization hooks. The
 intention is to determine facts about the current build and compare them
 to cached facts from the previous build. Facts are stored in the build
-specific cache directory, `${EIB_CACHEDIR}`.
+specific check directory, `${EIB_CHECKDIR}`.
 
 The check_update stage determines if an update is needed by seeing if
 the modification times for any files in the cache directory have been
-updated. Therefore, the hook should only update its cache file if
+updated. Therefore, the hook should only update its check file if
 there's a difference from the previous build.
 
 ostree customization

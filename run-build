@@ -38,7 +38,7 @@ class ImageBuilder(object):
                     'personality', 'force', 'dry_run', 'series',
                     'srcdir', 'datadir', 'helpersdir', 'builddir',
                     'tmpdir', 'contentdir', 'outrootdir', 'outdir',
-                    'cacherootdir', 'cachedir', 'configdir',
+                    'checkrootdir', 'checkdir', 'configdir',
                     'sysconfdir', 'build_version', 'outversion',
                     'tmpconfig', 'deb_host_gnu_cpu', 'deb_host_multiarch',
                     'ssh_options']
@@ -48,7 +48,7 @@ class ImageBuilder(object):
     # $prefix_add_* and $prefix_del_* options. This is a list of
     # (section, prefix) tuples.
     CONFIG_MERGE_PREFIXES = [
-        ('cache', 'hooks'),
+        ('check', 'hooks'),
         ('content', 'hooks'),
         ('image', 'hooks'),
         ('image', 'settings'),
@@ -136,8 +136,8 @@ class ImageBuilder(object):
         self.contentdir = '${builddir}/content'
         self.outrootdir = '${tmpdir}/out'
         self.outdir = '${outrootdir}/${personality}'
-        self.cacherootdir = '${builddir}/cache'
-        self.cachedir = '${cacherootdir}/${product}-${branch}-${arch}-${platform}/${personality}'
+        self.checkrootdir = '${builddir}/check'
+        self.checkdir = '${checkrootdir}/${product}-${branch}-${arch}-${platform}/${personality}'
         self.configdir = '${srcdir}/config'
         self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
