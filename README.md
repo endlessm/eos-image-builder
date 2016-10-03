@@ -290,13 +290,3 @@ Like the publish stage, the error stage simply calls the customization
 hooks kept in `error`. These hooks should take the `build.txt` file from
 `${EIB_OUTDIR}` and push it to the final destination. This stage should
 also clean up for subsequent builds.
-
-Warning
-=======
-
-This repository contains inline access tokens for private repositories.
-Consider removing those tokens from the history if this repository is
-made public.
-
-Known inline access tokens are found in:
- - hooks/content/50-gnome-software-cache
