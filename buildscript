@@ -9,7 +9,7 @@ stage_error() {
 trap stage_error ERR
 
 # Ensure basic settings are available from the environment.
-for var in EIB_BASELIB EIB_SRCDIR EIB_BUILDDIR EIB_DATADIR \
+for var in EIB_BASELIB EIB_SRCDIR EIB_CACHEDIR EIB_DATADIR \
   EIB_HELPERSDIR EIB_OUTDIR EIB_CHECKDIR EIB_TMPDIR EIB_CONTENTDIR
 do
   if [ ! -v $var ]; then

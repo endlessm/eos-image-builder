@@ -36,12 +36,12 @@ class ImageBuilder(object):
     # Attributes to be exported to environment
     CONFIG_ATTRS = ['product', 'branch', 'arch', 'platform',
                     'personality', 'force', 'dry_run', 'series',
-                    'srcdir', 'datadir', 'helpersdir', 'builddir',
+                    'srcdir', 'datadir', 'helpersdir', 'cachedir',
                     'tmpdir', 'contentdir', 'outrootdir', 'outdir',
                     'checkrootdir', 'checkdir', 'configdir',
                     'sysconfdir', 'build_version', 'outversion',
-                    'tmpconfig', 'deb_host_gnu_cpu', 'deb_host_multiarch',
-                    'ssh_options']
+                    'tmpconfig', 'deb_host_gnu_cpu',
+                    'deb_host_multiarch', 'ssh_options']
     BOOLEAN_ATTRS = ['force', 'dry_run']
 
     # Config options that will be merged together from multiple
@@ -131,12 +131,13 @@ class ImageBuilder(object):
         self.srcdir = SRCDIR
         self.datadir = '${srcdir}/data'
         self.helpersdir = '${srcdir}/helpers'
+        self.cachedir = eib.CACHEDIR
         self.builddir = eib.BUILDDIR
-        self.tmpdir = '${builddir}/tmp'
-        self.contentdir = '${builddir}/content'
+        self.tmpdir = '${cachedir}/tmp'
+        self.contentdir = '${cachedir}/content'
         self.outrootdir = '${tmpdir}/out'
         self.outdir = '${outrootdir}/${personality}'
-        self.checkrootdir = '${builddir}/check'
+        self.checkrootdir = '${cachedir}/check'
         self.checkdir = '${checkrootdir}/${product}-${branch}-${arch}-${platform}/${personality}'
         self.configdir = '${srcdir}/config'
         self.sysconfdir = eib.SYSCONFDIR

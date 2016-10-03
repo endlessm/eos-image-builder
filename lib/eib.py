@@ -24,7 +24,8 @@ import fnmatch
 import os
 import shutil
 
-BUILDDIR = '/var/cache/eos-image-builder'
+CACHEDIR = '/var/cache/eos-image-builder'
+BUILDDIR = CACHEDIR
 SYSCONFDIR = '/etc/eos-image-builder'
 LOCKFILE = '/var/lock/eos-image-builder.lock'
 LOCKTIMEOUT = 60

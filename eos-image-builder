@@ -92,9 +92,9 @@ with open(eib.LOCKFILE, 'a+') as lf:
     if args.checkout or 'JENKINS_HOME' in os.environ:
         # Make a copy of the repo to use. A real git repo is needed
         # since the build later queries the current commit.
-        srcdir = os.path.join(eib.BUILDDIR, 'src')
+        srcdir = os.path.join(eib.CACHEDIR, 'src')
         shutil.rmtree(srcdir, ignore_errors=True)
-        os.makedirs(eib.BUILDDIR, exist_ok=True)
+        os.makedirs(eib.CACHEDIR, exist_ok=True)
         shutil.copytree(MYDIR, srcdir, symlinks=True)
         os.chdir(srcdir)
 
