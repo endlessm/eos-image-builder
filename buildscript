@@ -8,11 +8,9 @@ stage_error() {
 }
 trap stage_error ERR
 
-# Ensure all needed settings are available from the environment.
-for var in EIB_BASELIB EIB_SRCDIR EIB_BUILDDIR EIB_OSTREE_CHECKOUT \
-  EIB_OSTREE_REPODIR EIB_DATADIR EIB_HELPERSDIR EIB_OUTDIR \
-  EIB_CHECKDIR EIB_TMPDIR EIB_OSTREE_TMPDIR EIB_CONTENTDIR \
-  EIB_FLATPAK_RUNTIMES_SERVER EIB_FLATPAK_APPS_SERVER
+# Ensure basic settings are available from the environment.
+for var in EIB_BASELIB EIB_SRCDIR EIB_BUILDDIR EIB_DATADIR \
+  EIB_HELPERSDIR EIB_OUTDIR EIB_CHECKDIR EIB_TMPDIR EIB_CONTENTDIR
 do
   if [ ! -v $var ]; then
     echo "error: required variable $var not set" >&2
