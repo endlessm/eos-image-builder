@@ -1,0 +1,5 @@
+#!/bin/bash -e
+
+# Helper script to use eos-image-builder's ssh key for the identity
+# file when using git.
+exec ssh ${EIB_SSH_OPTIONS} "$@"

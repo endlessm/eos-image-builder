@@ -240,6 +240,9 @@ class ImageBuilder(object):
         else:
             os.environ['PYTHONPATH'] = pypath
 
+        # Use our helper script for git access over ssh
+        os.environ['GIT_SSH'] = os.path.join(self.helpersdir, 'git-ssh')
+
         # Clean language settings
         os.environ['LANG'] = 'C'
         for langenv in ['LANGUAGE', 'LC_CTYPE', 'LC_NUMERIC', 'LC_TIME',
