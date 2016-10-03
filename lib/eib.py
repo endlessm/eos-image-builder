@@ -21,8 +21,11 @@
 from argparse import ArgumentParser
 import configparser
 import fnmatch
+import glob
 import os
 import shutil
+import subprocess
+import tempfile
 
 CACHEDIR = '/var/cache/eos-image-builder'
 BUILDDIR = CACHEDIR
@@ -149,3 +152,37 @@ def add_cli_options(argparser):
                                 'exiting')
     argparser.add_argument('branch', nargs='?', default='master',
                            help='branch to build')
+
+
+def keyring(config):
+    """Provide the path to the temporary GPG keyring
+
+    If the keyring doesn't exist, it's created.
+    """
+    keyring = os.path.join(config['build']['tmpdir'], 'eib-keyring.gpg')
+
+    if not os.path.isfile(keyring):
+        keysdir = os.path.join(config['build']['datadir'], 'keys')
+        if not os.path.isdir(keysdir):
+            raise ImageBuildError('No gpg keys directory at', keysdir)
+
+        keys = glob.glob(os.path.join(keysdir, '*.asc'))
+        if len(keys) == 0:
+            raise ImageBuildError('No gpg keys in', keysdir)
+
+        # Use a temporary gpg homedir
+        with tempfile.TemporaryDirectory(dir=config['build']['tmpdir'],
+                                         prefix='eib-keyring') as homedir:
+            # Import the keys
+            for key in keys:
+                subprocess.check_call(['gpg', '--batch', '--quiet',
+                                       '--homedir', homedir,
+                                       '--keyring', keyring,
+                                       '--no-default-keyring',
+                                       '--import', key])
+
+        # Set normal permissions for the keyring since gpg creates it
+        # 0600
+        os.chmod(keyring, 0o0644)
+
+    return keyring
