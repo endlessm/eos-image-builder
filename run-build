@@ -143,7 +143,8 @@ class ImageBuilder(object):
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
         self.outversion = '${product}-${branch}-${arch}-${platform}.${build_version}.${personality}'
         self.tmpconfig = '${tmpdir}/config.ini'
-        self.ssh_options = '-o StrictHostKeyChecking=no'
+        self.ssh_options = \
+            '-i ${sysconfdir}/ssh-key.pem -o StrictHostKeyChecking=no'
 
         # Pull in dpkg-architecture settings that are needed for the
         # installation of flatpak bundles.

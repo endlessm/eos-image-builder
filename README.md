@@ -87,6 +87,13 @@ EIB signs the completed images with GPG. A private keyring must be
 installed in /etc/eos-image-builder/gnupg and the key ID must be set in
 the configuration.
 
+SSH authentication
+------------------
+
+EIB uses a private key at /etc/eos-image-builder/ssh-key.pem as the
+identity file whenever ssh is used. SSH may be used for git fetching,
+content downloading, or image publishing.
+
 Configuration
 =============
 
