@@ -98,11 +98,7 @@ with open(eib.LOCKFILE, 'a+') as lf:
         shutil.copytree(MYDIR, srcdir, symlinks=True)
         os.chdir(srcdir)
 
-        # Fetch the current code before launching the actual build.
-        # Assume that if the job is running from jenkins that it has
-        # already fetched the latest.
-        if 'JENKINS_HOME' not in os.environ:
-            subprocess.check_call(['git', 'fetch', 'origin'])
+        # Checkout the appropriate branch
         subprocess.check_call(['git', 'checkout', 'origin/' + args.branch])
         subprocess.check_call(['git', 'clean', '-xdf'])
 
