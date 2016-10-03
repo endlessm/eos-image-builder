@@ -105,7 +105,9 @@ class ImageBuilder(object):
             self.arch = arch
         else:
             machine = os.uname().machine
-            if machine == 'x86_64' or fnmatch.fnmatch(machine, 'i?86'):
+            if machine == 'x86_64':
+                self.arch = 'amd64'
+            elif fnmatch.fnmatch(machine, 'i?86'):
                 self.arch = 'i386'
             elif machine.startswith('arm'):
                 self.arch = 'armhf'
