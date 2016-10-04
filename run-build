@@ -32,6 +32,94 @@ SRCDIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.join(SRCDIR, 'lib'))
 import eib
 
+class ImageBuildRoot(object):
+    """Build root for performing actual image build
+
+    A temporary build root is created with debootstrap at builddir. The
+    options in the config section buildroot control what gets installed
+    and mounted in the buildroot.
+    """
+    def __init__(self, builddir, config):
+        self.builddir = builddir
+        self.mounts = []
+
+        # Get the keyring or generate it
+        keyring = eib.keyring(config)
+
+        # Get the config parameters
+        arch = config['buildroot']['arch']
+        repo = config['buildroot']['repo']
+        codename = config['buildroot']['codename']
+        components = config['buildroot']['components'].split()
+        packages = config['buildroot']['packages'].split()
+        script = config['buildroot']['script']
+        wanted_mounts = config['buildroot']['mounts'].split()
+
+        print('Creating buildroot in', self.builddir)
+        subprocess.check_call(['debootstrap',
+                               '--arch=' + arch,
+                               '--keyring=' + keyring,
+                               '--variant=minbase',
+                               '--include=' + ','.join(packages),
+                               '--components=' + ','.join(components),
+                               codename,
+                               self.builddir,
+                               repo,
+                               script])
+
+        # Mount all the desired paths
+        for path in wanted_mounts:
+            self.mount(path)
+
+    def mount(self, path, target=None):
+        """Bind mount path in the build directory"""
+        if not os.path.isabs(path):
+            raise eib.ImageBuildError('Buildroot mount path', path,
+                                      'is not an absolute path')
+
+        # Where it should be mounted
+        if target is None:
+            target = path
+        elif not os.path.isabs(target):
+            raise eib.ImageBuildError('Buildroot mount target', target,
+                                      'is not an absolute path')
+        mount_path = self.builddir + target
+
+        print('Mounting', path, 'at', mount_path)
+        os.makedirs(mount_path, exist_ok=True)
+        subprocess.check_call(['mount', '--bind', path, mount_path])
+        self.mounts.append(mount_path)
+
+    def umount(self, target):
+        """Unmount one path in the build directory"""
+        if not os.path.isabs(target):
+            raise eib.ImageBuildError('Buildroot mount target', target,
+                                      'is not an absolute path')
+        # Prepend the build directory if needed
+        if not target.startswith(self.builddir + '/'):
+            target = self.builddir + target
+        if target not in self.mounts:
+            raise eib.ImageBuildError(target, 'is not mounted in',
+                                      self.builddir)
+        print('Unmounting', target)
+        subprocess.check_call(['umount', target])
+        self.mounts.remove(target)
+
+    def umount_all(self):
+        """Unmount all paths in the build directory"""
+        for mnt in reversed(self.mounts.copy()):
+            print('Unmounting', mnt)
+            subprocess.check_call(['umount', mnt])
+            self.mounts.pop()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc, value, tb):
+        self.umount_all()
+        print('Removing buildroot', self.builddir)
+        shutil.rmtree(self.builddir)
+
 class ImageBuilder(object):
     # Attributes to be exported to environment
     CONFIG_ATTRS = ['product', 'branch', 'arch', 'platform',
@@ -48,6 +136,8 @@ class ImageBuilder(object):
     # $prefix_add_* and $prefix_del_* options. This is a list of
     # (section, prefix) tuples.
     CONFIG_MERGE_PREFIXES = [
+        ('buildroot', 'mounts'),
+        ('buildroot', 'packages'),
         ('check', 'hooks'),
         ('content', 'hooks'),
         ('image', 'hooks'),
@@ -310,6 +400,7 @@ class ImageBuilder(object):
         # Cleanup files from previous build
         print('Recreating build specific temporary directories',
               flush=True)
+        eib.recreate_dir(self.builddir)
         eib.recreate_dir(self.tmpdir)
         eib.recreate_dir(ostree_co_dir)
 
@@ -341,9 +432,12 @@ class ImageBuilder(object):
               flush=True)
         self.create_tmp_config()
 
-        # Run the buildscript
-        print('Running image buildscript', flush=True)
-        subprocess.check_call([os.path.join(self.srcdir, 'buildscript')])
+        # Run the buildscript in a buildroot
+        with ImageBuildRoot(self.builddir, self.config):
+              print('Running image buildscript')
+              buildscript = os.path.join(self.srcdir, 'buildscript')
+              subprocess.check_call(['chroot', self.builddir,
+                                     buildscript])
 
         # Unless this is a dry run, the output files have been published
         # and can be deleted.

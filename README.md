@@ -68,17 +68,15 @@ build log to the image server.
 Setup
 =====
 
-Known to work on Debian Wheezy, Ubuntu 13.04 and Ubuntu 13.10.
-Required packages:
- * pigz
- * xz-utils
- * rsync
- * ostree
- * python3-apt
- * python3-debian
- * attr
- * x86: grub2, zip
- * arm: mkimage, device-tree-compiler
+Known to work on Debian Jessie (8) and Ubuntu Trusty (14.04). Required
+packages:
+
+ * debootstrap
+ * dpkg-dev (for dpkg-architecture)
+ * e2fsprogs (for chattr)
+ * git
+ * gnupg
+ * python3
 
 Image signing
 -------------

@@ -28,7 +28,7 @@ import subprocess
 import tempfile
 
 CACHEDIR = '/var/cache/eos-image-builder'
-BUILDDIR = CACHEDIR
+BUILDDIR = '/var/tmp/eos-image-builder'
 SYSCONFDIR = '/etc/eos-image-builder'
 LOCKFILE = '/var/lock/eos-image-builder.lock'
 LOCKTIMEOUT = 60
