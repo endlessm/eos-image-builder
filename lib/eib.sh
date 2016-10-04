@@ -272,57 +272,19 @@ sign_file() {
       "${file}"
 }
 
-# Make a minimal chroot with the EOS ostree to use during the build.
-make_tmp_ostree() {
-  local packages=ostree
-  local keyring
-
-  # Since the chroot is made in the temporary directory, we can assume
-  # that if the ostree tmpdir is there, it's setup correctly.
-  if [ -d "${EIB_OSTREE_TMPDIR}" ]; then
-    return 0
-  fi
-
-  # Include the keyring package to verify pulled commits.
-  packages+=",eos-keyring"
-
-  # Include ca-certificates to silence nagging from libsoup even though
-  # we don't currently use https for ostree serving.
-  packages+=",ca-certificates"
-
-  # FIXME: Shouldn't need to specify pinentry-curses here, but
-  # debootstrap can't deal with the optional dependency on
-  # pinentry-gtk2 | pinentry-curses | pinentry correctly.
-  packages+=",pinentry-curses"
-
-  mkdir -p "${EIB_OSTREE_TMPDIR}"
-  keyring=$(eib_keyring)
-  debootstrap --arch=${EIB_ARCH} --keyring="${keyring}" \
-    --variant=minbase --include="${packages}" \
-    --components="${EIB_OSTREE_PKGCOMPONENTS}" ${EIB_BRANCH} \
-    "${EIB_OSTREE_TMPDIR}" "${EIB_OSTREE_PKGREPO}" \
-    "${EIB_DATADIR}"/debootstrap.script
-}
-
-# Run the temporary ostree within the chroot.
-tmp_ostree() {
-  chroot "${EIB_OSTREE_TMPDIR}" ostree "$@"
-}
-
 # Emulate the old ostree write-refs builtin where a local ref is forced
 # to the commit of another ref.
-tmp_ostree_write_refs() {
+ostree_write_refs() {
   local repo=${1:?No ostree repo supplied to ${FUNCNAME}}
   local src=${2:?No ostree source ref supplied to ${FUNCNAME}}
   local dest=${3:?No ostree dest ref supplied to ${FUNCNAME}}
   local destdir=${dest%/*}
 
   # Create the needed directory for the dest ref.
-  chroot "${EIB_OSTREE_TMPDIR}" mkdir -p "${repo}/refs/heads/${destdir}"
+  mkdir -p "${repo}/refs/heads/${destdir}"
 
   # Copy the source ref file to the dest ref.
-  chroot "${EIB_OSTREE_TMPDIR}" cp -f "${repo}/refs/heads/${src}" \
-    "${repo}/refs/heads/${dest}"
+  cp -f "${repo}/refs/heads/${src}" "${repo}/refs/heads/${dest}"
 }
 
 jenkins_crumb() {
