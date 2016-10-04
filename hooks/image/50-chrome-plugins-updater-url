@@ -1,0 +1,9 @@
+# Overrides the base URL for downloading Chrome's plugins
+# set by the OSTree builder.
+
+[ -n "${EIB_IMAGE_CHROME_PLUGINS_BASE_URL}" ] || exit 0
+
+mkdir -p "${OSTREE_DEPLOYMENT}"/etc/default
+sed -i "/^HTTP_URL=.*/d" "${OSTREE_DEPLOYMENT}"/etc/default/eos-chrome-plugin-update
+echo "HTTP_URL=${EIB_IMAGE_CHROME_PLUGINS_BASE_URL}" \
+  >> "${OSTREE_DEPLOYMENT}"/etc/default/eos-chrome-plugin-update
