@@ -138,7 +138,7 @@ class ImageBuilder(object):
                     'tmpdir', 'contentdir', 'outrootdir', 'outdir',
                     'checkrootdir', 'checkdir', 'configdir',
                     'sysconfdir', 'build_version', 'outversion',
-                    'tmpconfig', 'deb_host_gnu_cpu',
+                    'tmpconfig', 'baselib', 'deb_host_gnu_cpu',
                     'deb_host_multiarch', 'ssh_options']
     BOOLEAN_ATTRS = ['force', 'dry_run']
 
@@ -246,6 +246,7 @@ class ImageBuilder(object):
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
         self.outversion = '${product}-${branch}-${arch}-${platform}.${build_version}.${personality}'
         self.tmpconfig = '${tmpdir}/config.ini'
+        self.baselib = '${srcdir}/lib/eib.sh'
         self.ssh_options = \
             '-i ${sysconfdir}/ssh-key.pem -o StrictHostKeyChecking=no'
 
@@ -332,29 +333,6 @@ class ImageBuilder(object):
 
     def set_environment(self):
         """Setup environment variables for stages and hooks"""
-        # Standard builder environment
-        os.environ['EIB_BASELIB'] = os.path.join(SRCDIR, 'lib/eib.sh')
-        os.environ['PATH'] = '%s:%s' %(os.path.join(SRCDIR, 'stages'),
-                                       os.environ['PATH'])
-        pypath = os.path.join(SRCDIR, 'lib')
-        if 'PYTHONPATH' in os.environ:
-            os.environ['PYTHONPATH'] = '%s:%s' %(pypath,
-                                                 os.environ['PYTHONPATH'])
-        else:
-            os.environ['PYTHONPATH'] = pypath
-
-        # Use our helper script for git access over ssh
-        os.environ['GIT_SSH'] = os.path.join(self.helpersdir, 'git-ssh')
-
-        # Clean language settings
-        os.environ['LANG'] = 'C'
-        for langenv in ['LANGUAGE', 'LC_CTYPE', 'LC_NUMERIC', 'LC_TIME',
-                        'LC_COLLATE', 'LC_MONETARY', 'LC_MESSAGES',
-                        'LC_PAPER', 'LC_NAME', 'LC_ADDRESS', 'LC_TELEPHONE',
-                        'LC_MEASUREMENT', 'LC_IDENTIFICATION', 'LC_ALL']:
-            if langenv in os.environ:
-                del os.environ[langenv]
-
         # Build specific environment attributes.
         for option, value in self.config.items(self.config.defaultsect):
             self.setenv(None, option, value)
@@ -445,8 +423,9 @@ class ImageBuilder(object):
         # Run the buildscript in a buildroot
         with ImageBuildRoot(self.builddir, self.config):
               print('Running image buildscript')
+              chrootscript = os.path.join(self.helpersdir, 'eib-chroot')
               buildscript = os.path.join(self.srcdir, 'buildscript')
-              subprocess.check_call(['chroot', self.builddir,
+              subprocess.check_call([chrootscript, self.builddir,
                                      buildscript])
 
         # Unless this is a dry run, the output files have been published
