@@ -183,6 +183,38 @@ class ImageBuilder(object):
         for section, prefix in self.CONFIG_MERGE_PREFIXES:
             self.config.merge_option_prefix(section, prefix)
 
+    def check_value(self, section, option, value):
+        # Sections and key names match the config files, with suffixes as
+        # follows:
+        #  _required = true means that the key must be set
+        #  _values means the config value, if set, must be within the
+        #          space-separated list of values in the schema
+        if option.endswith('_required'):
+            option = option[:-len('_required')]
+            if value.lower() == 'true' and option not in self.config[section]:
+                raise eib.ImageBuildError(
+                    'Required configuration key [%s] %s is missing'
+                    % (section, option))
+        elif option.endswith('_values'):
+            option = option[:-len('_values')]
+            if option in self.config[section] and \
+               self.config[section][option] not in value.split():
+                raise eib.ImageBuildError(
+                    'Configuration key [%s] %s has invalid value: %s'
+                    % (section, option, self.config[section][option]))
+
+    def check_config(self):
+        """Check loaded configuration against schema for validity."""
+        schema_file = os.path.join(self.configdir, 'schema.ini')
+        schema = eib.ImageConfigParser()
+        schema.read(schema_file)
+
+        for option, value in schema.items(schema.defaultsect):
+            self.check_value(schema.defaultsect, option, value)
+        for sect in schema.sections():
+            for option, value in schema.items_no_default(sect):
+                self.check_value(sect, option, value)
+
     def setenv(self, section, option, value):
         """Export config values as variable in EIB namespace"""
         # Convert boolean's to true/false to be handled easily in shell
@@ -287,6 +319,7 @@ class ImageBuilder(object):
     def run(self):
         print('Configuring image build', flush=True)
         self.configure()
+        self.check_config()
         if self.show_config:
             # Just show the configuration without doing anything
             self.config.write(sys.stdout)
