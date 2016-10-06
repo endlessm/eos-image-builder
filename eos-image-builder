@@ -71,6 +71,10 @@ aparser = ArgumentParser(description='Build and publish images for Endless')
 eib.add_cli_options(aparser)
 args = aparser.parse_args()
 
+# Shortcut to show the configuration without taking the lock.
+if args.show_config:
+    exit(subprocess.call(['./run-build'] + sys.argv[1:]))
+
 # Open the lock file a+ so it can be RW without truncating, but seek to
 # the beginning to either read or write the whole file.
 os.makedirs(os.path.dirname(eib.LOCKFILE), exist_ok=True)
