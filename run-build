@@ -281,12 +281,13 @@ class ImageBuilder(object):
                     # 2. It ensures that only paths below $builddir are
                     # matched and not $builddir-backup or anything else
                     # that begins with the same characters.
-                    if mountdir.startswith(self.builddir + '/'):
+                    if mountdir.startswith(realdir + '/'):
                         # Prepend to the list so submounts are at the
                         # beginning of the list
                         mounts.insert(0, mountdir)
 
             for path in mounts:
+                print('Unmounting', path, flush=True)
                 subprocess.check_call(['umount', path])
 
         # Make ostree checkouts mutable
