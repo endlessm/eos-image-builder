@@ -181,6 +181,16 @@ variables take the form of `EIB_$SECTION_$OPTION`. The `build` section
 is special and these settings are exported in the form `EIB_$OPTION`
 without the section in the variable name.
 
+Seeing the full configuration
+-----------------------------
+
+In order to see what the full configuration will look like after merging
+all configuration files and keys, run `./eos-image-builder
+--show-config` with other `--product` type options for selecting the
+appropriate image variant. This will print the merged configuration in
+INI format. The merged configuration is also saved during the build into
+the output directory.
+
 Execution
 =========
 
