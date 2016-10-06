@@ -288,3 +288,42 @@ Like the publish stage, the error stage simply calls the customization
 hooks kept in `error`. These hooks should take the `build.txt` file from
 `${EIB_OUTDIR}` and push it to the final destination. This stage should
 also clean up for subsequent builds.
+
+Testing
+=======
+
+The default image builder configuration and execution options are setup
+for building production images on the Endless builders with access to
+all needed assets. However, when making changes on the image builder,
+it's important to test them locally. There are a few options available
+for running the image builder locally in a mostly unprivileged
+environment.
+
+First, `eos-image-builder` provides options that are more appropriate
+for testing. The `-n` or `--dry-run` option will skip publishing of the
+completed image. This not only keeps the test image from being
+published, but it avoids likely authentication errors with other Endless
+services. The `-f` or `--force` option can be used to ignore the result
+of the `check_update` stage. Since that stage will make the build exit
+early if it determines that a build is not needed, `--force` will ensure
+that the build is always performed. Of course, if testing of the
+`check_update` functionality is desired, then `--force` should not be
+used.
+
+Next, `config/local.ini` can be used to change the image configuration
+in various ways that make a local build more likely to succeed. Since
+`local.ini` is parsed last, it can be used to override any other
+settings. The file `config/local.ini.example` has examples of these
+types of settings. Copying it to `config/local.ini` and making any
+further local adjustments is recommended. See the comments in the
+example file.
+
+Finally, `eos-image-builder` uses private keys in
+`/etc/eos-image-builder` to manage authentication and image signing. The
+`local.ini.example` file sets various options so that authentication to
+external services is generally not required. See the [Setup](#setup)
+section above if you want to test authentication or GPG signing.
+
+Now you should be able to run `sudo ./eos-image-builder` with the
+options mentioned above as well as any `--product` type options to
+select the appropriate image variant for the base configuration.
