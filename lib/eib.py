@@ -20,6 +20,7 @@
 
 from argparse import ArgumentParser
 import configparser
+from collections import Counter
 import fnmatch
 import os
 import shutil
@@ -100,17 +101,18 @@ class ImageConfigParser(configparser.ConfigParser):
         # If the prefix doesn't exist, merge together the add and del
         # options and set it.
         if prefix not in sect:
-            add_vals = set()
+            add_vals = Counter()
             for opt in add_opts:
                 add_vals.update(sect[opt].split())
-            del_vals = set()
+            del_vals = Counter()
             for opt in del_opts:
                 del_vals.update(sect[opt].split())
 
-            # Set the prefix to the difference of the sets. Merge
-            # the values together with newlines like they were in
-            # the original configuration.
-            sect[prefix] = '\n'.join(sorted(add_vals - del_vals))
+            # Set the prefix to the difference of the counters. Merge
+            # the values together with newlines like they were in the
+            # original configuration.
+            vals = add_vals - del_vals
+            sect[prefix] = '\n'.join(sorted(vals.keys()))
 
         # Remove the add/del options to cleanup the section
         for opt in add_opts + del_opts:
