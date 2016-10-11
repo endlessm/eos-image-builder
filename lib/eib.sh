@@ -107,44 +107,6 @@ eib_umount_all() {
   declare -a EIB_MOUNTS
 }
 
-# Provide the path to the keyring file. If it doesn't exist, create it.
-eib_keyring() {
-  local keyring="${EIB_TMPDIR}"/eib-keyring.gpg
-  local keysdir="${EIB_DATADIR}"/keys
-  local -a keys
-  local keyshome key
-
-  # Create the keyring if necessary
-  if [ ! -f "${keyring}" ]; then
-    # Check that there are keys
-    if [ ! -d "${keysdir}" ]; then
-      echo "No gpg keys directory at ${keysdir}" >&2
-      return 1
-    fi
-    keys=("${keysdir}"/*.asc)
-    if [ ${#keys[@]} -eq 0 ]; then
-      echo "No gpg keys in ${keysdir}" >&2
-      return 1
-    fi
-
-    # Create a homedir with proper 0700 perms so gpg doesn't complain
-    keyshome=$(mktemp -d --tmpdir="${EIB_TMPDIR}" eib-keyring.XXXXXXXXXX)
-
-    # Import the keys
-    for key in "${keys[@]}"; do
-      gpg --batch --quiet --homedir "${keyshome}" --keyring "${keyring}" \
-        --no-default-keyring --import "${key}"
-    done
-
-    # Set normal permissions for the keyring since gpg creates it 0600
-    chmod 0644 "${keyring}"
-
-    rm -rf "${keyshome}"
-  fi
-
-  echo "${keyring}"
-}
-
 eib_fix_boot_checksum() {
   local disk=${1:?No disk supplied to ${FUNCNAME}}
   local deploy=${2:?No deployment supplied to ${FUNCNAME}}

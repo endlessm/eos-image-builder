@@ -43,9 +43,6 @@ class ImageBuildRoot(object):
         self.builddir = builddir
         self.mounts = []
 
-        # Get the keyring or generate it
-        keyring = eib.keyring(config)
-
         # Get the config parameters
         arch = config['buildroot']['arch']
         repo = config['buildroot']['repo']
@@ -53,9 +50,13 @@ class ImageBuildRoot(object):
         components = config['buildroot']['components'].split()
         packages = config['buildroot']['packages'].split()
         script = config['buildroot']['script']
+        keyring = config['build']['keyring']
         wanted_mounts = config['buildroot']['mounts'].split()
         aptcache_dir = config['buildroot']['aptcache_dir']
         aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
+
+        # Make sure the keyring is created
+        eib.create_keyring(config)
 
         # Wipe the apt cache directory if it's grown too large.
         if os.path.exists(aptcache_dir):
@@ -148,7 +149,8 @@ class ImageBuilder(object):
                     'checkrootdir', 'checkdir', 'configdir',
                     'sysconfdir', 'build_version', 'outversion',
                     'tmpconfig', 'baselib', 'deb_host_gnu_cpu',
-                    'deb_host_multiarch', 'ssh_options']
+                    'deb_host_multiarch', 'ssh_options', 'keysdir',
+                    'keyring']
     BOOLEAN_ATTRS = ['force', 'dry_run']
 
     # Config options that will be merged together from multiple
@@ -258,6 +260,8 @@ class ImageBuilder(object):
         self.baselib = '${srcdir}/lib/eib.sh'
         self.ssh_options = \
             '-i ${sysconfdir}/ssh-key.pem -o StrictHostKeyChecking=no'
+        self.keysdir = '${datadir}/keys'
+        self.keyring = '${tmpdir}/eib-keyring.gpg'
 
         # Pull in dpkg-architecture settings that are needed for the
         # installation of flatpak bundles.
@@ -428,6 +432,8 @@ class ImageBuilder(object):
         print('Output merged configuration file to', self.tmpconfig,
               flush=True)
         self.create_tmp_config()
+        print('Creating temporary GPG keyring', self.keyring)
+        eib.create_keyring(self.config)
 
         # Run the buildscript in a buildroot
         with ImageBuildRoot(self.builddir, self.config):

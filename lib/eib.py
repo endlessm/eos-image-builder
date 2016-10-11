@@ -154,15 +154,12 @@ def add_cli_options(argparser):
                            help='branch to build')
 
 
-def keyring(config):
-    """Provide the path to the temporary GPG keyring
-
-    If the keyring doesn't exist, it's created.
-    """
-    keyring = os.path.join(config['build']['tmpdir'], 'eib-keyring.gpg')
+def create_keyring(config):
+    """Create the temporary GPG keyring if it doesn't exist"""
+    keyring = config['build']['keyring']
 
     if not os.path.isfile(keyring):
-        keysdir = os.path.join(config['build']['datadir'], 'keys')
+        keysdir = config['build']['keysdir']
         if not os.path.isdir(keysdir):
             raise ImageBuildError('No gpg keys directory at', keysdir)
 
@@ -184,8 +181,6 @@ def keyring(config):
         # Set normal permissions for the keyring since gpg creates it
         # 0600
         os.chmod(keyring, 0o0644)
-
-    return keyring
 
 
 def disk_usage(path):
