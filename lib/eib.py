@@ -186,3 +186,13 @@ def keyring(config):
         os.chmod(keyring, 0o0644)
 
     return keyring
+
+
+def disk_usage(path):
+    """Recursively gather disk usage in bytes for path"""
+    total = os.stat(path, follow_symlinks=False).st_size
+    for root, dirs, files in os.walk(path):
+        total += sum([os.stat(os.path.join(root, name),
+                              follow_symlinks=False).st_size
+                      for name in dirs + files])
+    return total
