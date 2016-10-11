@@ -68,17 +68,15 @@ build log to the image server.
 Setup
 =====
 
-Known to work on Debian Wheezy, Ubuntu 13.04 and Ubuntu 13.10.
-Required packages:
- * pigz
- * xz-utils
- * rsync
- * ostree
- * python3-apt
- * python3-debian
- * attr
- * x86: grub2, zip
- * arm: mkimage, device-tree-compiler
+Known to work on Debian Jessie (8) and Ubuntu Trusty (14.04). Required
+packages:
+
+ * debootstrap
+ * dpkg-dev (for dpkg-architecture)
+ * e2fsprogs (for chattr)
+ * git
+ * gnupg
+ * python3
 
 Image signing
 -------------
@@ -86,6 +84,13 @@ Image signing
 EIB signs the completed images with GPG. A private keyring must be
 installed in /etc/eos-image-builder/gnupg and the key ID must be set in
 the configuration.
+
+SSH authentication
+------------------
+
+EIB uses a private key at /etc/eos-image-builder/ssh-key.pem as the
+identity file whenever ssh is used. SSH may be used for git fetching,
+content downloading, or image publishing.
 
 Configuration
 =============
@@ -176,6 +181,16 @@ variables take the form of `EIB_$SECTION_$OPTION`. The `build` section
 is special and these settings are exported in the form `EIB_$OPTION`
 without the section in the variable name.
 
+Seeing the full configuration
+-----------------------------
+
+In order to see what the full configuration will look like after merging
+all configuration files and keys, run `./eos-image-builder
+--show-config` with other `--product` type options for selecting the
+appropriate image variant. This will print the merged configuration in
+INI format. The merged configuration is also saved during the build into
+the output directory.
+
 Execution
 =========
 
@@ -226,14 +241,14 @@ scripts, rather than having a small number of huge bash rambles.
 check_update customization
 --------------------------
 
-The check_update stage calls the `cache` customization hooks. The
+The check_update stage calls the `check` customization hooks. The
 intention is to determine facts about the current build and compare them
 to cached facts from the previous build. Facts are stored in the build
-specific cache directory, `${EIB_CACHEDIR}`.
+specific check directory, `${EIB_CHECKDIR}`.
 
 The check_update stage determines if an update is needed by seeing if
 the modification times for any files in the cache directory have been
-updated. Therefore, the hook should only update its cache file if
+updated. Therefore, the hook should only update its check file if
 there's a difference from the previous build.
 
 ostree customization
@@ -284,12 +299,41 @@ hooks kept in `error`. These hooks should take the `build.txt` file from
 `${EIB_OUTDIR}` and push it to the final destination. This stage should
 also clean up for subsequent builds.
 
-Warning
+Testing
 =======
 
-This repository contains inline access tokens for private repositories.
-Consider removing those tokens from the history if this repository is
-made public.
+The default image builder configuration and execution options are setup
+for building production images on the Endless builders with access to
+all needed assets. However, when making changes on the image builder,
+it's important to test them locally. There are a few options available
+for running the image builder locally in a mostly unprivileged
+environment.
 
-Known inline access tokens are found in:
- - hooks/content/50-gnome-software-cache
+First, `eos-image-builder` provides options that are more appropriate
+for testing. The `-n` or `--dry-run` option will skip publishing of the
+completed image. This not only keeps the test image from being
+published, but it avoids likely authentication errors with other Endless
+services. The `-f` or `--force` option can be used to ignore the result
+of the `check_update` stage. Since that stage will make the build exit
+early if it determines that a build is not needed, `--force` will ensure
+that the build is always performed. Of course, if testing of the
+`check_update` functionality is desired, then `--force` should not be
+used.
+
+Next, `config/local.ini` can be used to change the image configuration
+in various ways that make a local build more likely to succeed. Since
+`local.ini` is parsed last, it can be used to override any other
+settings. The file `config/local.ini.example` has examples of these
+types of settings. Copying it to `config/local.ini` and making any
+further local adjustments is recommended. See the comments in the
+example file.
+
+Finally, `eos-image-builder` uses private keys in
+`/etc/eos-image-builder` to manage authentication and image signing. The
+`local.ini.example` file sets various options so that authentication to
+external services is generally not required. See the [Setup](#setup)
+section above if you want to test authentication or GPG signing.
+
+Now you should be able to run `sudo ./eos-image-builder` with the
+options mentioned above as well as any `--product` type options to
+select the appropriate image variant for the base configuration.

@@ -22,10 +22,14 @@ from argparse import ArgumentParser
 import configparser
 from collections import Counter
 import fnmatch
+import glob
 import os
 import shutil
+import subprocess
+import tempfile
 
-BUILDDIR = '/var/cache/eos-image-builder'
+CACHEDIR = '/var/cache/eos-image-builder'
+BUILDDIR = '/var/tmp/eos-image-builder'
 SYSCONFDIR = '/etc/eos-image-builder'
 LOCKFILE = '/var/lock/eos-image-builder.lock'
 LOCKTIMEOUT = 60
@@ -143,10 +147,49 @@ def add_cli_options(argparser):
                            help='run build even when no new assets found')
     argparser.add_argument('-n', '--dry-run', action='store_true',
                            help="don't publish images")
-    argparser.add_argument('--no-checkout', action='store_true',
-                           help='use current builder branch')
+    argparser.add_argument('--checkout', action='store_true',
+                           help='copy the git repo to the build directory')
     argparser.add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,
                            help='time in seconds to acquire lock before '
                                 'exiting')
     argparser.add_argument('branch', nargs='?', default='master',
                            help='branch to build')
+
+
+def create_keyring(config):
+    """Create the temporary GPG keyring if it doesn't exist"""
+    keyring = config['build']['keyring']
+
+    if not os.path.isfile(keyring):
+        keysdir = config['build']['keysdir']
+        if not os.path.isdir(keysdir):
+            raise ImageBuildError('No gpg keys directory at', keysdir)
+
+        keys = glob.glob(os.path.join(keysdir, '*.asc'))
+        if len(keys) == 0:
+            raise ImageBuildError('No gpg keys in', keysdir)
+
+        # Use a temporary gpg homedir
+        with tempfile.TemporaryDirectory(dir=config['build']['tmpdir'],
+                                         prefix='eib-keyring') as homedir:
+            # Import the keys
+            for key in keys:
+                subprocess.check_call(['gpg', '--batch', '--quiet',
+                                       '--homedir', homedir,
+                                       '--keyring', keyring,
+                                       '--no-default-keyring',
+                                       '--import', key])
+
+        # Set normal permissions for the keyring since gpg creates it
+        # 0600
+        os.chmod(keyring, 0o0644)
+
+
+def disk_usage(path):
+    """Recursively gather disk usage in bytes for path"""
+    total = os.stat(path, follow_symlinks=False).st_size
+    for root, dirs, files in os.walk(path):
+        total += sum([os.stat(os.path.join(root, name),
+                              follow_symlinks=False).st_size
+                      for name in dirs + files])
+    return total

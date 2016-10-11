@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -u
 # -*- mode: Python; coding: utf-8 -*-
 
 # Endless image builder
@@ -32,23 +32,134 @@ SRCDIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.join(SRCDIR, 'lib'))
 import eib
 
+class ImageBuildRoot(object):
+    """Build root for performing actual image build
+
+    A temporary build root is created with debootstrap at builddir. The
+    options in the config section buildroot control what gets installed
+    and mounted in the buildroot.
+    """
+    def __init__(self, builddir, config):
+        self.builddir = builddir
+        self.mounts = []
+
+        # Get the config parameters
+        arch = config['buildroot']['arch']
+        repo = config['buildroot']['repo']
+        codename = config['buildroot']['codename']
+        components = config['buildroot']['components'].split()
+        packages = config['buildroot']['packages'].split()
+        script = config['buildroot']['script']
+        keyring = config['build']['keyring']
+        wanted_mounts = config['buildroot']['mounts'].split()
+        aptcache_dir = config['buildroot']['aptcache_dir']
+        aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
+
+        # Make sure the keyring is created
+        eib.create_keyring(config)
+
+        # Wipe the apt cache directory if it's grown too large.
+        if os.path.exists(aptcache_dir):
+            aptcache_size = eib.disk_usage(aptcache_dir)
+            if aptcache_size >= aptcache_max_size:
+                print('Apt cache directory uses', aptcache_size,
+                      'bytes, removing')
+                shutil.rmtree(aptcache_dir)
+
+        # Mount aptcache_dir over the apt archives directory. Create the
+        # full directory structure first before mounting so that it
+        # remains valid after unmounting the cache directory.
+        os.makedirs(os.path.join(self.builddir,
+                                 'var/cache/apt/archives/partial'),
+                    exist_ok=True)
+        os.makedirs(os.path.join(aptcache_dir, 'partial'), exist_ok=True)
+        self.mount(aptcache_dir, '/var/cache/apt/archives')
+
+        print('Creating buildroot in', self.builddir)
+        subprocess.check_call(['debootstrap',
+                               '--arch=' + arch,
+                               '--keyring=' + keyring,
+                               '--variant=minbase',
+                               '--include=' + ','.join(packages),
+                               '--components=' + ','.join(components),
+                               codename,
+                               self.builddir,
+                               repo,
+                               script])
+
+        # Mount all the desired paths
+        for path in wanted_mounts:
+            self.mount(path)
+
+    def mount(self, path, target=None):
+        """Bind mount path in the build directory"""
+        if not os.path.isabs(path):
+            raise eib.ImageBuildError('Buildroot mount path', path,
+                                      'is not an absolute path')
+
+        # Where it should be mounted
+        if target is None:
+            target = path
+        elif not os.path.isabs(target):
+            raise eib.ImageBuildError('Buildroot mount target', target,
+                                      'is not an absolute path')
+        mount_path = self.builddir + target
+
+        print('Mounting', path, 'at', mount_path)
+        os.makedirs(mount_path, exist_ok=True)
+        subprocess.check_call(['mount', '--bind', path, mount_path])
+        self.mounts.append(mount_path)
+
+    def umount(self, target):
+        """Unmount one path in the build directory"""
+        if not os.path.isabs(target):
+            raise eib.ImageBuildError('Buildroot mount target', target,
+                                      'is not an absolute path')
+        # Prepend the build directory if needed
+        if not target.startswith(self.builddir + '/'):
+            target = self.builddir + target
+        if target not in self.mounts:
+            raise eib.ImageBuildError(target, 'is not mounted in',
+                                      self.builddir)
+        print('Unmounting', target)
+        subprocess.check_call(['umount', target])
+        self.mounts.remove(target)
+
+    def umount_all(self):
+        """Unmount all paths in the build directory"""
+        for mnt in reversed(self.mounts.copy()):
+            print('Unmounting', mnt)
+            subprocess.check_call(['umount', mnt])
+            self.mounts.pop()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc, value, tb):
+        self.umount_all()
+        print('Removing buildroot', self.builddir)
+        shutil.rmtree(self.builddir)
+
 class ImageBuilder(object):
     # Attributes to be exported to environment
     CONFIG_ATTRS = ['product', 'branch', 'arch', 'platform',
                     'personality', 'force', 'dry_run', 'series',
-                    'srcdir', 'datadir', 'helpersdir', 'builddir',
+                    'srcdir', 'datadir', 'helpersdir', 'cachedir',
                     'tmpdir', 'contentdir', 'outrootdir', 'outdir',
-                    'cacherootdir', 'cachedir', 'configdir',
+                    'checkrootdir', 'checkdir', 'configdir',
                     'sysconfdir', 'build_version', 'outversion',
-                    'tmpconfig', 'deb_host_gnu_cpu', 'deb_host_multiarch',
-                    'ssh_options']
+                    'tmpconfig', 'baselib', 'deb_host_gnu_cpu',
+                    'deb_host_multiarch', 'ssh_options', 'keysdir',
+                    'keyring']
     BOOLEAN_ATTRS = ['force', 'dry_run']
 
     # Config options that will be merged together from multiple
     # $prefix_add_* and $prefix_del_* options. This is a list of
     # (section, prefix) tuples.
     CONFIG_MERGE_PREFIXES = [
-        ('cache', 'hooks'),
+        ('buildroot', 'mounts'),
+        ('buildroot', 'packages'),
+        ('check', 'hooks'),
         ('content', 'hooks'),
         ('image', 'hooks'),
         ('image', 'settings'),
@@ -105,7 +216,9 @@ class ImageBuilder(object):
             self.arch = arch
         else:
             machine = os.uname().machine
-            if machine == 'x86_64' or fnmatch.fnmatch(machine, 'i?86'):
+            if machine == 'x86_64':
+                self.arch = 'amd64'
+            elif fnmatch.fnmatch(machine, 'i?86'):
                 self.arch = 'i386'
             elif machine.startswith('arm'):
                 self.arch = 'armhf'
@@ -131,19 +244,24 @@ class ImageBuilder(object):
         self.srcdir = SRCDIR
         self.datadir = '${srcdir}/data'
         self.helpersdir = '${srcdir}/helpers'
+        self.cachedir = eib.CACHEDIR
         self.builddir = eib.BUILDDIR
-        self.tmpdir = '${builddir}/tmp'
-        self.contentdir = '${builddir}/content'
+        self.tmpdir = '${cachedir}/tmp'
+        self.contentdir = '${cachedir}/content'
         self.outrootdir = '${tmpdir}/out'
         self.outdir = '${outrootdir}/${personality}'
-        self.cacherootdir = '${builddir}/cache'
-        self.cachedir = '${cacherootdir}/${product}-${branch}-${arch}-${platform}/${personality}'
+        self.checkrootdir = '${cachedir}/check'
+        self.checkdir = '${checkrootdir}/${product}-${branch}-${arch}-${platform}/${personality}'
         self.configdir = '${srcdir}/config'
         self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
         self.outversion = '${product}-${branch}-${arch}-${platform}.${build_version}.${personality}'
         self.tmpconfig = '${tmpdir}/config.ini'
-        self.ssh_options = '-o StrictHostKeyChecking=no'
+        self.baselib = '${srcdir}/lib/eib.sh'
+        self.ssh_options = \
+            '-i ${sysconfdir}/ssh-key.pem -o StrictHostKeyChecking=no'
+        self.keysdir = '${datadir}/keys'
+        self.keyring = '${tmpdir}/eib-keyring.gpg'
 
         # Pull in dpkg-architecture settings that are needed for the
         # installation of flatpak bundles.
@@ -228,26 +346,6 @@ class ImageBuilder(object):
 
     def set_environment(self):
         """Setup environment variables for stages and hooks"""
-        # Standard builder environment
-        os.environ['EIB_BASELIB'] = os.path.join(SRCDIR, 'lib/eib.sh')
-        os.environ['PATH'] = '%s:%s' %(os.path.join(SRCDIR, 'stages'),
-                                       os.environ['PATH'])
-        pypath = os.path.join(SRCDIR, 'lib')
-        if 'PYTHONPATH' in os.environ:
-            os.environ['PYTHONPATH'] = '%s:%s' %(pypath,
-                                                 os.environ['PYTHONPATH'])
-        else:
-            os.environ['PYTHONPATH'] = pypath
-
-        # Clean language settings
-        os.environ['LANG'] = 'C'
-        for langenv in ['LANGUAGE', 'LC_CTYPE', 'LC_NUMERIC', 'LC_TIME',
-                        'LC_COLLATE', 'LC_MONETARY', 'LC_MESSAGES',
-                        'LC_PAPER', 'LC_NAME', 'LC_ADDRESS', 'LC_TELEPHONE',
-                        'LC_MEASUREMENT', 'LC_IDENTIFICATION', 'LC_ALL']:
-            if langenv in os.environ:
-                del os.environ[langenv]
-
         # Build specific environment attributes.
         for option, value in self.config.items(self.config.defaultsect):
             self.setenv(None, option, value)
@@ -303,6 +401,7 @@ class ImageBuilder(object):
         # Cleanup files from previous build
         print('Recreating build specific temporary directories',
               flush=True)
+        eib.recreate_dir(self.builddir)
         eib.recreate_dir(self.tmpdir)
         eib.recreate_dir(ostree_co_dir)
 
@@ -333,10 +432,16 @@ class ImageBuilder(object):
         print('Output merged configuration file to', self.tmpconfig,
               flush=True)
         self.create_tmp_config()
+        print('Creating temporary GPG keyring', self.keyring)
+        eib.create_keyring(self.config)
 
-        # Run the buildscript
-        print('Running image buildscript', flush=True)
-        subprocess.check_call([os.path.join(self.srcdir, 'buildscript')])
+        # Run the buildscript in a buildroot
+        with ImageBuildRoot(self.builddir, self.config):
+              print('Running image buildscript')
+              chrootscript = os.path.join(self.helpersdir, 'eib-chroot')
+              buildscript = os.path.join(self.srcdir, 'buildscript')
+              subprocess.check_call([chrootscript, self.builddir,
+                                     buildscript])
 
         # Unless this is a dry run, the output files have been published
         # and can be deleted.

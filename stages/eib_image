@@ -6,10 +6,6 @@
 # an image, in preparation for later development where the image will be sized
 # dynamically based on how much data it includes.
 
-# Create a minimal ostree chroot to deploy with. This allows the build
-# to be independent of the host's ostree.
-make_tmp_ostree
-
 mutable_deployment() {
   if [ -n "${OSTREE_DEPLOYMENT}" ]; then
     chattr -i "${OSTREE_DEPLOYMENT}"
@@ -35,22 +31,11 @@ recreate_dir "${EIB_OSTREE_CHECKOUT}"
 REPOPATH=${EIB_OSTREE_CHECKOUT}/ostree/repo
 BOOT=${EIB_OSTREE_CHECKOUT}/boot
 
-# Bind mount the ostree repo and checkout to the same locations in the
-# ostree chroot.
-EIB_OSTREE_CHROOT="${EIB_OSTREE_TMPDIR}${EIB_OSTREE_REPODIR}"
-EIB_OSTREE_CO_CHROOT="${EIB_OSTREE_TMPDIR}${EIB_OSTREE_CHECKOUT}"
-mkdir -p "${EIB_OSTREE_CHROOT}" "${EIB_OSTREE_CO_CHROOT}"
-eib_mount --bind "${EIB_OSTREE_REPODIR}" "${EIB_OSTREE_CHROOT}"
-eib_mount --bind "${EIB_OSTREE_CHECKOUT}" "${EIB_OSTREE_CO_CHROOT}"
-eib_mount -t sysfs sysfs "${EIB_OSTREE_TMPDIR}"/sys
-eib_mount -t proc proc "${EIB_OSTREE_TMPDIR}"/proc
-eib_mount --bind /dev/pts "${EIB_OSTREE_TMPDIR}"/dev/pts
-
-tmp_ostree admin init-fs "${EIB_OSTREE_CHECKOUT}"
-tmp_ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" os-init ${EIB_OSTREE_OS}
-tmp_ostree --repo="${REPOPATH}" remote add ${EIB_OSTREE_OS} ${EIB_OSTREE_URL} \
+ostree admin init-fs "${EIB_OSTREE_CHECKOUT}"
+ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" os-init ${EIB_OSTREE_OS}
+ostree --repo="${REPOPATH}" remote add ${EIB_OSTREE_OS} ${EIB_OSTREE_URL} \
   ${EIB_OSTREE_BRANCH_DEPLOY}
-tmp_ostree --repo="${REPOPATH}" pull-local --disable-fsync \
+ostree --repo="${REPOPATH}" pull-local --disable-fsync \
   --remote=${EIB_OSTREE_OS} ${EIB_OSTREE_REPODIR} ${EIB_OSTREE_BRANCH_DEPLOY}
 
 # Basic bootloader setup
@@ -68,24 +53,21 @@ fi
 
 kargs=(--karg=rw --karg=splash \
     --karg=plymouth.ignore-serial-consoles --karg=quiet)
-tmp_ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" deploy \
+ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" deploy \
   --os=${EIB_OSTREE_OS} "${kargs[@]}" \
   ${EIB_OSTREE_OS}:${EIB_OSTREE_BRANCH_DEPLOY}
 
 # There's no current symlink anymore, so query the deployment status.
 # This will be the second parameter on the first line.
-export OSTREE_CURRENT_DEPLOYMENT=$(tmp_ostree admin \
+export OSTREE_CURRENT_DEPLOYMENT=$(ostree admin \
   --sysroot="${EIB_OSTREE_CHECKOUT}" status | awk '{print $2; exit}')
 export OSTREE_DEPLOYMENT="${EIB_OSTREE_CHECKOUT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
 export OSTREE_VAR="${EIB_OSTREE_CHECKOUT}"/ostree/deploy/${EIB_OSTREE_OS}/var
 
 treeinfo="${EIB_TMPDIR}"/ostree.txt
 echo "Branch ${EIB_OSTREE_BRANCH}" > ${treeinfo}
-tmp_ostree --repo="${EIB_OSTREE_CHECKOUT}"/ostree/repo show \
+ostree --repo="${EIB_OSTREE_CHECKOUT}"/ostree/repo show \
   ${EIB_OSTREE_BRANCH_DEPLOY} >> ${treeinfo}
-
-# All done with the tmp ostree, cleanup the mounts
-eib_umount_all
 
 # Output package list using the dpkg database from the deployment's /var
 dpkgdir="${OSTREE_DEPLOYMENT}"/var/lib/dpkg

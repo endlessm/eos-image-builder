@@ -107,44 +107,6 @@ eib_umount_all() {
   declare -a EIB_MOUNTS
 }
 
-# Provide the path to the keyring file. If it doesn't exist, create it.
-eib_keyring() {
-  local keyring="${EIB_TMPDIR}"/eib-keyring.gpg
-  local keysdir="${EIB_DATADIR}"/keys
-  local -a keys
-  local keyshome key
-
-  # Create the keyring if necessary
-  if [ ! -f "${keyring}" ]; then
-    # Check that there are keys
-    if [ ! -d "${keysdir}" ]; then
-      echo "No gpg keys directory at ${keysdir}" >&2
-      return 1
-    fi
-    keys=("${keysdir}"/*.asc)
-    if [ ${#keys[@]} -eq 0 ]; then
-      echo "No gpg keys in ${keysdir}" >&2
-      return 1
-    fi
-
-    # Create a homedir with proper 0700 perms so gpg doesn't complain
-    keyshome=$(mktemp -d --tmpdir="${EIB_TMPDIR}" eib-keyring.XXXXXXXXXX)
-
-    # Import the keys
-    for key in "${keys[@]}"; do
-      gpg --batch --quiet --homedir "${keyshome}" --keyring "${keyring}" \
-        --no-default-keyring --import "${key}"
-    done
-
-    # Set normal permissions for the keyring since gpg creates it 0600
-    chmod 0644 "${keyring}"
-
-    rm -rf "${keyshome}"
-  fi
-
-  echo "${keyring}"
-}
-
 eib_fix_boot_checksum() {
   local disk=${1:?No disk supplied to ${FUNCNAME}}
   local deploy=${2:?No deployment supplied to ${FUNCNAME}}
@@ -264,65 +226,29 @@ sign_file() {
   local file=${1:?No file supplied to ${FUNCNAME}}
   local outfile=${2:-${file}.asc}
 
-  gpg --homedir=${EIB_SYSCONFDIR}/gnupg \
-      --armour \
-      --sign-with ${EIB_IMAGE_SIGNING_KEYID} \
-      --detach-sign \
-      --output "${outfile}" \
-      "${file}"
-}
-
-# Make a minimal chroot with the EOS ostree to use during the build.
-make_tmp_ostree() {
-  local packages=ostree
-  local keyring
-
-  # Since the chroot is made in the temporary directory, we can assume
-  # that if the ostree tmpdir is there, it's setup correctly.
-  if [ -d "${EIB_OSTREE_TMPDIR}" ]; then
-    return 0
+  if [ -n "${EIB_IMAGE_SIGNING_KEYID}" ]; then
+    gpg --homedir=${EIB_SYSCONFDIR}/gnupg \
+        --armour \
+        --sign-with ${EIB_IMAGE_SIGNING_KEYID} \
+        --detach-sign \
+        --output "${outfile}" \
+        "${file}"
   fi
-
-  # Include the keyring package to verify pulled commits.
-  packages+=",eos-keyring"
-
-  # Include ca-certificates to silence nagging from libsoup even though
-  # we don't currently use https for ostree serving.
-  packages+=",ca-certificates"
-
-  # FIXME: Shouldn't need to specify pinentry-curses here, but
-  # debootstrap can't deal with the optional dependency on
-  # pinentry-gtk2 | pinentry-curses | pinentry correctly.
-  packages+=",pinentry-curses"
-
-  mkdir -p "${EIB_OSTREE_TMPDIR}"
-  keyring=$(eib_keyring)
-  debootstrap --arch=${EIB_ARCH} --keyring="${keyring}" \
-    --variant=minbase --include="${packages}" \
-    --components="${EIB_OSTREE_PKGCOMPONENTS}" ${EIB_BRANCH} \
-    "${EIB_OSTREE_TMPDIR}" "${EIB_OSTREE_PKGREPO}" \
-    "${EIB_DATADIR}"/debootstrap.script
-}
-
-# Run the temporary ostree within the chroot.
-tmp_ostree() {
-  chroot "${EIB_OSTREE_TMPDIR}" ostree "$@"
 }
 
 # Emulate the old ostree write-refs builtin where a local ref is forced
 # to the commit of another ref.
-tmp_ostree_write_refs() {
+ostree_write_refs() {
   local repo=${1:?No ostree repo supplied to ${FUNCNAME}}
   local src=${2:?No ostree source ref supplied to ${FUNCNAME}}
   local dest=${3:?No ostree dest ref supplied to ${FUNCNAME}}
   local destdir=${dest%/*}
 
   # Create the needed directory for the dest ref.
-  chroot "${EIB_OSTREE_TMPDIR}" mkdir -p "${repo}/refs/heads/${destdir}"
+  mkdir -p "${repo}/refs/heads/${destdir}"
 
   # Copy the source ref file to the dest ref.
-  chroot "${EIB_OSTREE_TMPDIR}" cp -f "${repo}/refs/heads/${src}" \
-    "${repo}/refs/heads/${dest}"
+  cp -f "${repo}/refs/heads/${src}" "${repo}/refs/heads/${dest}"
 }
 
 jenkins_crumb() {

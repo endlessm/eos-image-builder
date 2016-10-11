@@ -71,6 +71,10 @@ aparser = ArgumentParser(description='Build and publish images for Endless')
 eib.add_cli_options(aparser)
 args = aparser.parse_args()
 
+# Shortcut to show the configuration without taking the lock.
+if args.show_config:
+    exit(subprocess.call(['./run-build'] + sys.argv[1:]))
+
 # Open the lock file a+ so it can be RW without truncating, but seek to
 # the beginning to either read or write the whole file.
 os.makedirs(os.path.dirname(eib.LOCKFILE), exist_ok=True)
@@ -86,20 +90,19 @@ with open(eib.LOCKFILE, 'a+') as lf:
 
     # Setup the real builder to run
     os.chdir(MYDIR)
-    if not args.no_checkout:
+
+    # If requested or running on jenkins, make a copy of this repo so
+    # the code doesn't change while the builder is running.
+    if args.checkout or 'JENKINS_HOME' in os.environ:
         # Make a copy of the repo to use. A real git repo is needed
         # since the build later queries the current commit.
-        srcdir = os.path.join(eib.BUILDDIR, 'src')
+        srcdir = os.path.join(eib.CACHEDIR, 'src')
         shutil.rmtree(srcdir, ignore_errors=True)
-        os.makedirs(eib.BUILDDIR, exist_ok=True)
+        os.makedirs(eib.CACHEDIR, exist_ok=True)
         shutil.copytree(MYDIR, srcdir, symlinks=True)
         os.chdir(srcdir)
 
-        # Fetch the current code before launching the actual build.
-        # Assume that if the job is running from jenkins that it has
-        # already fetched the latest.
-        if 'JENKINS_HOME' not in os.environ:
-            subprocess.check_call(['git', 'fetch', 'origin'])
+        # Checkout the appropriate branch
         subprocess.check_call(['git', 'checkout', 'origin/' + args.branch])
         subprocess.check_call(['git', 'clean', '-xdf'])
 

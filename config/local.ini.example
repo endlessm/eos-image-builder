@@ -1,0 +1,72 @@
+# Example local configuration. When installed as local.ini, it can be
+# used to override any other settings for the configured image variant.
+# This is primarily useful when testing changes to the image builder or
+# producing a one time custom image.
+#
+# Below are some settings that are typically useful in this case, but
+# all options are available to be changed. See defaults.ini for
+# descriptions of the options.
+
+[image]
+# Skip GPG signing of the completed image files since the default key ID
+# isn't available. Alternatively, the key ID for any private key in the
+# GPG homedir at /etc/eos-image-builder/gnupg.
+signing_keyid =
+
+# Downloading the sample media requires SSH access to the
+# content-storage.endlessm-sf.com server inside the VPN. Skip that since
+# it's only needed on production images.
+sample_media = false
+
+# Most products don't generate split images, but it can be useful to do
+# that locally for testing since the codepaths there are fragile.
+#split = true
+
+[ostree]
+# Normally the ostree commits are fetched from the internal ostree
+# server in the endlessm-sf.com domain for speed. However, testing
+# outside of the SF office is likely to be faster (and not require VPN)
+# by using the public dev repo.
+#int_url = https://endless:***REMOVED***@origin.ostree.endlessm.com/staging/dev/${repo}
+
+[flatpak]
+# Like ostree commits, flatpak apps and runtimes are fetched from the
+# internal ostree server. When outside SF office, it may bet better to
+# use the public dev repos.
+#apps_server = https://endless:***REMOVED***@origin.ostree.endlessm.com/staging/dev/${apps_repo}
+#runtimes_server = https://endless:***REMOVED***@origin.ostree.endlessm.com/staging/dev/${runtimes_repo}
+
+# Completely override the set of installed apps for testing. This will
+# take precedence over all other image variant configuration. This can
+# be useful if the exact app set is known or if the build is for testing
+# and the full multi-gigabyte app set is not needed.
+install = com.endlessm.EknServices
+          com.endlessm.photos
+          org.gnome.Gnote
+
+# Alternatively, a set of apps can be added or deleted from the existing
+# configuration by using the _add_/_del_ merged settings. The above
+# install option would need to be commented out for these to take
+# effect.
+#install_add_local = org.my.App
+#install_del_local = org.gnome.Gnote
+
+# Testing for apps to be removed when creating the split disk. As with
+# the install option, this overrides all settings but could use the
+# _add_/_del_ merged options.
+nosplit = com.endlessm.photos
+
+[content]
+# The gnome-software-data git repo is not publicly accessible, so an SSH
+# key is required to clone the repo. Alternatively, an SSH private key
+# with access to the git@github.com/endlessm/gnome-software-data.git
+# repo can be installed at /etc/eos-image-builder/ssh-key.pem and this
+# setting can be commented out.
+hooks_del_local = 50-gnome-software-cache
+
+[buildroot]
+# The buildroot is generated using packages on the internal OBS repos,
+# which requires VPN access. This is not implemented yet, but running
+# builds outside the SF office would be better to use a public package
+# mirror.
+#repo = http://non-existent-mirror.endlessm.com/eos
