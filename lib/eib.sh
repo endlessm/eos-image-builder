@@ -262,7 +262,7 @@ jenkins_crumb() {
 eib_compress_image() {
   case "${EIB_IMAGE_COMPRESSION}" in
     xz)
-      xz -T0 -c "${1}" > "${2}"
+      xz -T0 -4 -c "${1}" > "${2}"
       ;;
     gz)
       pigz --no-name -c "${1}" > "${2}"
