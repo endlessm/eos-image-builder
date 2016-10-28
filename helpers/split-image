@@ -165,10 +165,6 @@ split_image() {
   # resembles the booted system.
   eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 
-  # Bind mount the root over deployment's /sysroot, so the ostree repo
-  # is available for split hooks
-  eib_mount --bind "${ROOT}" "${OSTREE_DEPLOYMENT}"/sysroot
-
   # Create disk2 image file with 1 partition for our "16 GB" SD card.
   # The actual size might vary and we want to be a little connservative,
   # so use 98% of 16 GB, which is 15680000000 bytes.
@@ -199,6 +195,10 @@ split_image() {
   eib_mount -t proc proc "${OSTREE_DEPLOYMENT}"/proc
   eib_mount --bind /dev "${OSTREE_DEPLOYMENT}"/dev
   eib_mount --bind /dev/pts "${OSTREE_DEPLOYMENT}"/dev/pts
+
+  # Bind mount the root over deployment's /sysroot, so the ostree repo
+  # is available for split hooks
+  eib_mount --bind "${ROOT}" "${OSTREE_DEPLOYMENT}"/sysroot
 
   run_hooks split "${OSTREE_DEPLOYMENT}"
 
