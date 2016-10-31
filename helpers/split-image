@@ -88,7 +88,12 @@ shrink_disk1_image() {
   echo "${orig_partitions}" | sed \
 	-e '/^last-lba:/d' \
 	-e "$ s/size=[0-9\t ]*,/size=${root_part_len},/" |
-	sfdisk --force --label gpt "${disk1_img}"
+	sfdisk --force "${disk1_img}"
+
+  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]  && [ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]; then
+      # Add magic marker on 4th partition to signal resizing is wanted
+      printf "\xdd" | dd of=${disk1_img} bs=1 count=1 seek=498 conv=notrunc
+  fi
 }
 
 # Shrink the disk2 image after migration to extra storage.
@@ -132,7 +137,13 @@ shrink_disk2_image() {
   echo "${orig_partitions}" | sed \
 	-e '/^last-lba:/d' \
 	-e "$ s/size=[0-9\t ]*,/size=${extra_part_len},/" |
-	sfdisk --force --label gpt "${disk2_img}"
+	sfdisk --force "${disk2_img}"
+
+  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ] && [ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]; then
+      # Add magic marker on 4th partition to signal resizing is wanted
+      printf "\xdd" | dd of=${disk2_img} bs=1 count=1 seek=498 conv=notrunc
+  fi
+
 }
 
 split_image() {
@@ -177,8 +188,20 @@ split_image() {
   local disk2_img_size=$(python -c "print int(${disk2_size} * 0.98)")
   truncate -s ${disk2_img_size} "${disk2_img}"
 
+  pt_label=${EIB_IMAGE_PARTITION_TABLE}
+  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
+    part_type="83"
+  else
+    part_type="0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+  fi
+
   # Attr 55 indicates that the partition should be resized later.
-  echo "start=2048, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, attrs=GUID:55" | sfdisk --force --label gpt "${disk2_img}"
+  echo "start=2048, type=${part_type}, attrs=GUID:55" | sfdisk --force --label "${pt_label}" "${disk2_img}"
+
+  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
+      # Add magic marker on 4th partition to signal resizing is wanted
+      printf "\xdd" | dd of=${disk2_img} bs=1 count=1 seek=498 conv=notrunc
+  fi
 
   # Split files from the root filesystem into extra. Let the hooks know
   # where the extra filesystem is mounted.
