@@ -364,27 +364,36 @@ class ImageBuilder(object):
             # info
             print('Cleaning up mounts in', self.builddir, flush=True)
             realdir = os.path.realpath(self.builddir)
-            mounts = []
-            with open('/proc/mounts') as mountf:
-                for line in mountf:
-                    mountdir = line.split()[1]
-                    # Search for all mounts that begin with $builddir/.
-                    # The trailing / is added for 2 reasons.
-                    #
-                    # 1. It makes sure that $builddir itself is not
-                    # matched. If someone has mounted the build
-                    # directory itself, that was probably done
-                    # intentionally and wasn't done by the builder.
-                    #
-                    # 2. It ensures that only paths below $builddir are
-                    # matched and not $builddir-backup or anything else
-                    # that begins with the same characters.
-                    if mountdir.startswith(realdir + '/'):
-                        # Prepend to the list so submounts are at the
-                        # beginning of the list
-                        mounts.insert(0, mountdir)
 
-            for path in mounts:
+            # Re-read the mount table after every unmount in case there
+            # are aliased mounts
+            while True:
+                path = None
+                with open('/proc/mounts') as mountf:
+                    # Read the mounts backwards to unmount submounts
+                    # first
+                    for line in reversed(mountf.readlines()):
+                        mountdir = line.split()[1]
+                        # Search for mounts that begin with $builddir/.
+                        # The trailing / is added for 2 reasons.
+                        #
+                        # 1. It makes sure that $builddir itself is not
+                        # matched. If someone has mounted the build
+                        # directory itself, that was probably done
+                        # intentionally and wasn't done by the builder.
+                        #
+                        # 2. It ensures that only paths below $builddir
+                        # are matched and not $builddir-backup or
+                        # anything else that begins with the same
+                        # characters.
+                        if mountdir.startswith(realdir + '/'):
+                            path = mountdir
+                            break
+
+                if path is None:
+                    # No more paths to unmount
+                    break
+
                 print('Unmounting', path, flush=True)
                 subprocess.check_call(['umount', path])
 
