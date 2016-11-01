@@ -44,14 +44,14 @@ run_hooks() {
       echo "Run hook in chroot: ${hook}"
       [ -x "${hookpath}" ] && interpreter= || interpreter="bash -ex"
       mkdir -p $install_root/tmp
-      cp ${hookpath} $install_root/tmp/hook
-      chroot $install_root $interpreter /tmp/hook
-      rm -f $install_root/tmp/hook
+      cp ${hookpath} $install_root/tmp/${hook}
+      chroot $install_root $interpreter /tmp/${hook}
+      rm -f $install_root/tmp/${hook}
       continue
     fi
 
     echo "Run hook: ${hook}"
-      
+
     if [ -x "${hookpath}" ]; then
       ${hookpath}
     else
