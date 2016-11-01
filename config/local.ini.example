@@ -22,6 +22,9 @@ sample_media = false
 # that locally for testing since the codepaths there are fragile.
 #split = true
 
+# See documentation for the corresponding entry in [content] below.
+hooks_del_local = 50-gnome-software-cache
+
 [ostree]
 # Normally the ostree commits are fetched from the internal ostree
 # server in the endlessm-sf.com domain for speed. However, testing
