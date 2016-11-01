@@ -4,6 +4,7 @@
 
 # Use a normal bare repo to speed up later deployment
 if [ ! -f "${EIB_OSTREE_REPODIR}"/config ]; then
+  mkdir -p "${EIB_OSTREE_REPODIR}"
   ostree --repo="${EIB_OSTREE_REPODIR}" init
 fi
 
