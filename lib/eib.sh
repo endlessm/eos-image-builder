@@ -44,14 +44,14 @@ run_hooks() {
       echo "Run hook in chroot: ${hook}"
       [ -x "${hookpath}" ] && interpreter= || interpreter="bash -ex"
       mkdir -p $install_root/tmp
-      cp ${hookpath} $install_root/tmp/hook
-      chroot $install_root $interpreter /tmp/hook
-      rm -f $install_root/tmp/hook
+      cp ${hookpath} $install_root/tmp/${hook}
+      chroot $install_root $interpreter /tmp/${hook}
+      rm -f $install_root/tmp/${hook}
       continue
     fi
 
     echo "Run hook: ${hook}"
-      
+
     if [ -x "${hookpath}" ]; then
       ${hookpath}
     else
@@ -174,28 +174,33 @@ eib_fail_publishing() {
   fi
 }
 
+# Work around transient failures
+eib_retry() {
+  local subcommand=${1?:No subcommand supplied to ${FUNCNAME}}
+  local i=0
+  local max_retries=10
+
+  while ! "$@" && (( ++i < max_retries )) ; do
+    echo "$@ failed; retrying..."
+    sleep 1
+  done
+
+  if (( i >= max_retries )); then
+    echo "$@ failed ${max_retries} times; giving up"
+    exit 1
+  fi
+}
+
 # Try to work around a race where partx sometimes reports EBUSY failure
 eib_partx_scan() {
   udevadm settle
-  local i=0
-  while ! partx -a -v "$1"; do
-	(( ++i ))
-	[ $i -ge 10 ] && break
-    echo "partx scan $1 failed, retrying..."
-    sleep 1
-  done
+  eib_retry partx -a -v "$1"
 }
 
 # Work around a race where loop deletion sometimes fails with EBUSY
 eib_delete_loop() {
   udevadm settle
-  local i=0
-  while ! losetup -d "$1"; do
-	(( ++i ))
-	[ $i -ge 10 ] && break
-    echo "losetup remove $1 failed, retrying..."
-    sleep 1
-  done
+  eib_retry losetup -d "$1"
 }
 
 recreate_dir() {

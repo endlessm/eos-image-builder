@@ -4,6 +4,7 @@
 
 # Use a normal bare repo to speed up later deployment
 if [ ! -f "${EIB_OSTREE_REPODIR}"/config ]; then
+  mkdir -p "${EIB_OSTREE_REPODIR}"
   ostree --repo="${EIB_OSTREE_REPODIR}" init
 fi
 
@@ -18,7 +19,7 @@ ostree --repo="${EIB_OSTREE_REPODIR}" remote delete --if-exists \
   ${EIB_OSTREE_OS}
 ostree --repo="${EIB_OSTREE_REPODIR}" remote add ${EIB_OSTREE_OS} \
   ${EIB_OSTREE_INT_URL} ${EIB_OSTREE_BRANCH}
-ostree --repo="${EIB_OSTREE_REPODIR}" pull --mirror ${EIB_OSTREE_OS} \
+eib_retry ostree --repo="${EIB_OSTREE_REPODIR}" pull --mirror ${EIB_OSTREE_OS} \
   ${EIB_OSTREE_BRANCH}
 
 # Update the major version branch if necessary. This will be used in the
