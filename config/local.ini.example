@@ -25,6 +25,12 @@ sample_media = false
 # See documentation for the corresponding entry in [content] below.
 hooks_del_local = 50-gnome-software-cache
 
+# Some products are compressed with xz, trading the one-time cost of
+# substantially slower image builds for substantially smaller image
+# files. When testing locally, you probably don't care how big the image
+# file is, but you'd probably like it to build quickly.
+compression = gz
+
 [ostree]
 # Normally the ostree commits are fetched from the internal ostree
 # server in the endlessm-sf.com domain for speed. However, testing
