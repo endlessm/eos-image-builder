@@ -89,7 +89,6 @@ create_image() {
   rm -f "${img}"
   truncate -s ${img_size} "${img}"
 
-  # Partition table
   (
     # Empty space up to 1mb (for GPT, and for uboot on ARM)
     echo -n "start=2048, "
@@ -103,31 +102,45 @@ create_image() {
         ;;
     esac
 
-    # Partition Type GUIDs
-    # https://www.freedesktop.org/wiki/Specifications/DiscoverablePartitionsSpec/
-    case "${EIB_ARCH}" in
-      i386|amd64)
-        # Root Partition (x86-64)
-        pt_guid="4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
-        ;;
-      armhf)
-        # Root Partition (32-bit ARM)
-        pt_guid="69DAD710-2CE4-4E3C-B16C-21A1D49ABED3"
-        ;;
-      *)
-        echo "Unrecognized architecture ${EIB_ARCH}" >&2
-        return 1
-        ;;
-    esac
+    if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
+      pt_label="dos"
+      part_type="83"
+    else
+      pt_label="gpt"
+
+      # Partition Type GUIDs
+      # https://www.freedesktop.org/wiki/Specifications/DiscoverablePartitionsSpec/
+      case "${EIB_ARCH}" in
+        i386|amd64)
+          # Root Partition (x86-64)
+          part_type="4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
+          ;;
+        armhf)
+          # Root Partition (32-bit ARM)
+          part_type="69DAD710-2CE4-4E3C-B16C-21A1D49ABED3"
+          ;;
+        *)
+          echo "Unrecognized architecture ${EIB_ARCH}" >&2
+          return 1
+          ;;
+      esac
+    fi
 
     if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
       # Remaining space is root fs, with special the special 55 attr as a
       # marker indicating the partition should be resized later
-      echo "type=${pt_guid}, attrs=GUID:55"
+      # attrs=... is unused for DOS partition table so it's safe to leave it here
+      echo "type=${part_type}, attrs=GUID:55"
     else
-      echo "type=${pt_guid}"
+      echo "type=${part_type}"
     fi
-  ) | sfdisk --force --label gpt "${img}"
+  ) | sfdisk --force --label "${pt_label}" "${img}"
+
+  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ] && [ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]; then
+    # With the latest 'sfdisk' we are not allowed anymore to create a 0B partition
+    # Bypass this limitation directly hacking into the MBR to set the marker
+    printf "\xdd" | dd of=${img} bs=1 count=1 seek=498 conv=notrunc
+  fi
 
   img_loop=$(losetup -f --show "${img}")
   eib_partx_scan "${img_loop}"
