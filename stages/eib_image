@@ -103,11 +103,8 @@ create_image() {
     esac
 
     if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
-      pt_label="dos"
       part_type="83"
     else
-      pt_label="gpt"
-
       # Partition Type GUIDs
       # https://www.freedesktop.org/wiki/Specifications/DiscoverablePartitionsSpec/
       case "${EIB_ARCH}" in
@@ -134,7 +131,7 @@ create_image() {
     else
       echo "type=${part_type}"
     fi
-  ) | sfdisk --force --label "${pt_label}" "${img}"
+  ) | sfdisk --force --label "${EIB_IMAGE_PARTITION_TABLE}" "${img}"
 
   if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ] && [ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]; then
     # With the latest 'sfdisk' we are not allowed anymore to create a 0B partition
