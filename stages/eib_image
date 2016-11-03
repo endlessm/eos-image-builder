@@ -204,6 +204,11 @@ create_image() {
           dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=1 count=442
           dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=17408 skip=1 seek=1
           ;;
+        s905x)
+          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/s905x
+          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin.padded of=${img} bs=1 count=442
+          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin.padded of=${img} bs=512 skip=1 seek=1
+          ;;
         *)
           echo "Unrecognized armhf platform ${EIB_ARCH}" >&2
           return 1
