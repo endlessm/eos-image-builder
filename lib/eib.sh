@@ -176,7 +176,7 @@ eib_fail_publishing() {
 
 # Work around transient failures
 eib_retry() {
-  local subcommand=${1?:No subcommand supplied to ${FUNCNAME}}
+  local subcommand=${1:?No subcommand supplied to ${FUNCNAME}}
   local i=0
   local max_retries=10
 
