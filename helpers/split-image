@@ -78,6 +78,13 @@ shrink_disk1_image() {
   # because it has lost the GPT backup.
   local orig_partitions=$(sfdisk -d "${disk1_img}")
 
+  # We need to avoid presenting the 0B marker partition to the next 'sfdisk'
+  # call since the latest version doesn't recognize this as a valid partition.
+  # We will recreate it again after the resize.
+  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]  && [ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]; then
+	  orig_partitions=$(echo "$orig_partitions" | sed -e '$d')
+  fi
+
   # Resize the image file first, to try to later catch errors in the partition
   # setup.
   truncate -s ${new_disk1_img_size} "${disk1_img}"
@@ -193,11 +200,6 @@ split_image() {
 
   # Attr 55 indicates that the partition should be resized later.
   echo "start=2048, type=${part_type}, attrs=GUID:55" | sfdisk --force --label "${pt_label}" "${disk2_img}"
-
-  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
-      # Add magic marker on 4th partition to signal resizing is wanted
-      printf "\xdd" | dd of=${disk2_img} bs=1 count=1 seek=498 conv=notrunc
-  fi
 
   # Split files from the root filesystem into extra. Let the hooks know
   # where the extra filesystem is mounted.
