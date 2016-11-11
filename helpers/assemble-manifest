@@ -1,0 +1,34 @@
+#!/usr/bin/python3
+
+# Assemble all the json fragments in the manifest directory and write
+# out a merged json file.
+
+import json
+import os
+import sys
+
+def dict_merge(target, source):
+    """Deep merge of dictionaries
+
+    See http://blog.impressiver.com/post/31434674390/deep-merge-multiple-python-dicts
+    """
+    for key, value in source.items():
+        if key in target and isinstance(target[key], dict):
+            dict_merge(target[key], value)
+        else:
+            target[key] = value
+
+manifest_dir = os.environ['EIB_MANIFESTDIR']
+merged_data = {}
+for root, dirs, files in os.walk(manifest_dir):
+    # Sort in case deterministic json fragment order is needed
+    dirs.sort()
+    for f in sorted(files):
+        json_path = os.path.join(root, f)
+        print('Merging', json_path, file=sys.stderr)
+        with open(json_path) as json_file:
+            json_data = json.load(json_file)
+
+        dict_merge(merged_data, json_data)
+
+print(json.dumps(merged_data, sort_keys=True))

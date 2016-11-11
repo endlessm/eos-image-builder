@@ -41,4 +41,5 @@ fi
 # Real build stages
 eib_ostree
 eib_image
+eib_manifest
 eib_publish
