@@ -1,0 +1,53 @@
+#!/usr/bin/python3
+
+# Populate manifest information about ostree.
+
+from datetime import datetime, timezone
+from gi import require_version
+require_version('OSTree', '1.0')
+from gi.repository import Gio, OSTree
+import json
+import os
+import sys
+
+def commit_date_string(repo, checksum):
+    """Get a formatted timestamp of the commit at checksum"""
+    _, commit, _ = repo.load_commit(checksum)
+    if sys.byteorder != 'big':
+        # The commit variant is stored big endian
+        commit = commit.byteswap()
+    timestamp = commit[5]
+    time = datetime.fromtimestamp(timestamp, timezone.utc)
+    return time.strftime('%Y-%m-%dT%H:%M:%S%z')
+
+repo_path = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
+                         'ostree/repo')
+repo_file = Gio.File.new_for_path(repo_path)
+print('Opening ostree repository in', repo_path)
+repo = OSTree.Repo.new(repo_file)
+repo.open()
+
+# Build the json data
+remote = os.environ['EIB_OSTREE_REMOTE']
+ref = os.environ['EIB_OSTREE_BRANCH_DEPLOY']
+data = {
+    'ostree': {
+        'remote': remote,
+        'ref': ref,
+        'url': os.environ['EIB_OSTREE_URL'],
+        'os': os.environ['EIB_OSTREE_OS'],
+    }
+}
+
+# Get the commit and date
+_, commit = repo.resolve_rev('%s:%s' %(remote, ref), allow_noent=False)
+date = commit_date_string(repo, commit)
+data['ostree']['commit'] = commit
+data['ostree']['date'] = date
+
+# Now write out the json to a fragment
+manifestdir = os.environ['EIB_MANIFESTDIR']
+manifest_path = os.path.join(manifestdir, 'ostree.json')
+print('Writing ostree manifest info to', manifest_path)
+with open(manifest_path, 'w') as manifest:
+    json.dump(data, manifest)
