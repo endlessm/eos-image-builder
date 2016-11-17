@@ -186,6 +186,13 @@ create_image() {
   rm -rf "${EIB_OSTREE_CHECKOUT}"
   unset OSTREE_DEPLOYMENT OSTREE_VAR
 
+  # Begin the images manifest frament
+  img_manifest="${EIB_MANIFESTDIR}"/images
+  cat > "${img_manifest}" <<EOF
+{
+  "images": {
+EOF
+
   # Install bootloader
   case "${EIB_ARCH}" in
     armhf)
@@ -329,6 +336,19 @@ create_image() {
         (cd "${boot_zip_dir}" && zip "${boot_zip}" -r *)
         rm -r "${boot_zip_dir}"
         sign_file "${boot_zip}" &
+
+        # Generate manifest information
+        local boot_zip_name=$(basename "${boot_zip}")
+        local boot_zip_size=$(stat -c "%s" "${boot_zip}")
+        local boot_zip_signature="${boot_zip_name}.asc"
+        cat >> "${img_manifest}" <<EOF
+    "boot": {
+      "file": "${boot_zip_name}",
+      "compressed_size": ${boot_zip_size},
+      "compression_type": "zip",
+      "signature": "${boot_zip_signature}"
+    },
+EOF
       fi
       ;;
     *)
@@ -350,7 +370,8 @@ create_image() {
   sign_file "${img}" "$(eib_outfile img.asc)" &
 
   # Publish uncompressed file size.
-  stat -c "%s" "${img}" > "${outfile}.size"
+  local img_extracted_size=$(stat -c "%s" "${img}")
+  echo "${img_extracted_size}" > "${outfile}.size"
 
   # Compress image file.
   eib_compress_image "${img}" "${outfile}"
@@ -371,6 +392,22 @@ create_image() {
   # Await sign_file subprocesses
   wait
   rm -f "${img}"
+
+  # Finish image manifest info
+  local img_name=$(basename "${outfile}")
+  local img_compressed_size=$(stat -c "%s" "${outfile}")
+  local img_signature="${img_name}.asc"
+  cat >> "${img_manifest}" <<EOF
+    "full": {
+      "file": "${img_name}",
+      "extracted_size": ${img_extracted_size},
+      "compressed_size": ${img_compressed_size},
+      "compression_type": "${EIB_IMAGE_COMPRESSION}",
+      "signature": "${img_signature}"
+    }
+  }
+}
+EOF
 }
 
 echo "Create image for personality ${EIB_PERSONALITY}"
