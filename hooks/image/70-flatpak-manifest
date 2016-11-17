@@ -1,0 +1,141 @@
+#!/usr/bin/python3
+
+# Populate manifest information about flatpak runtimes and
+# apps.
+
+from datetime import datetime, timezone
+from gi import require_version
+require_version('Flatpak', '1.0')
+require_version('OSTree', '1.0')
+from gi.repository import Flatpak, Gio, OSTree
+import json
+import os
+import shutil
+import sys
+
+def commit_date_string(repo, checksum):
+    """Get a formatted timestamp of the commit at checksum"""
+    _, commit, _ = repo.load_commit(checksum)
+    if sys.byteorder != 'big':
+        # The commit variant is stored big endian
+        commit = commit.byteswap()
+    timestamp = commit[5]
+    time = datetime.fromtimestamp(timestamp, timezone.utc)
+    return time.strftime('%Y-%m-%dT%H:%M:%S%z')
+
+# Are we running image or split hook phase?
+hook_group = os.environ['EIB_HOOK_GROUP']
+
+# Open the flatpak installation in the OS /var
+if hook_group == 'image':
+    # Normally this would be $OSTREE_VAR/lib/flatpak, but we use a
+    # couple symlinks so it can be shared with the ostree repository.
+    # Unfortunately, the symlinks are broken outside the chroot, so
+    # create a temporary directory with symlinks that will resolve
+    # correctly.
+    flatpak_dir = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
+                               'flatpak')
+    ostree_repo = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
+                               'ostree/repo')
+    system_path = os.path.join(os.environ['EIB_TMPDIR'], 'flatpak')
+    shutil.rmtree(system_path, ignore_errors=True)
+    os.makedirs(system_path)
+    for entry in os.listdir(flatpak_dir):
+        if entry != 'repo':
+            os.symlink(os.path.join(flatpak_dir, entry),
+                       os.path.join(system_path, entry))
+    os.symlink(ostree_repo, os.path.join(system_path, 'repo'))
+else:
+    system_path = os.path.join(os.environ['OSTREE_VAR'],
+                               'endless-extra/flatpak')
+print('Opening flatpak installation in', system_path)
+system_file = Gio.File.new_for_path(system_path)
+system = Flatpak.Installation.new_for_path(system_file, user=False)
+
+repo_file = system_file.get_child('repo')
+print('Opening ostree repo in', repo_file.get_path())
+repo = OSTree.Repo.new(repo_file)
+repo.open()
+
+# Build the json data
+data = {
+    'flatpak': {
+        'remotes': {},
+        'runtimes': {},
+        'apps': {},
+        'split-apps': {},
+    }
+}
+
+# Remotes and runtimes are indepenent of split/full, so only record them
+# during the full pass.
+if hook_group == 'image':
+    remotes = system.list_remotes()
+    for remote in remotes:
+        name = remote.get_name()
+        url = remote.get_url()
+
+        # Skip disabled remotes
+        if remote.get_disabled():
+            continue
+
+        # Skip local remotes (e.g., external apps)
+        if url.startswith('file://'):
+            continue
+
+        data['flatpak']['remotes'][name] = url
+
+    runtimes = system.list_installed_refs_by_kind(Flatpak.RefKind.RUNTIME)
+    for runtime in runtimes:
+        name = runtime.get_name()
+        arch = runtime.get_arch()
+        branch = runtime.get_branch()
+        remote = runtime.get_origin()
+        commit = runtime.get_commit()
+        size = runtime.get_installed_size()
+        ref = runtime.format_ref()
+        date = commit_date_string(repo, commit)
+        data['flatpak']['runtimes'][name] = {
+            'arch': arch,
+            'branch': branch,
+            'remote': remote,
+            'commit': commit,
+            'size': size,
+            'ref': ref,
+            'date': date,
+        }
+
+apps = system.list_installed_refs_by_kind(Flatpak.RefKind.APP)
+for app in apps:
+    name = app.get_name()
+    arch = app.get_arch()
+    branch = app.get_branch()
+    remote = app.get_origin()
+    commit = app.get_commit()
+    size = app.get_installed_size()
+    ref = app.format_ref()
+    date = commit_date_string(repo, commit)
+
+    # Use a separate section for full and split apps.
+    if hook_group == 'image':
+        section = 'apps'
+    else:
+        section = 'split-apps'
+    data['flatpak'][section][name] = {
+        'arch': arch,
+        'branch': branch,
+        'remote': remote,
+        'commit': commit,
+        'size': size,
+        'ref': ref,
+        'date': date,
+    }
+
+# Now write out the json to a fragment. Use a different file name for
+# full/split so the full isn't overwritten by the split.
+manifestdir = os.environ['EIB_MANIFESTDIR']
+manifest_path = os.path.join(manifestdir,
+                             '{}-flatpak.json'.format(hook_group))
+print('Writing flatpak manifest info to', manifest_path)
+with open(manifest_path, 'w') as manifest:
+    json.dump(data, manifest)
