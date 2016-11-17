@@ -166,6 +166,7 @@ class ImageBuilder(object):
         ('image', 'settings_locks'),
         ('split', 'hooks'),
         ('flatpak', 'install'),
+        ('flatpak', 'install_gnome'),
         ('flatpak', 'nosplit'),
         ('publish', 'hooks'),
         ('error', 'hooks'),
