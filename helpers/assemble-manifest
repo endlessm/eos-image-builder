@@ -11,12 +11,34 @@ def dict_merge(target, source):
     """Deep merge of dictionaries
 
     See http://blog.impressiver.com/post/31434674390/deep-merge-multiple-python-dicts
+
+    >>> dict_merge({}, {}) == {}
+    True
+    >>> dict_merge({'a': {'c': 1}},
+    ...            {'a': {'d': 2}},
+    ...           ) == {'a': {'c': 1, 'd': 2}}
+    True
+    >>> dict_merge({'a': {'b': 1}},
+    ...            {'a': {'b': 2}})
+    {'a': {'b': 2}}
+    >>> dict_merge({'a': 'not a dict'},
+    ...            {'a': {'b': 2}})
+    {'a': {'b': 2}}
+    >>> dict_merge({'a': {'b': 2}},
+    ...            {'a': 'not a dict'})
+    Traceback (most recent call last):
+        ...
+    TypeError: ('a', 'is not a dict in source:', 'not a dict')
     """
     for key, value in source.items():
         if key in target and isinstance(target[key], dict):
+            if not isinstance(value, dict):
+                raise TypeError(key, 'is not a dict in source:', value)
             dict_merge(target[key], value)
         else:
             target[key] = value
+
+    return target
 
 manifest_dir = os.environ['EIB_MANIFESTDIR']
 merged_data = {}
