@@ -1,0 +1,25 @@
+#!/bin/bash -ex
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
+. "${EIB_BASELIB}"
+
+mkdir -p "${EIB_MANIFESTDIR}"
+
+# Add basic image info to the manifest
+builder_commit=$(git rev-parse HEAD)
+cat > "${EIB_MANIFESTDIR}"/basic-info.json <<EOF
+{
+  "product": "${EIB_PRODUCT}",
+  "branch": "${EIB_BRANCH}",
+  "arch": "${EIB_ARCH}",
+  "platform": "${EIB_PLATFORM}",
+  "personality": "${EIB_PERSONALITY}",
+  "build_version": "${EIB_BUILD_VERSION}",
+  "builder_commit": "${builder_commit}"
+}
+EOF
+
+run_hooks manifest
+
+# Assemble all the json fragments to one file
+mkdir -p "${EIB_OUTDIR}"
+"${EIB_HELPERSDIR}"/assemble-manifest > "$(eib_outfile manifest.json)"

@@ -19,7 +19,7 @@ REPO=/var/lib/flatpak/repo
 # Manually wipe any flatpak refs and remotes.
 for remote in $(ostree --repo=$REPO remote list); do
   # Skip EOS remote
-  [ "$remote" = ${EIB_OSTREE_OS} ] && continue
+  [ "$remote" = ${EIB_OSTREE_REMOTE} ] && continue
 
   for prefix in app runtime appstream; do
     refs=$(ostree --repo=$REPO refs --list "${remote}:${prefix}")

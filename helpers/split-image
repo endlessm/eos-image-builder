@@ -247,8 +247,10 @@ split_image() {
   cleanup_devices
 
   # Publish uncompressed file sizes.
-  stat -c "%s" "${disk1_img}" > "${disk1_zimg}.size"
-  stat -c "%s" "${disk2_img}" > "${disk2_zimg}.size"
+  local disk1_extracted_size=$(stat -c "%s" "${disk1_img}")
+  local disk2_extracted_size=$(stat -c "%s" "${disk2_img}")
+  echo "${disk1_extracted_size}" > "${disk1_zimg}.size"
+  echo "${disk2_extracted_size}" > "${disk2_zimg}.size"
 
   # Create signatures for uncompressed images.
   sign_file "${disk1_img}" "${disk1_img_asc}" &
@@ -266,6 +268,34 @@ split_image() {
   wait
   rm -f "${disk1_img}"
   rm -f "${disk2_img}"
+
+  # Generate split disk manifest information
+  local disk1_name=$(basename "${disk1_zimg}")
+  local disk1_compressed_size=$(stat -c "%s" "${disk1_zimg}")
+  local disk1_signature="${disk1_name}.asc"
+  local disk2_name=$(basename "${disk2_zimg}")
+  local disk2_compressed_size=$(stat -c "%s" "${disk2_zimg}")
+  local disk2_signature="${disk2_name}.asc"
+  cat > "${EIB_MANIFESTDIR}"/split-images.json <<EOF
+{
+  "images": {
+    "disk1": {
+      "file": "${disk1_name}",
+      "extracted_size": ${disk1_extracted_size},
+      "compressed_size": ${disk1_compressed_size},
+      "compression_type": "${EIB_IMAGE_COMPRESSION}",
+      "signature": "${disk1_signature}"
+    },
+    "disk2": {
+      "file": "${disk2_name}",
+      "extracted_size": ${disk2_extracted_size},
+      "compressed_size": ${disk2_compressed_size},
+      "compression_type": "${EIB_IMAGE_COMPRESSION}",
+      "signature": "${disk2_signature}"
+    }
+  }
+}
+EOF
 }
 
 # Run main function for this image.

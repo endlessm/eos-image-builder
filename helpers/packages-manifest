@@ -1,0 +1,39 @@
+#!/usr/bin/python3
+
+# Populate manifest information about installed packages
+
+import apt_pkg
+import apt
+import json
+import os
+
+# Initialize apt
+apt_pkg.init()
+
+# Use the dpkg status file from the ostree deployment
+dpkg_status = os.path.join(os.environ['OSTREE_DEPLOYMENT'],
+                           'var/lib/dpkg/status')
+apt_pkg.config.set('Dir::State::status', dpkg_status)
+
+# Open an apt Cache and output data for each installed package
+cache = apt.Cache()
+data = dict(packages={})
+packages = data['packages']
+for pkg in sorted(cache):
+    if pkg.installed is None:
+        continue
+
+    # If this is a multi-arch package, use the fullname with the
+    # architecture to match output from dpkg-query.
+    multi_arch = pkg.installed.record.get('Multi-Arch', '')
+    if multi_arch == 'same':
+        name = pkg.fullname
+    else:
+        name = pkg.shortname
+    packages[name] = {
+        'version': pkg.installed.version,
+        'size': pkg.installed.installed_size,
+    }
+
+# Print out the json
+print(json.dumps(data, sort_keys=True))

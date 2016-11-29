@@ -1,0 +1,56 @@
+#!/usr/bin/python3
+
+# Assemble all the json fragments in the manifest directory and write
+# out a merged json file.
+
+import json
+import os
+import sys
+
+def dict_merge(target, source):
+    """Deep merge of dictionaries
+
+    See http://blog.impressiver.com/post/31434674390/deep-merge-multiple-python-dicts
+
+    >>> dict_merge({}, {}) == {}
+    True
+    >>> dict_merge({'a': {'c': 1}},
+    ...            {'a': {'d': 2}},
+    ...           ) == {'a': {'c': 1, 'd': 2}}
+    True
+    >>> dict_merge({'a': {'b': 1}},
+    ...            {'a': {'b': 2}})
+    {'a': {'b': 2}}
+    >>> dict_merge({'a': 'not a dict'},
+    ...            {'a': {'b': 2}})
+    {'a': {'b': 2}}
+    >>> dict_merge({'a': {'b': 2}},
+    ...            {'a': 'not a dict'})
+    Traceback (most recent call last):
+        ...
+    TypeError: ('a', 'is not a dict in source:', 'not a dict')
+    """
+    for key, value in source.items():
+        if key in target and isinstance(target[key], dict):
+            if not isinstance(value, dict):
+                raise TypeError(key, 'is not a dict in source:', value)
+            dict_merge(target[key], value)
+        else:
+            target[key] = value
+
+    return target
+
+manifest_dir = os.environ['EIB_MANIFESTDIR']
+merged_data = {}
+for root, dirs, files in os.walk(manifest_dir):
+    # Sort in case deterministic json fragment order is needed
+    dirs.sort()
+    for f in sorted(files):
+        json_path = os.path.join(root, f)
+        print('Merging', json_path, file=sys.stderr)
+        with open(json_path) as json_file:
+            json_data = json.load(json_file)
+
+        dict_merge(merged_data, json_data)
+
+print(json.dumps(merged_data, sort_keys=True))

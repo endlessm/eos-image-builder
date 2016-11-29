@@ -18,6 +18,9 @@ do
   fi
 done
 
+# Change back to the source directory since we've chrooted.
+cd "${EIB_SRCDIR}"
+
 # Make sure to find our stage scripts and python library
 export PATH="${EIB_SRCDIR}/stages:${PATH}"
 export PYTHONPATH="${EIB_SRCDIR}/lib${PYTHONPATH:+:$PYTHONPATH}"
@@ -38,4 +41,5 @@ fi
 # Real build stages
 eib_ostree
 eib_image
+eib_manifest
 eib_publish

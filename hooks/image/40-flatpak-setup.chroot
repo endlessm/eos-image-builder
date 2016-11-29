@@ -19,4 +19,4 @@ ln -sf /ostree/repo /var/lib/flatpak/repo
 
 # Disable OS remote in flatpak so it doesn't try to install runtimes or
 # apps from there
-flatpak remote-modify --disable ${EIB_OSTREE_OS}
+flatpak remote-modify --disable ${EIB_OSTREE_REMOTE}

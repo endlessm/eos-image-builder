@@ -53,6 +53,12 @@ the bootloader, adds content, and creates output images. After
 completing the image, a 2nd set of images for use in a 2 disk setup is
 created.
 
+manifest stage
+-------------
+
+This stage assembles facts about the build and generates a merged JSON
+file in the output directory for publishing.
+
 publish stage
 -------------
 
@@ -282,6 +288,16 @@ mounted at `${OSTREE_DEPLOYMENT}/${EIB_EXTRA_MOUNT}`. Hooks are intended
 to migrate content from the root into this filesystem. The filesystem is
 a fixed size (currently 8 GB), so hooks are required to ignore failures
 due to insufficient space and revert to the original layout.
+
+manifest customization
+----------------------
+
+The manifest stage takes fragment JSON files found in the
+`${EIB_MANIFESTDIR}` directory and assembles them into a merged JSON
+file in `${EIB_OUTDIR}`. Some basic facts about the build are provided,
+but it's expected that other stages generate fragment JSON files as they
+produce content. A `manifest` hook group is provided for customization
+that is best done when the build is completed.
 
 publish customization
 ---------------------
