@@ -23,8 +23,36 @@ def commit_date_string(repo, checksum):
     time = datetime.fromtimestamp(timestamp, timezone.utc)
     return time.strftime('%Y-%m-%dT%H:%M:%S%z')
 
+def write_manifest(data, hook_group):
+    """Write out the json to a fragment
+
+    Use a different file name for
+    full/split so the full isn't overwritten by the split.
+    """
+    manifestdir = os.environ['EIB_MANIFESTDIR']
+    manifest_path = os.path.join(manifestdir,
+                                 '{}-flatpak.json'.format(hook_group))
+    print('Writing flatpak manifest info to', manifest_path)
+    with open(manifest_path, 'w') as manifest:
+        json.dump(data, manifest)
+
 # Are we running image or split hook phase?
 hook_group = os.environ['EIB_HOOK_GROUP']
+
+# Build the json data structure
+data = {
+    'flatpak': {
+        'remotes': {},
+        'runtimes': {},
+        'apps': {},
+        'split-apps': {},
+    }
+}
+
+if os.environ.get('EIB_FLATPAK_ENABLE', 'false') != 'true':
+    # Write out an empty manifest so it always exists
+    write_manifest(data, hook_group)
+    exit(0)
 
 # Open the flatpak installation in the OS /var
 if hook_group == 'image':
@@ -34,7 +62,7 @@ if hook_group == 'image':
     # create a temporary directory with symlinks that will resolve
     # correctly.
     flatpak_dir = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
-                               'sysroot', 'flatpak')
+                               'flatpak')
     ostree_repo = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
                                'ostree/repo')
     system_path = os.path.join(os.environ['EIB_TMPDIR'], 'flatpak')
@@ -56,16 +84,6 @@ repo_file = system_file.get_child('repo')
 print('Opening ostree repo in', repo_file.get_path())
 repo = OSTree.Repo.new(repo_file)
 repo.open()
-
-# Build the json data
-data = {
-    'flatpak': {
-        'remotes': {},
-        'runtimes': {},
-        'apps': {},
-        'split-apps': {},
-    }
-}
 
 # Remotes and runtimes are indepenent of split/full, so only record them
 # during the full pass.
@@ -131,11 +149,5 @@ for app in apps:
         'date': date,
     }
 
-# Now write out the json to a fragment. Use a different file name for
-# full/split so the full isn't overwritten by the split.
-manifestdir = os.environ['EIB_MANIFESTDIR']
-manifest_path = os.path.join(manifestdir,
-                             '{}-flatpak.json'.format(hook_group))
-print('Writing flatpak manifest info to', manifest_path)
-with open(manifest_path, 'w') as manifest:
-    json.dump(data, manifest)
+# Now write out the json to a fragment
+write_manifest(data, hook_group)
