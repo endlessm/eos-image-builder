@@ -34,7 +34,7 @@ if hook_group == 'image':
     # create a temporary directory with symlinks that will resolve
     # correctly.
     flatpak_dir = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
-                               'flatpak')
+                               'sysroot', 'flatpak')
     ostree_repo = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
                                'ostree/repo')
     system_path = os.path.join(os.environ['EIB_TMPDIR'], 'flatpak')
