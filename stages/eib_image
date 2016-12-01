@@ -328,8 +328,43 @@ EOF
       cp -r "${DEPLOY}"/boot/efi/EFI "${ESP}"
 
       if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
-        # Capture EFI GRUB for both live+installer and dual-boot image boots
-        cp -r "${DEPLOY}"/boot/efi/EFI "${boot_zip_dir}"
+        # Capture EFI GRUB for both live+installer and dual-boot image boots.
+        #
+        # From 3.1.x onwards, our ESP has the following layout:
+        #
+        # EFI/
+        #   endless/
+        #     grubx64.efi
+        #     shim.efi
+        #     BOOT.CSV
+        #     MokManager.efi
+        #   BOOT/
+        #     bootx64.efi  - identical to shim.efi
+        #     fallback.efi
+        #
+        # However, the installer for Windows expects the following, older
+        # layout in boot.zip:
+        #
+        # EFI/
+        #   BOOT/
+        #     bootx64.efi
+        #     grubx64.efi
+        #     MokManager.efi
+        #
+        # It copies the entire contents of EFI/BOOT to EFI/Endless on the ESP,
+        # and creates a boot entry for EFI/Endless/bootx64.efi. For backwards-
+        # compatibility, we need to replicate this:
+        mkdir -p "${boot_zip_dir}/EFI/BOOT"
+        cp \
+          "${DEPLOY}"/boot/efi/EFI/BOOT/bootx64.efi \
+          "${DEPLOY}"/boot/efi/EFI/endless/MokManager.efi \
+          "${DEPLOY}"/boot/efi/EFI/endless/grubx64.efi \
+          "${boot_zip_dir}/EFI/BOOT"
+
+        # For forwards-compatibility with a future release of the installer, we
+        # capture the new layout (in particular, including fallback.efi):
+        mkdir -p "${boot_zip_dir}/EFI2"
+        cp -r "${DEPLOY}"/boot/efi/EFI/* "${boot_zip_dir}/EFI2"
 
         # Bundle all GRUB versions up for distribution
         local boot_zip="$(eib_outfile boot.zip)"
