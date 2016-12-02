@@ -134,13 +134,20 @@ def add_cli_options(argparser):
     settings to be shared between eos-image-builder and run-build.
     """
     assert(isinstance(argparser, ArgumentParser))
-    argparser.add_argument('-p', '--product', default='eos',
-                           help='product to build')
+
+    def add_argument(*args, **kwargs):
+        kwargs['help'] += ' (default: {})'.format(kwargs['default'])
+        return argparser.add_argument(*args, **kwargs)
+
+    add_argument('-p', '--product', default='eos',
+                 help='product to build')
     argparser.add_argument('-a', '--arch', choices=SUPPORTED_ARCHES,
-                           help='architecture to build')
-    argparser.add_argument('--platform', help='platform to build')
-    argparser.add_argument('-P', '--personalities', default='base',
-                           help='personalities to build')
+                           help='architecture to build '
+                                '(default: host architecture)')
+    argparser.add_argument('--platform',
+                           help='platform to build (default: depends on arch)')
+    add_argument('-P', '--personalities', default='base',
+                 help='personalities to build')
     argparser.add_argument('--show-config', action='store_true',
                            help='show configuration and exit')
     argparser.add_argument('-f', '--force', action='store_true',
@@ -149,11 +156,11 @@ def add_cli_options(argparser):
                            help="don't publish images")
     argparser.add_argument('--checkout', action='store_true',
                            help='copy the git repo to the build directory')
-    argparser.add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,
-                           help='time in seconds to acquire lock before '
-                                'exiting')
-    argparser.add_argument('branch', nargs='?', default='master',
-                           help='branch to build')
+    add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,
+                 help='time in seconds to acquire lock before '
+                      'exiting')
+    add_argument('branch', nargs='?', default='master',
+                 help='branch to build')
 
 
 def create_keyring(config):
