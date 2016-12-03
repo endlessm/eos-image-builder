@@ -256,7 +256,7 @@ class ImageBuilder(object):
         self.checkdir = '${checkrootdir}/${product}-${branch}-${arch}-${platform}/${personality}'
         self.configdir = '${srcdir}/config'
         self.sysconfdir = eib.SYSCONFDIR
-        self.build_version = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
+        self.build_version = datetime.datetime.utcnow().strftime('%y%m%d-%H%M%S')
         self.outversion = '${product}-${branch}-${arch}-${platform}.${build_version}.${personality}'
         self.tmpconfig = '${tmpdir}/config.ini'
         self.baselib = '${srcdir}/lib/eib.sh'
