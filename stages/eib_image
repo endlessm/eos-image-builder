@@ -279,6 +279,7 @@ EOF
         cp "${DEPLOY}/boot/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
         chroot "${DEPLOY}" /usr/bin/grub-mkimage \
                      --directory=/usr/lib/grub/i386-pc \
+                     --prefix=/boot/grub \
                      --config=/grub_embedded_live.cfg \
                      --format=i386-pc \
                      biosdisk ext2 ntfs part_msdos part_gpt search_fs_file \
