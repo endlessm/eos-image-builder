@@ -462,7 +462,21 @@ eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 # is available for image hooks
 eib_mount --bind "${EIB_OSTREE_CHECKOUT}" "${OSTREE_DEPLOYMENT}"/sysroot
 
+# Bind mount the content directory into the deployment so chroot hooks
+# can access it
+export EIB_CONTENTDIR_CHROOT=/tmp/content
+mkdir -p "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+eib_mount --bind "${EIB_CONTENTDIR}" \
+          "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+
 recreate_dir "${EIB_OUTDIR}"
 run_hooks image "${OSTREE_DEPLOYMENT}"
 eib_umount_all
+
+# Cleanup content mount point. This can be done after all unmounting
+# since the image hooks run on a scratch directory rather than a real
+# filesystem.
+rmdir "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+unset EIB_CONTENTDIR_CHROOT
+
 create_image "$(eib_outfile img.${EIB_IMAGE_COMPRESSION})"
