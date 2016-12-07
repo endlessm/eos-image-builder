@@ -238,6 +238,7 @@ EOF
       mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
       mount --bind /dev "${DEPLOY}"/dev
       mount --bind /proc "${DEPLOY}"/proc
+      mount --bind /sys "${DEPLOY}"/sys
 
       if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
         local boot_zip_dir=${EIB_TMPDIR}/boot_zip
@@ -319,7 +320,7 @@ EOF
                    --directory=/usr/lib/grub/i386-pc \
                    --config=/grub_embedded.cfg \
                    /img
-      umount "${DEPLOY}"/{boot,dev,img,proc}
+      umount "${DEPLOY}"/{boot,dev,img,proc,sys}
       rm -f "${DEPLOY}"/img \
         "${DEPLOY}"/grub_embedded.cfg \
         "${DEPLOY}"/grub_embedded_live.cfg
