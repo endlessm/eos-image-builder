@@ -7,16 +7,24 @@
 # all options are available to be changed. See defaults.ini for
 # descriptions of the options.
 
+[check]
+# Downloading the sample media requires SSH access to the
+# content-storage.endlessm-sf.com server inside the VPN. Skip that since
+# it's only needed on production images.
+hooks_del_local = 50-media
+
+[content]
+# Skip syncing sample media content
+hooks_del_local = 50-media
+
 [image]
 # Skip GPG signing of the completed image files since the default key ID
 # isn't available. Alternatively, the key ID for any private key in the
 # GPG homedir at /etc/eos-image-builder/gnupg.
 signing_keyid =
 
-# Downloading the sample media requires SSH access to the
-# content-storage.endlessm-sf.com server inside the VPN. Skip that since
-# it's only needed on production images.
-sample_media = false
+# Skip copying sample media into image
+hooks_del_local = 50-media
 
 # Most products don't generate split images, but it can be useful to do
 # that locally for testing since the codepaths there are fragile.
