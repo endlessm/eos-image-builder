@@ -46,19 +46,23 @@ for remote, url in ((runtimes_remote, runtimes_url),
 
 # Put together a list of refs that will be pulled to find out which
 # existing refs can be pruned
-runtime_refs = ['runtime/{}/{}/{}'.format(runtime, arch, branch)]
+runtime_refs = {'runtime/{}/{}/{}'.format(runtime, arch, branch)}
 if install_sdk == 'true':
-    runtime_refs.append('runtime/{}/{}/{}'.format(sdk, arch, branch))
-app_refs = ['app/{}/{}/{}'.format(app, arch, branch) for app in apps]
-needed_refs = set(runtime_refs + app_refs)
+    runtime_refs.add('runtime/{}/{}/{}'.format(sdk, arch, branch))
+app_refs = {'app/{}/{}/{}'.format(app, arch, branch) for app in apps}
 
 # Find all the existing refs and delete unneeded ones
 _, existing_refs_info = repo.list_refs()
 existing_refs = set(existing_refs_info.keys())
+needed_refs = runtime_refs.union(app_refs)
 for refspec in existing_refs - needed_refs:
     print('Removing unneeded ref', refspec)
     _, remote, ref = OSTree.parse_refspec(refspec)
     repo.set_ref_immediate(remote, ref, None)
+
+# Convert the refs sets to sorted lists for nicer output below
+runtime_refs = sorted(runtime_refs)
+app_refs = sorted(app_refs)
 
 # Pull the refs
 print('Pulling runtime refs:', *runtime_refs, sep='\n')
