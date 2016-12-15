@@ -225,12 +225,25 @@ split_image() {
   # is available for split hooks
   eib_mount --bind "${ROOT}" "${OSTREE_DEPLOYMENT}"/sysroot
 
+  # Bind mount the content directory into the deployment so chroot hooks
+  # can access it
+  export EIB_CONTENTDIR_CHROOT=/tmp/content
+  mkdir -p "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+  eib_mount --bind "${EIB_CONTENTDIR}" \
+            "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+
   run_hooks split "${OSTREE_DEPLOYMENT}"
 
   # Enable /var/endless-extra mount unit for the split image.
   mkdir -p "${OSTREE_DEPLOYMENT}"/etc/systemd/system/local-fs.target.wants
   ln -sf "/lib/systemd/system/var-endless\x2dextra.mount" \
     "${OSTREE_DEPLOYMENT}"/etc/systemd/system/local-fs.target.wants/
+
+  # Unmount the content directory first so the mount point can be
+  # cleaned up before the root mount goes away.
+  eib_umount "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+  rmdir "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+  unset EIB_CONTENTDIR_CHROOT
 
   # Unmount the filesystems and shrink the image files.
   eib_umount_all

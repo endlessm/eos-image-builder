@@ -93,6 +93,32 @@ eib_mount() {
   EIB_MOUNTS+=("${target}")
 }
 
+# Unmount a mount point and remove it from tracking.
+eib_umount() {
+  local target=${1:?No mount target supplied to $FUNCNAME}
+  local -i n
+  local -a new_mounts=()
+  local found=false
+
+  for mntpnt in "${EIB_MOUNTS[@]}"; do
+    if [ "${mntpnt}" = "${target}" ]; then
+      umount "${target}"
+      found=true
+    else
+      # Build a new array with the remaining mounts
+      new_mounts+=("${mntpnt}")
+    fi
+  done
+
+  if $found; then
+    # Assign the array to the new filtered version
+    EIB_MOUNTS=("${new_mounts[@]}")
+  else
+    echo "Mount point ${target} not tracked in: ${EIB_MOUNTS[@]}" >&2
+    return 1
+  fi
+}
+
 # Unmount all tracked mount points.
 eib_umount_all() {
   local -i n

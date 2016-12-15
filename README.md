@@ -269,7 +269,9 @@ At the start of the image stage, the customization hooks under `content`
 are run. These hooks are intended to ensure that all content for the
 current personality is available on the host disk, to be used later.
 `${EIB_CONTENTDIR}` should be used for storing this, and
-`${EIB_PERSONALITY}` states which personality is being built.
+`${EIB_PERSONALITY}` states which personality is being built. The
+content directory will be made available to `image` and `split` chroot
+hooks using the variable `${EIB_CONTENTDIR_CHROOT}`.
 
 Once the ostree has been checked out (onto the host disk), customization
 hooks under `image` are run. `${OSTREE_DEPLOYMENT}` contains the path to
