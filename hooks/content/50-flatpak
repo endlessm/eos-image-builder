@@ -3,8 +3,9 @@
 # Pull flatpak apps, appstream and runtimes to a local repository
 
 from gi import require_version
+require_version('Flatpak', '1.0')
 require_version('OSTree', '1.0')
-from gi.repository import Gio, OSTree
+from gi.repository import Flatpak, Gio, GLib, OSTree
 import os
 
 if os.environ.get('EIB_FLATPAK_ENABLE') != 'true':
@@ -36,6 +37,12 @@ except:
     os.makedirs(repo_path, exist_ok=True)
     repo.create(OSTree.RepoMode.ARCHIVE_Z2)
 
+# Open the parent directory as a flatpak installation so the API can be
+# used for repo operations
+installation_file = repo_file.get_parent()
+installation = Flatpak.Installation.new_for_path(installation_file,
+                                                 user=False)
+
 # Add runtimes and apps remotes
 for remote, url in ((runtimes_remote, runtimes_url),
                     (apps_remote, apps_url)):
@@ -50,6 +57,18 @@ runtime_refs = {'runtime/{}/{}/{}'.format(runtime, arch, branch)}
 if install_sdk == 'true':
     runtime_refs.add('runtime/{}/{}/{}'.format(sdk, arch, branch))
 app_refs = {'app/{}/{}/{}'.format(app, arch, branch) for app in apps}
+
+# For each app, make sure that the necessary runtime will be installed
+for refspec in app_refs:
+    # Fetch the metadata for the app
+    ref = Flatpak.Ref.parse(refspec)
+    buf = installation.fetch_remote_metadata_sync(apps_remote, ref)
+
+    # Load it into a keyfile and get the runtime
+    metadata = GLib.KeyFile.new()
+    metadata.load_from_bytes(buf, GLib.KeyFileFlags.NONE)
+    runtime = metadata.get_string('Application', 'runtime')
+    runtime_refs.add('runtime/' + runtime)
 
 # Find all the existing refs and delete unneeded ones
 _, existing_refs_info = repo.list_refs()
