@@ -7,6 +7,7 @@ require_version('Flatpak', '1.0')
 require_version('OSTree', '1.0')
 from gi.repository import Flatpak, Gio, GLib, OSTree
 import os
+import subprocess
 
 if os.environ.get('EIB_FLATPAK_ENABLE') != 'true':
     exit(0)
@@ -103,7 +104,8 @@ for ref in app_refs:
 print('Pruning repo')
 repo.prune(OSTree.RepoPruneFlags.REFS_ONLY, 0)
 
-# Create the summary file. Don't use flatpak build-update repo since it
-# will rebuild the appstream branch and we don't need that here.
+# Create the summary file. Use flatpak build-update-repo so the summary
+# file gets generated with all the app metadata to be used for the
+# actual installation.
 print('Regenerating summary')
-repo.regenerate_summary()
+subprocess.check_call(['flatpak', 'build-update-repo', repo_path])
