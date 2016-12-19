@@ -28,3 +28,8 @@ if [ "${EIB_OSTREE_BRANCH_DEPLOY}" != "${EIB_OSTREE_BRANCH}" ]; then
   ostree_write_refs "${EIB_OSTREE_REPODIR}" ${EIB_OSTREE_BRANCH} \
     ${EIB_OSTREE_BRANCH_DEPLOY}
 fi
+
+# Regenerate the summary file locally since pull --mirror will copy in
+# the upstream summary file, which is inaccurate since only one ref was
+# pulled and another ref was created locally.
+ostree --repo="${EIB_OSTREE_REPODIR}" summary -u
