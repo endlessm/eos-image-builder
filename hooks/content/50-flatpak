@@ -71,6 +71,17 @@ for refspec in app_refs:
     runtime = metadata.get_string('Application', 'runtime')
     runtime_refs.add('runtime/' + runtime)
 
+# Check that all the wanted runtimes are available on the remote. If
+# they're not there, warn and assume they'll be added from another
+# mechanism.
+_, available_runtimes_info = repo.remote_list_refs(runtimes_remote)
+available_runtimes = set(available_runtimes_info.keys())
+if not runtime_refs.issubset(available_runtimes):
+    for ref in runtime_refs - available_runtimes:
+        print('Warning: skipping', ref, 'not available from',
+              runtimes_remote)
+    runtime_refs.intersection_update(available_runtimes)
+
 # Find all the existing refs and delete unneeded ones
 _, existing_refs_info = repo.list_refs()
 existing_refs = set(existing_refs_info.keys())
