@@ -53,20 +53,20 @@ compression = gz
 #apps_server = https://endless:***REMOVED***@origin.ostree.endlessm.com/staging/dev/${apps_repo}
 #runtimes_server = https://endless:***REMOVED***@origin.ostree.endlessm.com/staging/dev/${runtimes_repo}
 
-# Completely override the set of installed apps for testing. This will
+# Completely override the set of installed EOS apps for testing. This will
 # take precedence over all other image variant configuration. This can
 # be useful if the exact app set is known or if the build is for testing
 # and the full multi-gigabyte app set is not needed.
-install = com.endlessm.EknServices
-          com.endlessm.photos
-          org.gnome.Gnote
+install_eos = com.endlessm.EknServices
+              com.endlessm.photos
+              org.gnome.Gnote
 
 # Alternatively, a set of apps can be added or deleted from the existing
 # configuration by using the _add_/_del_ merged settings. The above
 # install option would need to be commented out for these to take
 # effect.
-#install_add_local = org.my.App
-#install_del_local = org.gnome.Gnote
+#install_eos_add_local = org.my.App
+#install_eos_del_local = org.gnome.Gnote
 
 # Testing for apps to be removed when creating the split disk. As with
 # the install option, this overrides all settings but could use the
