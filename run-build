@@ -372,11 +372,11 @@ class ImageBuilder(object):
             # are aliased mounts
             while True:
                 path = None
-                with open('/proc/mounts') as mountf:
+                with open('/proc/self/mountinfo') as mountf:
                     # Read the mounts backwards to unmount submounts
                     # first
                     for line in reversed(mountf.readlines()):
-                        mountdir = line.split()[1]
+                        mountdir = line.split()[4]
                         # Search for mounts that begin with $builddir/.
                         # The trailing / is added for 2 reasons.
                         #
