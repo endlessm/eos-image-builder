@@ -362,11 +362,13 @@ class ImageBuilder(object):
 
         # If the scratch space exists, unmount any filesystems in it and
         # make all paths mutable.
-        if os.path.isdir(self.builddir):
+        if os.path.isdir(self.builddir) or os.path.isdir(self.cachedir):
             # Fully resolve the build path to match what's in the mount
             # info
-            print('Cleaning up mounts in', self.builddir, flush=True)
-            realdir = os.path.realpath(self.builddir)
+            print('Cleaning up mounts in', self.builddir, 'and',
+                  self.cachedir, flush=True)
+            real_builddir = os.path.realpath(self.builddir)
+            real_cachedir = os.path.realpath(self.cachedir)
 
             # Re-read the mount table after every unmount in case there
             # are aliased mounts
@@ -377,19 +379,19 @@ class ImageBuilder(object):
                     # first
                     for line in reversed(mountf.readlines()):
                         mountdir = line.split()[4]
-                        # Search for mounts that begin with $builddir/.
-                        # The trailing / is added for 2 reasons.
+                        # Search for mounts that begin with $dir/. The
+                        # trailing / is added for 2 reasons.
                         #
-                        # 1. It makes sure that $builddir itself is not
+                        # 1. It makes sure that $dir itself is not
                         # matched. If someone has mounted the build
                         # directory itself, that was probably done
                         # intentionally and wasn't done by the builder.
                         #
-                        # 2. It ensures that only paths below $builddir
-                        # are matched and not $builddir-backup or
-                        # anything else that begins with the same
-                        # characters.
-                        if mountdir.startswith(realdir + '/'):
+                        # 2. It ensures that only paths below $dir are
+                        # matched and not $dir-backup or anything else
+                        # that begins with the same characters.
+                        if mountdir.startswith(real_builddir + '/') or \
+                           mountdir.startswith(real_cachedir + '/'):
                             path = mountdir
                             break
 
