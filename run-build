@@ -162,6 +162,7 @@ class ImageBuilder(object):
         ('check', 'hooks'),
         ('content', 'hooks'),
         ('image', 'hooks'),
+        ('image', 'icon_grid'),
         ('image', 'settings'),
         ('image', 'settings_locks'),
         ('split', 'hooks'),
