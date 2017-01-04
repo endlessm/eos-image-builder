@@ -455,6 +455,10 @@ eib_mount -t proc proc "${OSTREE_DEPLOYMENT}"/proc
 eib_mount --bind /dev "${OSTREE_DEPLOYMENT}"/dev
 eib_mount --bind /dev/pts "${OSTREE_DEPLOYMENT}"/dev/pts
 
+# Mount a tmpfs at /tmp so that hooks can use it without persisting to
+# the image
+eib_mount -t tmpfs tmpfs "${OSTREE_DEPLOYMENT}"/tmp
+
 # Bind mount OS /var over deployment's /var for image hooks
 eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 
@@ -474,10 +478,7 @@ run_hooks image "${OSTREE_DEPLOYMENT}"
 "${EIB_HELPERSDIR}"/kill-chroot-procs "${OSTREE_DEPLOYMENT}"
 eib_umount_all
 
-# Cleanup content mount point. This can be done after all unmounting
-# since the image hooks run on a scratch directory rather than a real
-# filesystem.
-rmdir "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+# Clear the content mount variable in case it's used somewhere else
 unset EIB_CONTENTDIR_CHROOT
 
 create_image "$(eib_outfile img.${EIB_IMAGE_COMPRESSION})"
