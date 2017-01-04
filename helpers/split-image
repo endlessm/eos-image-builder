@@ -179,6 +179,11 @@ split_image() {
   export OSTREE_DEPLOYMENT="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
   export OSTREE_VAR="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/var
 
+  # Mount the deployment directory over itself so / is a real mount in
+  # the chroot. This is needed for bubblewrap, which wants to mark the /
+  # mount as a slave.
+  eib_mount --bind "${OSTREE_DEPLOYMENT}" "${OSTREE_DEPLOYMENT}"
+
   # Bind mount the ostree /var into the current deployment so it
   # resembles the booted system.
   eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var

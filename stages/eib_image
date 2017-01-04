@@ -449,6 +449,11 @@ EOF
 
 echo "Create image for personality ${EIB_PERSONALITY}"
 
+# Mount the deployment directory over itself so / is a real mount in the
+# chroot. This is needed for bubblewrap, which wants to mark the / mount
+# as a slave.
+eib_mount --bind "${OSTREE_DEPLOYMENT}" "${OSTREE_DEPLOYMENT}"
+
 # Mount kernel filesystems into deployment for image hooks
 eib_mount -t sysfs sysfs "${OSTREE_DEPLOYMENT}"/sys
 eib_mount -t proc proc "${OSTREE_DEPLOYMENT}"/proc
