@@ -184,6 +184,23 @@ split_image() {
   # mount as a slave.
   eib_mount --bind "${OSTREE_DEPLOYMENT}" "${OSTREE_DEPLOYMENT}"
 
+  # Mark the hook root mount private. This has 2 benefits:
+  #
+  # 1. Any mounts placed under it will not leak out to the parent mount.
+  #    That keeps aliased mounts from showing up elsewhere in the
+  #    system.
+  #
+  # 2. Bubblewrap uses pivot_root, which requires that the old root is
+  #    not a shared mount.
+  mount --make-private "${OSTREE_DEPLOYMENT}"
+
+  # Finally, pivot_root also requires that the parent of the old root is
+  # not a shared mount. Bind mount the hook root over itself again so
+  # the parent is the above private mount.
+  #
+  # See https://github.com/projectatomic/bubblewrap/issues/135.
+  eib_mount --bind "${OSTREE_DEPLOYMENT}" "${OSTREE_DEPLOYMENT}"
+
   # Bind mount the ostree /var into the current deployment so it
   # resembles the booted system.
   eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
