@@ -471,6 +471,7 @@ eib_mount --bind "${EIB_CONTENTDIR}" \
 
 recreate_dir "${EIB_OUTDIR}"
 run_hooks image "${OSTREE_DEPLOYMENT}"
+"${EIB_HELPERSDIR}"/kill-chroot-procs "${OSTREE_DEPLOYMENT}"
 eib_umount_all
 
 # Cleanup content mount point. This can be done after all unmounting
