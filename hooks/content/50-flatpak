@@ -12,6 +12,9 @@ import subprocess
 if os.environ.get('EIB_FLATPAK_ENABLE') != 'true':
     exit(0)
 
+# Enable debug logging for all flatpak operations
+os.environ['G_MESSAGES_DEBUG'] = 'flatpak'
+
 # Pull settings out of environment variables
 runtimes_remote = os.environ['EIB_FLATPAK_RUNTIMES_REMOTE']
 runtimes_url = os.environ['EIB_FLATPAK_RUNTIMES_SERVER']
