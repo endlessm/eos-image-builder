@@ -59,7 +59,10 @@ if install_sdk == 'true':
     runtime_refs.add('runtime/{}/{}/{}'.format(sdk, arch, branch))
 app_refs = {'app/{}/{}/{}'.format(app, arch, branch) for app in apps}
 
-# For each app, make sure that the necessary runtime will be installed
+# For each app, make sure that the necessary runtime will be installed.
+# Drop the installation caches so the above repo changes are seen by
+# flatpak.
+installation.drop_caches()
 for refspec in app_refs:
     # Fetch the metadata for the app
     ref = Flatpak.Ref.parse(refspec)
