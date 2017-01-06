@@ -179,6 +179,28 @@ split_image() {
   export OSTREE_DEPLOYMENT="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
   export OSTREE_VAR="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/var
 
+  # Mount the deployment directory over itself so / is a real mount in
+  # the chroot. This is needed for bubblewrap, which wants to mark the /
+  # mount as a slave.
+  eib_mount --bind "${OSTREE_DEPLOYMENT}" "${OSTREE_DEPLOYMENT}"
+
+  # Mark the hook root mount private. This has 2 benefits:
+  #
+  # 1. Any mounts placed under it will not leak out to the parent mount.
+  #    That keeps aliased mounts from showing up elsewhere in the
+  #    system.
+  #
+  # 2. Bubblewrap uses pivot_root, which requires that the old root is
+  #    not a shared mount.
+  mount --make-private "${OSTREE_DEPLOYMENT}"
+
+  # Finally, pivot_root also requires that the parent of the old root is
+  # not a shared mount. Bind mount the hook root over itself again so
+  # the parent is the above private mount.
+  #
+  # See https://github.com/projectatomic/bubblewrap/issues/135.
+  eib_mount --bind "${OSTREE_DEPLOYMENT}" "${OSTREE_DEPLOYMENT}"
+
   # Bind mount the ostree /var into the current deployment so it
   # resembles the booted system.
   eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
@@ -221,6 +243,10 @@ split_image() {
   eib_mount --bind /dev "${OSTREE_DEPLOYMENT}"/dev
   eib_mount --bind /dev/pts "${OSTREE_DEPLOYMENT}"/dev/pts
 
+  # Mount a tmpfs at /tmp so that hooks can use it without persisting to
+  # the image
+  eib_mount -t tmpfs tmpfs "${OSTREE_DEPLOYMENT}"/tmp
+
   # Bind mount the root over deployment's /sysroot, so the ostree repo
   # is available for split hooks
   eib_mount --bind "${ROOT}" "${OSTREE_DEPLOYMENT}"/sysroot
@@ -240,10 +266,7 @@ split_image() {
   ln -sf "/lib/systemd/system/var-endless\x2dextra.mount" \
     "${OSTREE_DEPLOYMENT}"/etc/systemd/system/local-fs.target.wants/
 
-  # Unmount the content directory first so the mount point can be
-  # cleaned up before the root mount goes away.
-  eib_umount "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
-  rmdir "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+  # Clear the content mount variable in case it's used somewhere else
   unset EIB_CONTENTDIR_CHROOT
 
   # Unmount the filesystems and shrink the image files.
