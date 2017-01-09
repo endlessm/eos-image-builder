@@ -108,12 +108,14 @@ if hook_group == 'image':
         name = runtime.get_name()
         arch = runtime.get_arch()
         branch = runtime.get_branch()
+        key = '{}/{}/{}'.format(name, arch, branch)
         remote = runtime.get_origin()
         commit = runtime.get_commit()
         size = runtime.get_installed_size()
         ref = runtime.format_ref()
         date = commit_date_string(repo, commit)
-        data['flatpak']['runtimes'][name] = {
+        data['flatpak']['runtimes'][key] = {
+            'name': name,
             'arch': arch,
             'branch': branch,
             'remote': remote,
@@ -128,6 +130,7 @@ for app in apps:
     name = app.get_name()
     arch = app.get_arch()
     branch = app.get_branch()
+    key = '{}/{}/{}'.format(name, arch, branch)
     remote = app.get_origin()
     commit = app.get_commit()
     size = app.get_installed_size()
@@ -139,7 +142,8 @@ for app in apps:
         section = 'apps'
     else:
         section = 'split-apps'
-    data['flatpak'][section][name] = {
+    data['flatpak'][section][key] = {
+        'name': name,
         'arch': arch,
         'branch': branch,
         'remote': remote,
