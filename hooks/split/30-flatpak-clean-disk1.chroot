@@ -1,40 +1,68 @@
+#!/usr/bin/python3 -u
+
 # Wipe all the apps and runtimes from the disk1 flatpak directory
 
-set -x # verbose until this has been tested thoroughly
-shopt -s extglob
+import gi
+gi.require_version('OSTree', '1.0')
+from gi.repository import Gio, OSTree
+import os
+import shutil
 
-[ "${EIB_FLATPAK_ENABLE}" = true ] || exit 0
+if os.environ.get('EIB_FLATPAK_ENABLE') != 'true':
+    exit(0)
 
-# We don't want to use flatpak for uninstalling because it will pick up
-# the disk2 directory if it exists. Brute for the cleanup with ostree
-# since that would be needed to finish up, anyway.
+flatpak_path = '/var/lib/flatpak'
+repo_path = os.path.join(flatpak_path, 'repo')
+os_remote = os.environ['EIB_OSTREE_REMOTE']
 
 # Aggressively wipe everything flatpak related that's not the ostree
 # repo itself.
-echo "Removing non-repo flatpak directories"
-rm -rf /var/lib/flatpak/!(repo)
+for ent in os.listdir(flatpak_path):
+    path = os.path.join(flatpak_path, ent)
+    if path != repo_path:
+        print('Removing', path)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.unlink(path)
 
-REPO=/var/lib/flatpak/repo
+# Open the repo
+repo_file = Gio.File.new_for_path(repo_path)
+repo = OSTree.Repo.new(repo_file)
+repo.open()
 
-# Manually wipe any flatpak refs and remotes.
-for remote in $(ostree --repo=$REPO remote list); do
-  # Skip EOS remote
-  [ "$remote" = ${EIB_OSTREE_REMOTE} ] && continue
+# Delete unwanted refs
+_, refs = repo.list_refs()
+for refspec in refs.keys():
+    _, remote, ref = OSTree.parse_refspec(refspec)
+    if remote is None:
+        # Local ref, keep it
+        continue
+    if remote == os_remote:
+        # OS remote ref, keep it
+        continue
 
-  for prefix in app runtime appstream; do
-    refs=$(ostree --repo=$REPO refs --list "${remote}:${prefix}")
-    for ref in $refs; do
-      echo "Removing ref $ref"
-      ostree --repo=$REPO refs --delete $ref
-    done
-  done
+    # Delete the ref
+    print('Deleting ref', refspec, 'from', repo_path)
+    repo.set_ref_immediate(remote, ref, None)
 
-  # XXX: Leaving the remote configuration in place in case we want to
-  # start installing here again later.
-  # echo "Removing remote $remote"
-  # ostree --repo=$REPO remote delete "$remote"
-done
+print('Pruning repo', repo_path)
+repo.prune(OSTree.RepoPruneFlags.REFS_ONLY, -1)
 
-# Prune the repo to really remove the objects.
-echo "Pruning repository $REPO"
-ostree --repo=$REPO prune --refs-only
+# XXX: Leaving the remotes in place in case we want to start installing
+# here again later
+# for remote in repo.remote_list():
+#     if remote != os_remote:
+#         print('Deleting remote', remote)
+#         repo.remote_delete(remote)
+
+# Clean up any empty directories left behind when deleting the remote
+# refs above (this should really be handled in ostree)
+refs_path = os.path.join(repo_path, 'refs/remotes')
+for root, dirs, files in os.walk(refs_path, topdown=False):
+    for d in dirs:
+        path = os.path.join(root, d)
+        try:
+            os.rmdir(path)
+        except:
+            pass
