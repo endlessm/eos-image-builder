@@ -12,6 +12,12 @@ mutable_deployment() {
   fi
 }
 
+kill_procs() {
+  if [ -n "${OSTREE_DEPLOYMENT}" ]; then
+    "${EIB_HELPERSDIR}"/kill-chroot-procs "${OSTREE_DEPLOYMENT}"
+  fi
+}
+
 cleanup_devices() {
   if [ -n "${img_loop}" ]; then
     partx -v -d "${img_loop}"
@@ -22,6 +28,7 @@ cleanup_devices() {
 
 cleanup() {
   mutable_deployment || :
+  kill_procs || :
   eib_umount_all || :
   cleanup_devices || :
 }
