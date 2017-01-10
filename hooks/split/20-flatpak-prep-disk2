@@ -1,0 +1,5 @@
+[ "${EIB_FLATPAK_ENABLE}" = true ] || exit 0
+
+# Create the disk2 flatpak directory so flatpak prefers it to the disk1
+# directory
+mkdir -p "${OSTREE_EXTRA}"/flatpak

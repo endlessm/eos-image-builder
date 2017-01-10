@@ -45,6 +45,8 @@ data = {
         'remotes': {},
         'runtimes': {},
         'apps': {},
+        'split-remotes': {},
+        'split-runtimes': {},
         'split-apps': {},
     }
 }
@@ -85,49 +87,60 @@ print('Opening ostree repo in', repo_file.get_path())
 repo = OSTree.Repo.new(repo_file)
 repo.open()
 
-# Remotes and runtimes are indepenent of split/full, so only record them
-# during the full pass.
-if hook_group == 'image':
-    remotes = system.list_remotes()
-    for remote in remotes:
-        name = remote.get_name()
-        url = remote.get_url()
+remotes = system.list_remotes()
+for remote in remotes:
+    name = remote.get_name()
+    url = remote.get_url()
 
-        # Skip disabled remotes
-        if remote.get_disabled():
-            continue
+    # Skip disabled remotes
+    if remote.get_disabled():
+        continue
 
-        # Skip local remotes (e.g., external apps)
-        if url.startswith('file://'):
-            continue
+    # Skip local remotes (e.g., external apps)
+    if url.startswith('file://'):
+        continue
 
-        data['flatpak']['remotes'][name] = url
+    # Use a separate section for full and split remotes
+    if hook_group == 'image':
+        section = 'remotes'
+    else:
+        section = 'split-remotes'
+    data['flatpak'][section][name] = url
 
-    runtimes = system.list_installed_refs_by_kind(Flatpak.RefKind.RUNTIME)
-    for runtime in runtimes:
-        name = runtime.get_name()
-        arch = runtime.get_arch()
-        branch = runtime.get_branch()
-        remote = runtime.get_origin()
-        commit = runtime.get_commit()
-        size = runtime.get_installed_size()
-        ref = runtime.format_ref()
-        date = commit_date_string(repo, commit)
-        data['flatpak']['runtimes'][name] = {
-            'arch': arch,
-            'branch': branch,
-            'remote': remote,
-            'commit': commit,
-            'size': size,
-            'ref': ref,
-            'date': date,
-        }
+runtimes = system.list_installed_refs_by_kind(Flatpak.RefKind.RUNTIME)
+for runtime in runtimes:
+    name = runtime.get_name()
+    arch = runtime.get_arch()
+    branch = runtime.get_branch()
+    key = '{}/{}/{}'.format(name, arch, branch)
+    remote = runtime.get_origin()
+    commit = runtime.get_commit()
+    size = runtime.get_installed_size()
+    ref = runtime.format_ref()
+    date = commit_date_string(repo, commit)
+
+    # Use a separate section for full and split runtimes
+    if hook_group == 'image':
+        section = 'runtimes'
+    else:
+        section = 'split-runtimes'
+    data['flatpak'][section][key] = {
+        'name': name,
+        'arch': arch,
+        'branch': branch,
+        'remote': remote,
+        'commit': commit,
+        'size': size,
+        'ref': ref,
+        'date': date,
+    }
 
 apps = system.list_installed_refs_by_kind(Flatpak.RefKind.APP)
 for app in apps:
     name = app.get_name()
     arch = app.get_arch()
     branch = app.get_branch()
+    key = '{}/{}/{}'.format(name, arch, branch)
     remote = app.get_origin()
     commit = app.get_commit()
     size = app.get_installed_size()
@@ -139,7 +152,8 @@ for app in apps:
         section = 'apps'
     else:
         section = 'split-apps'
-    data['flatpak'][section][name] = {
+    data['flatpak'][section][key] = {
+        'name': name,
         'arch': arch,
         'branch': branch,
         'remote': remote,

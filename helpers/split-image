@@ -6,6 +6,12 @@
 # the main disk, and one is for a supplemental disk to be filled with
 # apps.
 
+kill_procs() {
+  if [ -n "${OSTREE_DEPLOYMENT}" ]; then
+    "${EIB_HELPERSDIR}"/kill-chroot-procs "${OSTREE_DEPLOYMENT}"
+  fi
+}
+
 cleanup_loop() {
   partx -v -d "$1"
   eib_delete_loop "$1"
@@ -18,6 +24,7 @@ cleanup_devices() {
 }
 
 cleanup() {
+  kill_procs || :
   eib_umount_all || :
   cleanup_devices || :
 }
