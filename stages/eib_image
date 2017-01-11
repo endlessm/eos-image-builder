@@ -239,7 +239,7 @@ EOF
       # MBR bootloader install
       > "${DEPLOY}"/img
       cp "${EIB_DATADIR}"/grub_embedded.cfg \
-        "${EIB_DATADIR}"/grub_embedded_live.cfg \
+        "${EIB_DATADIR}"/grub_embedded_image.cfg \
         "${DEPLOY}"
       mount --bind "${img}" "${DEPLOY}"/img
       mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
@@ -272,7 +272,7 @@ EOF
         chroot "${DEPLOY}" /usr/sbin/grub-install \
                      --modules="ext2 exfat ntfs part_msdos part_gpt search_fs_file search" \
                      --directory=/usr/lib/grub/i386-pc \
-                     --config=/grub_embedded_live.cfg \
+                     --config=/grub_embedded_image.cfg \
                      /img
         mkdir -p "${boot_zip_dir}/live"
         dd if="${img_loop}" of="${boot_zip_dir}/live/boot.img" bs=446 count=1
@@ -287,7 +287,7 @@ EOF
         chroot "${DEPLOY}" /usr/bin/grub-mkimage \
                      --directory=/usr/lib/grub/i386-pc \
                      --prefix=/boot/grub \
-                     --config=/grub_embedded_live.cfg \
+                     --config=/grub_embedded_image.cfg \
                      --format=i386-pc \
                      biosdisk ext2 ntfs part_msdos part_gpt search_fs_file \
                      > "${boot_zip_dir}/ntfs/core.img"
@@ -310,7 +310,7 @@ EOF
         chroot "${DEPLOY}" /usr/bin/grub-mkimage \
                      --directory=/usr/lib/grub/i386-pc \
                      --prefix=/endless/grub \
-                     --config=/grub_embedded_live.cfg \
+                     --config=/grub_embedded_image.cfg \
                      --format=i386-pc-eltorito \
                      --compression=auto \
                      biosdisk iso9660 ext2 exfat ntfs part_msdos part_gpt search_fs_file search \
@@ -318,8 +318,8 @@ EOF
 
         # Capture second-stage config and modules
         cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
-        # Save grub_embedded_live.cfg to be used for ISO generation
-        cp -a "${DEPLOY}/grub_embedded_live.cfg" "${boot_zip_dir}/grub"
+        # Save grub_embedded_image.cfg to be used for ISO generation
+        cp -a "${DEPLOY}/grub_embedded_image.cfg" "${boot_zip_dir}/grub"
       fi
 
       # Install the real MBR bootloader
@@ -331,7 +331,7 @@ EOF
       umount "${DEPLOY}"/{boot,dev,img,proc,sys}
       rm -f "${DEPLOY}"/img \
         "${DEPLOY}"/grub_embedded.cfg \
-        "${DEPLOY}"/grub_embedded_live.cfg
+        "${DEPLOY}"/grub_embedded_image.cfg
 
       # UEFI bootloader install
       cp -r "${DEPLOY}"/boot/efi/EFI "${ESP}"
