@@ -146,11 +146,11 @@ class ImageBuilder(object):
                     'personality', 'force', 'dry_run', 'series',
                     'srcdir', 'datadir', 'helpersdir', 'cachedir',
                     'tmpdir', 'contentdir', 'outrootdir', 'outdir',
-                    'checkrootdir', 'checkdir', 'configdir',
-                    'sysconfdir', 'build_version', 'outversion',
-                    'tmpconfig', 'baselib', 'deb_host_gnu_cpu',
-                    'deb_host_multiarch', 'ssh_options', 'keysdir',
-                    'keyring', 'manifestdir']
+                    'checkrootdir', 'checkdir', 'checktmpdir',
+                    'configdir', 'sysconfdir', 'build_version',
+                    'outversion', 'tmpconfig', 'baselib',
+                    'deb_host_gnu_cpu', 'deb_host_multiarch',
+                    'ssh_options', 'keysdir', 'keyring', 'manifestdir']
     BOOLEAN_ATTRS = ['force', 'dry_run']
 
     # Config options that will be merged together from multiple
@@ -255,6 +255,7 @@ class ImageBuilder(object):
         self.outdir = '${outrootdir}/${personality}'
         self.checkrootdir = '${cachedir}/check'
         self.checkdir = '${checkrootdir}/${product}-${branch}-${arch}-${platform}/${personality}'
+        self.checktmpdir = '${tmpdir}/check'
         self.configdir = '${srcdir}/config'
         self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.utcnow().strftime('%y%m%d-%H%M%S')

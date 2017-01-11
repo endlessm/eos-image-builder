@@ -65,6 +65,12 @@ publish stage
 This stage does a final publishing of the output directory to the remote
 image server.
 
+cache_facts stage
+-------------
+
+This stage takes the facts gathered in the check_update stage and caches
+them for a subsequent build.
+
 error stage
 -----------
 
@@ -249,13 +255,16 @@ check_update customization
 
 The check_update stage calls the `check` customization hooks. The
 intention is to determine facts about the current build and compare them
-to cached facts from the previous build. Facts are stored in the build
-specific check directory, `${EIB_CHECKDIR}`.
+to cached facts from the previous build. Facts from the previous build
+are stored in the build specific check directory, `${EIB_CHECKDIR}`.
+Facts from the current build are stored in the build specific directory,
+`${EIB_CHECKTMPDIR}`.
 
 The check_update stage determines if an update is needed by seeing if
 the modification times for any files in the cache directory have been
 updated. Therefore, the hook should only update its check file if
-there's a difference from the previous build.
+there's a difference from the previous build. If there's no difference,
+the hook should copy the timestamps from the previous check file.
 
 ostree customization
 --------------------
@@ -308,6 +317,11 @@ Keeping with the design that the core is simple and the meat is kept
 under customization, the publish stage does nothing more than call into
 customization hooks kept in `publish`. These hooks should take the
 output of `${EIB_OUTDIR}` and push it to the final destination.
+
+cache_facts customization
+--------------------
+
+The cache_facts stage currently has no customization hooks.
 
 error customization
 -------------------
