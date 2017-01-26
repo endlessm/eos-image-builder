@@ -501,6 +501,22 @@ mkdir -p "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
 eib_mount --bind "${EIB_CONTENTDIR}" \
           "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
 
+# /usr/local is a symlink to /var/local in the ostree, but /var/local
+# doesn't exist yet since it's created from systemd-tmpfiles at runtime.
+# Create it now so that hooks can populate /usr/local.
+if [ -L "${OSTREE_DEPLOYMENT}"/usr/local ]; then
+  usr_local_link=$(readlink "${OSTREE_DEPLOYMENT}"/usr/local)
+  if [ "${usr_local_link::1}" = / ]; then
+    # Absolute path, prepend the deployment root
+    usr_local_target="${OSTREE_DEPLOYMENT}${usr_local_link}"
+  else
+    # Relative path, prepend the deployment's /usr
+    usr_local_target="${OSTREE_DEPLOYMENT}/usr/${usr_local_link}"
+  fi
+
+  mkdir -p "${usr_local_target}"
+fi
+
 recreate_dir "${EIB_OUTDIR}"
 run_hooks image "${OSTREE_DEPLOYMENT}"
 "${EIB_HELPERSDIR}"/kill-chroot-procs "${OSTREE_DEPLOYMENT}"
