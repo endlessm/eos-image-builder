@@ -98,7 +98,7 @@ create_image() {
   (( img_size += 1024 * 1024 * 1024 ))
   echo "Creating $1 image with size ${img_size}"
 
-  local img=${EIB_TMPDIR}/image
+  local img="${EIB_TMPDIR}/${EIB_OUTVERSION}.img"
   rm -f "${img}"
   truncate -s ${img_size} "${img}"
 
