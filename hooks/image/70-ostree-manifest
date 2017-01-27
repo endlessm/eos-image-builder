@@ -20,6 +20,20 @@ def commit_date_string(repo, checksum):
     time = datetime.fromtimestamp(timestamp, timezone.utc)
     return time.strftime('%Y-%m-%dT%H:%M:%S%z')
 
+def ostree_get_version():
+    release_path = os.path.join(os.environ['OSTREE_DEPLOYMENT'],
+        'etc/os-release')
+    with open(release_path) as release_file:
+        for release_item in release_file:
+            release_item = release_item.strip()
+
+            key, value = release_item.split('=', 1)
+            if key == 'VERSION':
+                if value.startswith(("'", '"')) and value[0] == value[-1]:
+                    value = value[1:-1]
+
+                return value
+
 repo_path = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
                          'ostree/repo')
 repo_file = Gio.File.new_for_path(repo_path)
@@ -36,6 +50,7 @@ data = {
         'ref': ref,
         'url': os.environ['EIB_OSTREE_URL'],
         'os': os.environ['EIB_OSTREE_OS'],
+        'version': ostree_get_version(),
     }
 }
 
