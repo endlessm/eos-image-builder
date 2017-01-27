@@ -1,0 +1,57 @@
+#!/bin/bash -ex
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
+. "${EIB_BASELIB}"
+
+# Write a bootable ISO image containing the image file, Windows tool and other
+# files needed to install Endless OS in every supported configuration.
+create_iso() {
+  local iso=${1:?No target filename $FUNCNAME}
+  shift
+  local img=${1:?No image supplied to $FUNCNAME}
+  shift
+
+  # Symlink img.asc, boot.zip, boot.zip.asc into the same directory as $img
+  for i in "$@"; do
+    ln -s $i "${EIB_TMPDIR}/$(basename $i)"
+  done
+
+  # TODO: this implicitly downloads endless-installer.exe from CloudFront.
+  # Perhaps we should create a package in OBS which just contains the latest
+  # installer.exe?
+  TMPDIR="${EIB_TMPDIR}" eos-write-live-image --debug \
+    --iso \
+    --os-image "${img}" \
+    --latest \
+    --force \
+    "${iso}"
+
+  # Publish size of image inside the ISO (& squashfs). This is the interesting
+  # number that can't be easily determined from the size of the ISO itself.
+  local img_size=$(stat -c "%s" "${img}")
+  echo "${img_size}" > "${iso}.size"
+
+  # Sign ISO
+  sign_file "${iso}"
+
+  # Generate ISO manifest information
+  local iso_name=$(basename "${iso}")
+  local iso_compressed_size=$(stat -c "%s" "${iso}")
+  local iso_signature=$(basename "${iso}.asc")
+
+  cat > "${EIB_MANIFESTDIR}"/iso.json <<EOF
+{
+  "images": {
+    "iso": {
+      "file": "${iso_name}",
+      "extracted_size": ${img_size},
+      "compressed_size": ${iso_compressed_size},
+      "compression_type": "iso+squashfs",
+      "signature": "${iso_signature}"
+    }
+  }
+}
+EOF
+}
+
+# Run main function for this image.
+create_iso "$@"

@@ -98,7 +98,7 @@ create_image() {
   (( img_size += 1024 * 1024 * 1024 ))
   echo "Creating $1 image with size ${img_size}"
 
-  local img=${EIB_TMPDIR}/image
+  local img="${EIB_TMPDIR}/${EIB_OUTVERSION}.img"
   rm -f "${img}"
   truncate -s ${img_size} "${img}"
 
@@ -411,7 +411,8 @@ EOF
   cleanup_devices
 
   # Sign uncompressed image (used when installing from a live image)
-  sign_file "${img}" "$(eib_outfile img.asc)" &
+  local img_asc="$(eib_outfile img.asc)"
+  sign_file "${img}" "${img_asc}" &
 
   # Publish uncompressed file size.
   local img_extracted_size=$(stat -c "%s" "${img}")
@@ -435,6 +436,17 @@ EOF
 
   # Await sign_file subprocesses
   wait
+
+  # Create ISO if required. This requires the uncompressed image, its
+  # signature, and the signature for boot.zip. In theory we could `wait` only
+  # for those two signatures and allow compressing the image and signing it to
+  # happen in parallel with creating the ISO.
+  if [ "${EIB_IMAGE_ISO}" == true ]; then
+    "${EIB_HELPERSDIR}"/create-iso "$(eib_outfile iso)" \
+      "${img}" "${img_asc}" "${boot_zip}" "${boot_zip}.asc"
+  fi
+
+  # Remove uncompressed image
   rm -f "${img}"
 
   # Finish image manifest info
