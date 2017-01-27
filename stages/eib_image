@@ -403,6 +403,9 @@ EOF
 
   eib_fix_boot_checksum "${img_loop}" "${DEPLOY}"
 
+  # Read OS version from ostree deployment before we unmount it
+  local version=$(. ${DEPLOY}/etc/os-release && echo ${VERSION})
+
   # Restore the immutable attribute on the deployment root lost via cp
   chattr +i "${DEPLOY}"
 
@@ -442,7 +445,7 @@ EOF
   # for those two signatures and allow compressing the image and signing it to
   # happen in parallel with creating the ISO.
   if [ "${EIB_IMAGE_ISO}" == true ]; then
-    "${EIB_HELPERSDIR}"/create-iso "$(eib_outfile iso)" \
+    "${EIB_HELPERSDIR}"/create-iso "${version}" "$(eib_outfile iso)" \
       "${img}" "${img_asc}" "${boot_zip}" "${boot_zip}.asc"
   fi
 
