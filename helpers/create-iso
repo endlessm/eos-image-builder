@@ -5,6 +5,8 @@
 # Write a bootable ISO image containing the image file, Windows tool and other
 # files needed to install Endless OS in every supported configuration.
 create_iso() {
+  local version=${1:?No OS version for $FUNCNAME}
+  shift
   local iso=${1:?No target filename $FUNCNAME}
   shift
   local img=${1:?No image supplied to $FUNCNAME}
@@ -15,6 +17,15 @@ create_iso() {
     ln -s $i "${EIB_TMPDIR}/$(basename $i)"
   done
 
+  # Trim duplication of product name from personality name (eg fnde_aluno)
+  personality=${EIB_PERSONALITY#${EIB_PRODUCT}_}
+
+  # Set label for ISO - including the personality name "bare" is not ideal
+  # but generally speaking we are limited to 32 characters, and the image
+  # builder is unaware of localised personality names (personality_name is
+  # not localised, even though it is set differently in each personality)
+  label="${EIB_IMAGE_PRODUCT_NAME} ${version} ${personality}"
+
   # TODO: this implicitly downloads endless-installer.exe from CloudFront.
   # Perhaps we should create a package in OBS which just contains the latest
   # installer.exe?
@@ -23,6 +34,7 @@ create_iso() {
     --os-image "${img}" \
     --latest \
     --force \
+    --label "${label}" \
     "${iso}"
 
   # Publish size of image inside the ISO (& squashfs). This is the interesting
