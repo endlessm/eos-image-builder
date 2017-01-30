@@ -111,6 +111,18 @@ builder. The order of configuration files read in is:
   * Architecture settings - `config/arch/$arch.ini`
   * Platform settings - `config/platform/$platform.ini`
   * Personality settings - `config/personality/$personality.ini`
+
+The image builder will then search for combinations of the build
+attributes. For instance, a product and personality combination would be
+read from `config/product-personality/$product-$personality.ini`. The
+order and format of these files follows the order of the attributes
+shown above. For instance, a branch and arch combination will always be
+specified in the form `branch-arch` rather than `arch-branch`. Likewise,
+this combination will come before a branch and platform combination.
+
+Finally, the image builder supports host and checkout specific
+configuration with the following files read in this order:
+
   * System config settings - `/etc/eos-image-builder/config.ini`
   * Local build settings - `config/local.ini`
 
