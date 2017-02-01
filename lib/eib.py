@@ -154,6 +154,8 @@ def add_cli_options(argparser):
                            help='run build even when no new assets found')
     argparser.add_argument('-n', '--dry-run', action='store_true',
                            help="don't publish images")
+    argparser.add_argument('--use-production', action='store_true',
+                           help="use production ostree/flatpak repos rather than staging")
     argparser.add_argument('--checkout', action='store_true',
                            help='copy the git repo to the build directory')
     add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,
