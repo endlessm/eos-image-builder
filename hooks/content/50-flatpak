@@ -18,15 +18,22 @@ os.environ['G_MESSAGES_DEBUG'] = 'flatpak'
 # Pull settings out of environment variables
 runtimes_remote = os.environ['EIB_FLATPAK_RUNTIMES_REMOTE']
 runtimes_url = os.environ['EIB_FLATPAK_RUNTIMES_SERVER']
+runtimes_deploy_url = os.environ['EIB_FLATPAK_RUNTIMES_DEPLOY_SERVER']
 runtime = os.environ['EIB_FLATPAK_RUNTIME']
 sdk = os.environ['EIB_FLATPAK_SDK']
 install_sdk = os.environ['EIB_FLATPAK_INSTALL_SDK']
 apps_remote = os.environ['EIB_FLATPAK_APPS_REMOTE']
 apps_url = os.environ['EIB_FLATPAK_APPS_SERVER']
+apps_deploy_url = os.environ['EIB_FLATPAK_APPS_DEPLOY_SERVER']
 apps = os.environ['EIB_FLATPAK_INSTALL_EOS'].split()
 arch = os.environ['EIB_FLATPAK_RUNTIME_ARCH']
 branch = os.environ['EIB_BRANCH']
 apps_deploy_branch = os.environ['EIB_FLATPAK_APPS_BRANCH']
+
+# Optionally use the production flatpak repos rather than staging.
+if os.environ.get('EIB_USE_PRODUCTION') == 'true':
+    runtimes_url = runtimes_deploy_url
+    apps_url = apps_deploy_url
 
 # Create an ostree repository. archive-z2 is used to save disk space on
 # the builder since the objects won't be able to be hardlinked when

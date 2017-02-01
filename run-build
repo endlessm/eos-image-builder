@@ -150,8 +150,8 @@ class ImageBuilder(object):
                     'sysconfdir', 'build_version', 'outversion',
                     'tmpconfig', 'baselib', 'deb_host_gnu_cpu',
                     'deb_host_multiarch', 'ssh_options', 'keysdir',
-                    'keyring', 'manifestdir']
-    BOOLEAN_ATTRS = ['force', 'dry_run']
+                    'keyring', 'manifestdir', 'use_production']
+    BOOLEAN_ATTRS = ['force', 'dry_run', 'use_production']
 
     # Config options that will be merged together from multiple
     # $prefix_add_* and $prefix_del_* options. This is a list of
@@ -199,7 +199,8 @@ class ImageBuilder(object):
             super().__setattr__(attr, value)
 
     def __init__(self, product, branch, arch, platform, personality,
-                 show_config=False, force=False, dry_run=False):
+                 show_config=False, force=False, dry_run=False,
+                 use_production=False):
         # Create the config option first to allow the proxying between
         # it and this object's attributes.
         self.config = eib.ImageConfigParser()
@@ -209,6 +210,7 @@ class ImageBuilder(object):
         self.show_config = show_config
         self.force = force
         self.dry_run = dry_run
+        self.use_production = use_production
 
         # Release series. E.g., eos2.4 is in series eos2 while master is
         # in series master.
@@ -441,6 +443,9 @@ class ImageBuilder(object):
             self.config.write(sys.stdout)
             return
 
+        if self.use_production:
+            print('Using production ostree/flatpak repo')
+
         print('Preparing build directory', flush=True)
         self.prep_builddir()
         print('Exporting configuration to environment', flush=True)
@@ -478,7 +483,8 @@ def main():
                                personality=personality,
                                show_config=args.show_config,
                                force=args.force,
-                               dry_run=args.dry_run)
+                               dry_run=args.dry_run,
+                               use_production=args.use_production)
         builder.run()
 
 if __name__ == '__main__':
