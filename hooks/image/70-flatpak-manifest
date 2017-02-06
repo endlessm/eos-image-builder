@@ -76,8 +76,7 @@ if hook_group == 'image':
                        os.path.join(system_path, entry))
     os.symlink(ostree_repo, os.path.join(system_path, 'repo'))
 else:
-    system_path = os.path.join(os.environ['OSTREE_VAR'],
-                               'endless-extra/flatpak')
+    system_path = os.path.join(os.environ['OSTREE_EXTRA'], 'flatpak')
 print('Opening flatpak installation in', system_path)
 system_file = Gio.File.new_for_path(system_path)
 system = Flatpak.Installation.new_for_path(system_file, user=False)

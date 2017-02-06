@@ -98,7 +98,7 @@ create_image() {
   (( img_size += 1024 * 1024 * 1024 ))
   echo "Creating $1 image with size ${img_size}"
 
-  local img=${EIB_TMPDIR}/image
+  local img="${EIB_TMPDIR}/${EIB_OUTVERSION}.img"
   rm -f "${img}"
   truncate -s ${img_size} "${img}"
 
@@ -239,7 +239,8 @@ EOF
       # MBR bootloader install
       > "${DEPLOY}"/img
       cp "${EIB_DATADIR}"/grub_embedded.cfg \
-        "${EIB_DATADIR}"/grub_embedded_live.cfg \
+        "${EIB_DATADIR}"/grub_embedded_image.cfg \
+        "${EIB_DATADIR}"/grub_embedded_iso.cfg \
         "${DEPLOY}"
       mount --bind "${img}" "${DEPLOY}"/img
       mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
@@ -272,7 +273,7 @@ EOF
         chroot "${DEPLOY}" /usr/sbin/grub-install \
                      --modules="ext2 exfat ntfs part_msdos part_gpt search_fs_file search" \
                      --directory=/usr/lib/grub/i386-pc \
-                     --config=/grub_embedded_live.cfg \
+                     --config=/grub_embedded_image.cfg \
                      /img
         mkdir -p "${boot_zip_dir}/live"
         dd if="${img_loop}" of="${boot_zip_dir}/live/boot.img" bs=446 count=1
@@ -287,7 +288,7 @@ EOF
         chroot "${DEPLOY}" /usr/bin/grub-mkimage \
                      --directory=/usr/lib/grub/i386-pc \
                      --prefix=/boot/grub \
-                     --config=/grub_embedded_live.cfg \
+                     --config=/grub_embedded_image.cfg \
                      --format=i386-pc \
                      biosdisk ext2 ntfs part_msdos part_gpt search_fs_file \
                      > "${boot_zip_dir}/ntfs/core.img"
@@ -310,7 +311,7 @@ EOF
         chroot "${DEPLOY}" /usr/bin/grub-mkimage \
                      --directory=/usr/lib/grub/i386-pc \
                      --prefix=/endless/grub \
-                     --config=/grub_embedded_live.cfg \
+                     --config=/grub_embedded_iso.cfg \
                      --format=i386-pc-eltorito \
                      --compression=auto \
                      biosdisk iso9660 ext2 exfat ntfs part_msdos part_gpt search_fs_file search \
@@ -318,8 +319,6 @@ EOF
 
         # Capture second-stage config and modules
         cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
-        # Save grub_embedded_live.cfg to be used for ISO generation
-        cp -a "${DEPLOY}/grub_embedded_live.cfg" "${boot_zip_dir}/grub"
       fi
 
       # Install the real MBR bootloader
@@ -331,7 +330,8 @@ EOF
       umount "${DEPLOY}"/{boot,dev,img,proc,sys}
       rm -f "${DEPLOY}"/img \
         "${DEPLOY}"/grub_embedded.cfg \
-        "${DEPLOY}"/grub_embedded_live.cfg
+        "${DEPLOY}"/grub_embedded_image.cfg \
+        "${DEPLOY}"/grub_embedded_iso.cfg
 
       # UEFI bootloader install
       cp -r "${DEPLOY}"/boot/efi/EFI "${ESP}"
@@ -403,6 +403,9 @@ EOF
 
   eib_fix_boot_checksum "${img_loop}" "${DEPLOY}"
 
+  # Read OS version from ostree deployment before we unmount it
+  local version=$(. ${DEPLOY}/etc/os-release && echo ${VERSION})
+
   # Restore the immutable attribute on the deployment root lost via cp
   chattr +i "${DEPLOY}"
 
@@ -411,7 +414,8 @@ EOF
   cleanup_devices
 
   # Sign uncompressed image (used when installing from a live image)
-  sign_file "${img}" "$(eib_outfile img.asc)" &
+  local img_asc="$(eib_outfile img.asc)"
+  sign_file "${img}" "${img_asc}" &
 
   # Publish uncompressed file size.
   local img_extracted_size=$(stat -c "%s" "${img}")
@@ -435,6 +439,17 @@ EOF
 
   # Await sign_file subprocesses
   wait
+
+  # Create ISO if required. This requires the uncompressed image, its
+  # signature, and the signature for boot.zip. In theory we could `wait` only
+  # for those two signatures and allow compressing the image and signing it to
+  # happen in parallel with creating the ISO.
+  if [ "${EIB_IMAGE_ISO}" == true ]; then
+    "${EIB_HELPERSDIR}"/create-iso "${version}" "$(eib_outfile iso)" \
+      "${img}" "${img_asc}" "${boot_zip}" "${boot_zip}.asc"
+  fi
+
+  # Remove uncompressed image
   rm -f "${img}"
 
   # Finish image manifest info
@@ -500,6 +515,22 @@ export EIB_CONTENTDIR_CHROOT=/tmp/content
 mkdir -p "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
 eib_mount --bind "${EIB_CONTENTDIR}" \
           "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+
+# /usr/local is a symlink to /var/local in the ostree, but /var/local
+# doesn't exist yet since it's created from systemd-tmpfiles at runtime.
+# Create it now so that hooks can populate /usr/local.
+if [ -L "${OSTREE_DEPLOYMENT}"/usr/local ]; then
+  usr_local_link=$(readlink "${OSTREE_DEPLOYMENT}"/usr/local)
+  if [ "${usr_local_link::1}" = / ]; then
+    # Absolute path, prepend the deployment root
+    usr_local_target="${OSTREE_DEPLOYMENT}${usr_local_link}"
+  else
+    # Relative path, prepend the deployment's /usr
+    usr_local_target="${OSTREE_DEPLOYMENT}/usr/${usr_local_link}"
+  fi
+
+  mkdir -p "${usr_local_target}"
+fi
 
 recreate_dir "${EIB_OUTDIR}"
 run_hooks image "${OSTREE_DEPLOYMENT}"
