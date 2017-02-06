@@ -43,3 +43,6 @@ eib_ostree
 eib_image
 eib_manifest
 eib_publish
+
+# Cache build facts for next run
+eib_cache_facts
