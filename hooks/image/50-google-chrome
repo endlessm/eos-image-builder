@@ -1,0 +1,55 @@
+# Overrides the default configuration for the automatic Chrome installer
+# and overrides the default icon grid and taskbar pins accordingly
+
+
+# Set up the Google Chrome helper to enable automatic installation
+
+CONFIG_DIR="${OSTREE_DEPLOYMENT}"/etc/eos-google-chrome-helper
+CONFIG_FILE="${CONFIG_DIR}"/eos-google-chrome-helper.conf
+
+if [ -f "${CONFIG_FILE}" ]; then
+    sed -i "s/^AutomaticInstallEnabled=.*/AutomaticInstallEnabled=true/g" "${CONFIG_FILE}"
+else
+    echo "${CONFIG_FILE} not found. Nothing to do"
+fi
+
+
+# Override the default icon grid layouts for each personality
+# so that Chrome is on the desktop by default rather than Chromium
+
+ICON_SOURCE_DIR="${OSTREE_DEPLOYMENT}"/usr/share/eos-shell-content/icon-grid-defaults
+ICON_TARGET_DIR="${OSTREE_VAR}"/eos-image-defaults/icon-grid
+
+mkdir -p "${ICON_TARGET_DIR}"
+for file in "${ICON_SOURCE_DIR}"/icon-grid-*.json; do
+    sed s/chromium-browser/google-chrome/ "${file}" > "${ICON_TARGET_DIR}/${file##*/}"
+done
+
+
+# Override the gsetting for taskbar pins so that
+# Chrome is on the taskbar by default rather than Chromium
+
+# Parse the gschema XML file for lines such as the following:
+#
+#     <key type="as" name="taskbar-pins">
+#       <default>[ 'org.gnome.Software.desktop', 'chromium-browser.desktop', 'org.gnome.Nautilus.desktop' ]</default>
+#
+# And then write a settings file such as the following that
+# will be picked up by the 61-dconf-compile.chroot hook:
+#
+# [org/gnome/shell]
+# tasbar-pins=['org.gnome.Software.desktop', 'chromium-browser.desktop', 'org.gnome.Nautilus.desktop']
+
+GSCHEMA_XML="${OSTREE_DEPLOYMENT}"/usr/share/glib-2.0/schemas/org.gnome.shell.gschema.xml
+SETTINGS_DIR="${OSTREE_DEPLOYMENT}"/tmp/dconf-overrides
+TASKBAR_SETTINGS="${SETTINGS_DIR}"/taskbar-settings
+
+pins=`grep -A1 taskbar-pins "${GSCHEMA_XML}" | tail -1`
+pins=${pins#*[ }
+pins=${pins% ]*}
+pins=${pins/chromium-browser/google-chrome}
+mkdir -p "${SETTINGS_DIR}"
+cat <<EOF > "${TASKBAR_SETTINGS}"
+[/org/gnome/shell]
+taskbar-pins=[${pins}]
+EOF
