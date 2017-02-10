@@ -50,6 +50,6 @@ pins=${pins% ]*}
 pins=${pins/chromium-browser/google-chrome}
 mkdir -p "${SETTINGS_DIR}"
 cat <<EOF > "${TASKBAR_SETTINGS}"
-[/org/gnome/shell]
+[org/gnome/shell]
 taskbar-pins=[${pins}]
 EOF
