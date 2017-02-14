@@ -87,8 +87,10 @@ class ImageBuildRoot(object):
                                repo,
                                script])
 
-        # Mount all the desired paths
-        for path in wanted_mounts:
+        # Mount all the desired paths. Sort the list of wanted mounts so
+        # the shortest paths (parents) come before longer paths
+        # (children).
+        for path in sorted(wanted_mounts):
             self.mount(path)
 
     def mount(self, path, target=None):
