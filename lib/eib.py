@@ -40,6 +40,9 @@ SUPPORTED_ARCHES = [
     'armhf'
 ]
 
+# Exit code indicating new build needed rather than error
+CHECK_EXIT_BUILD_NEEDED = 90
+
 
 class ImageBuildError(Exception):
     """Errors from the image builder"""

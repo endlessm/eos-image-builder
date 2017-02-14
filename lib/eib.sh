@@ -10,6 +10,9 @@ set -E
 # like "+ run-build 10:13:40: some command".
 export PS4='+ ${BASH_SOURCE[0]##*/} \t: '
 
+# Exit code indicating new build needed rather than error
+EIB_CHECK_EXIT_BUILD_NEEDED=90
+
 # Runs a command chrooted with our helper script.
 chroot () {
   "${EIB_HELPERSDIR}"/eib-chroot "$@"
