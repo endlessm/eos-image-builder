@@ -97,7 +97,8 @@ with open(eib.LOCKFILE, 'a+') as lf:
         # Make a copy of the repo to use. A real git repo is needed
         # since the build later queries the current commit.
         srcdir = os.path.join(eib.CACHEDIR, 'src')
-        shutil.rmtree(srcdir, ignore_errors=True)
+        if os.path.isdir(srcdir):
+            shutil.rmtree(srcdir)
         os.makedirs(eib.CACHEDIR, exist_ok=True)
         shutil.copytree(MYDIR, srcdir, symlinks=True)
         os.chdir(srcdir)
