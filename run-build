@@ -20,6 +20,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 from argparse import ArgumentParser
+from collections import OrderedDict
 import datetime
 import fnmatch
 import glob
@@ -89,8 +90,26 @@ class ImageBuildRoot(object):
 
         # Mount all the desired paths. Sort the list of wanted mounts so
         # the shortest paths (parents) come before longer paths
-        # (children).
+        # (children). Avoid superfluous mounts when a parent on the same
+        # device is already being mounted.
+        to_mount = OrderedDict()
         for path in sorted(wanted_mounts):
+            dev = os.stat(path).st_dev
+
+            for parent, parent_dev in to_mount.items():
+                if dev == parent_dev and \
+                   os.path.commonprefix((path, parent)) == parent:
+                    # No need to mount this path as a parent directory
+                    # on the same device will already be mounted
+                    print('Skipping mount of', path, 'since it is a '
+                          'subdirectory of', parent)
+                    break
+            else:
+                # Unique path, add it for mounting
+                to_mount[path] = dev
+
+        # Really mount the directories
+        for path in to_mount:
             self.mount(path)
 
     def mount(self, path, target=None):
