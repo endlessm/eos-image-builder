@@ -260,6 +260,13 @@ are stored in the build specific check directory, `${EIB_CHECKDIR}`.
 Facts from the current build are stored in the build specific directory,
 `${EIB_CHECKTMPDIR}`.
 
+At the beginning of the stage, the published configuration and manifest
+from the previous build are downloaded. These are stored at
+`${EIB_TMPDIR}/latest/config.ini` and
+`${EIB_TMPDIR}/latest/manifest.json`, respectively. Hooks can use the
+information in these files to determine differences rather than rely on
+cached facts from the previous build.
+
 The check_update stage determines if an update is needed by seeing if
 the modification times for any files in the cache directory have been
 updated. Therefore, the hook should only update its check file if
