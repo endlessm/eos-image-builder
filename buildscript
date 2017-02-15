@@ -33,14 +33,16 @@ export GIT_SSH="${EIB_HELPERSDIR}/git-ssh"
 exec > >(tee "${EIB_TMPDIR}"/build.txt)
 exec 2>&1
 
-# Check if build needed
-if eib_check_update; then
-  # Exit early unless force mode specified
-  [ "${EIB_FORCE}" = true ] || exit 0
-else
-  # See if this was a real error
-  ret=$?
-  [ $ret -eq $EIB_CHECK_EXIT_BUILD_NEEDED ] || exit $ret
+# Check if build needed unless forced
+if [ "${EIB_FORCE}" != true ]; then
+  if eib_check_update; then
+    # Exit early
+    exit 0
+  else
+    # See if this was a real error
+    ret=$?
+    [ $ret -eq $EIB_CHECK_EXIT_BUILD_NEEDED ] || exit $ret
+  fi
 fi
 
 # Real build stages
