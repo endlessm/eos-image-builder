@@ -20,6 +20,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 from argparse import ArgumentParser
+from collections import OrderedDict
 import datetime
 import fnmatch
 import glob
@@ -87,8 +88,28 @@ class ImageBuildRoot(object):
                                repo,
                                script])
 
-        # Mount all the desired paths
-        for path in wanted_mounts:
+        # Mount all the desired paths. Sort the list of wanted mounts so
+        # the shortest paths (parents) come before longer paths
+        # (children). Avoid superfluous mounts when a parent on the same
+        # device is already being mounted.
+        to_mount = OrderedDict()
+        for path in sorted(wanted_mounts):
+            dev = os.stat(path).st_dev
+
+            for parent, parent_dev in to_mount.items():
+                if dev == parent_dev and \
+                   os.path.commonprefix((path, parent)) == parent:
+                    # No need to mount this path as a parent directory
+                    # on the same device will already be mounted
+                    print('Skipping mount of', path, 'since it is a '
+                          'subdirectory of', parent)
+                    break
+            else:
+                # Unique path, add it for mounting
+                to_mount[path] = dev
+
+        # Really mount the directories
+        for path in to_mount:
             self.mount(path)
 
     def mount(self, path, target=None):
@@ -125,18 +146,30 @@ class ImageBuildRoot(object):
         subprocess.check_call(['umount', target])
         self.mounts.remove(target)
 
-    def umount_all(self):
+    def umount_all(self, continue_on_errors=False):
         """Unmount all paths in the build directory"""
-        for mnt in reversed(self.mounts.copy()):
+        umount_error = False
+        for index in reversed(range(len(self.mounts))):
+            mnt = self.mounts[index]
             print('Unmounting', mnt)
-            subprocess.check_call(['umount', mnt])
-            self.mounts.pop()
+            ret = subprocess.call(['umount', mnt])
+            if ret == 0:
+                self.mounts.pop(index)
+            else:
+                umount_error = True
+                if not continue_on_errors:
+                    break
+
+        # Still fail even if asked to continue through errors
+        if umount_error:
+            raise eib.ImageBuildError('Could not unmount all filesystems '
+                                      'under', self.builddir)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc, value, tb):
-        self.umount_all()
+        self.umount_all(continue_on_errors=True)
         print('Removing buildroot', self.builddir)
         shutil.rmtree(self.builddir)
 
