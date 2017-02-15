@@ -23,6 +23,7 @@ import configparser
 from collections import Counter
 import fnmatch
 import glob
+import json
 import os
 import shutil
 import subprocess
@@ -223,3 +224,14 @@ def retry(func, *args, max_retries=3, **kwargs):
                 raise
             print('Retrying attempt', retry, file=sys.stderr)
             time.sleep(1)
+
+
+def latest_manifest_data():
+    """Read the downloaded manifest.json from the latest build"""
+    path = os.path.join(os.environ['EIB_TMPDIR'], 'latest',
+                        'manifest.json')
+    if not os.path.exists(path):
+        raise ImageBuildError('Could not find latest manifest.json at',
+                              path)
+    with open(path) as f:
+        return json.load(f)
