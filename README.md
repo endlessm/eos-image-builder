@@ -65,12 +65,6 @@ publish stage
 This stage does a final publishing of the output directory to the remote
 image server.
 
-cache_facts stage
--------------
-
-This stage takes the facts gathered in the check_update stage and caches
-them for a subsequent build.
-
 error stage
 -----------
 
@@ -255,23 +249,19 @@ check_update customization
 
 The check_update stage calls the `check` customization hooks. The
 intention is to determine facts about the current build and compare them
-to cached facts from the previous build. Facts from the previous build
-are stored in the build specific check directory, `${EIB_CHECKDIR}`.
-Facts from the current build are stored in the build specific directory,
-`${EIB_CHECKTMPDIR}`.
-
-At the beginning of the stage, the published configuration and manifest
-from the previous build are downloaded. These are stored at
-`${EIB_TMPDIR}/latest/config.ini` and
+to facts from the previous build. At the beginning of the stage, the
+published configuration and manifest from the previous build are
+downloaded. These are stored at `${EIB_TMPDIR}/latest/config.ini` and
 `${EIB_TMPDIR}/latest/manifest.json`, respectively. Hooks can use the
-information in these files to determine differences rather than rely on
-cached facts from the previous build.
+information in these files to gather information from the previous
+build.
 
-The check_update stage determines if an update is needed by seeing if
-the modification times for any files in the cache directory have been
-updated. Therefore, the hook should only update its check file if
-there's a difference from the previous build. If there's no difference,
-the hook should copy the timestamps from the previous check file.
+Hooks signal that an update is needed by exiting with a special error
+code. This is available in `eib.sh` from the environnment variable
+`EIB_CHECK_EXIT_BUILD_NEEDED`. Python hooks can access this code from
+the `eib` module attribute `CHECK_EXIT_BUILD_NEEDED`. If no update is
+needed, then the hooks should exit successfully. Other exit codes are
+treated as errors and the build is aborted.
 
 ostree customization
 --------------------
@@ -324,11 +314,6 @@ Keeping with the design that the core is simple and the meat is kept
 under customization, the publish stage does nothing more than call into
 customization hooks kept in `publish`. These hooks should take the
 output of `${EIB_OUTDIR}` and push it to the final destination.
-
-cache_facts customization
---------------------
-
-The cache_facts stage currently has no customization hooks.
 
 error customization
 -------------------
