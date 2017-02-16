@@ -98,6 +98,14 @@ EIB uses a private key at /etc/eos-image-builder/ssh-key.pem as the
 identity file whenever ssh is used. SSH may be used for git fetching,
 content downloading, or image publishing.
 
+Email notification
+------------------
+
+When a build completes successfully, EIB will send an email indicating
+where the published build can be downloaded. Settings for where to send
+the email are managed in the `email` section of the image builder
+configuration. See `config/defaults.ini` for details.
+
 Configuration
 =============
 
