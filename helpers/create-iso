@@ -26,13 +26,18 @@ create_iso() {
   # not localised, even though it is set differently in each personality)
   label="${EIB_IMAGE_PRODUCT_NAME} ${version} ${personality}"
 
-  # TODO: this implicitly downloads endless-installer.exe from CloudFront.
-  # Perhaps we should create a package in OBS which just contains the latest
-  # installer.exe?
+  # Download from a non-standard URL to allow us to (temporarily) ship a
+  # different version in the ISO to what's on our website.
+  # TODO: Perhaps we should create a package in OBS which just contains
+  # endless-installer.exe?
+  local ei_url=https://d1anzknqnc1kmb.cloudfront.net/endless-installer/endless-installer-iso.exe
+  local ei_exe="${EIB_TMPDIR}/endless-installer.exe"
+  wget -O "${ei_exe}" "${ei_url}"
+
   TMPDIR="${EIB_TMPDIR}" eos-write-live-image --debug \
     --iso \
     --os-image "${img}" \
-    --latest \
+    --windows-tool "${ei_exe}" \
     --force \
     --label "${label}" \
     "${iso}"
