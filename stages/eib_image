@@ -449,7 +449,7 @@ EOF
       "${img}" "${img_asc}" "${boot_zip}" "${boot_zip}.asc"
   fi
 
-  # Remove uncompressed image
+  # Remove uncompressed image, if not already deleted by helpers/create-iso
   rm -f "${img}"
 
   # Finish image manifest info

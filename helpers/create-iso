@@ -34,18 +34,21 @@ create_iso() {
   local ei_exe="${EIB_TMPDIR}/endless-installer.exe"
   wget -O "${ei_exe}" "${ei_url}"
 
+  # Publish size of image inside the ISO (& squashfs). This is the interesting
+  # number that can't be easily determined from the size of the ISO itself.
+  # eos-write-live-image will delete $img after creating the squashfs to reduce
+  # peak disk usage, so we need to determine its size beforehand.
+  local img_size=$(stat -c "%s" "${img}")
+  echo "${img_size}" > "${iso}.size"
+
   TMPDIR="${EIB_TMPDIR}" eos-write-live-image --debug \
     --iso \
     --os-image "${img}" \
     --windows-tool "${ei_exe}" \
+    --delete-os-image \
     --force \
     --label "${label}" \
     "${iso}"
-
-  # Publish size of image inside the ISO (& squashfs). This is the interesting
-  # number that can't be easily determined from the size of the ISO itself.
-  local img_size=$(stat -c "%s" "${img}")
-  echo "${img_size}" > "${iso}.size"
 
   # Sign ISO
   sign_file "${iso}"
