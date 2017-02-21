@@ -10,3 +10,11 @@ path=${EIB_IMAGE_KALITE_CONTENT_PATH}
 mkdir -p "${dest}"
 rsync -av --delete -e "ssh ${EIB_SSH_OPTIONS}" \
   "${user}@${host}:${path}/" "${dest}"/
+
+# Get latest modification time and write to a manifest fragment
+mtime=$(find "${dest}" -exec stat -c '%Y' '{}' '+' | sort -n | tail -n1)
+cat > "${EIB_MANIFESTDIR}"/kalite.json <<EOF
+{
+  "kalite_timestamp": ${mtime}
+}
+EOF

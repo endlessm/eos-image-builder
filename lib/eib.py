@@ -23,10 +23,13 @@ import configparser
 from collections import Counter
 import fnmatch
 import glob
+import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
+import time
 
 CACHEDIR = '/var/cache/eos-image-builder'
 BUILDDIR = '/var/tmp/eos-image-builder'
@@ -39,6 +42,9 @@ SUPPORTED_ARCHES = [
     'amd64',
     'armhf'
 ]
+
+# Exit code indicating new build needed rather than error
+CHECK_EXIT_BUILD_NEEDED = 90
 
 
 class ImageBuildError(Exception):
@@ -202,3 +208,30 @@ def disk_usage(path):
                               follow_symlinks=False).st_size
                       for name in dirs + files])
     return total
+
+
+def retry(func, *args, max_retries=3, **kwargs):
+    """Retry a function in case of intermittent errors"""
+    retry = 0
+    while True:
+        try:
+            return func(*args, **kwargs)
+        except:
+            retry += 1
+            if retry > max_retries:
+                print('Failed', max_retries, 'retries; giving up',
+                      file=sys.stderr)
+                raise
+            print('Retrying attempt', retry, file=sys.stderr)
+            time.sleep(1)
+
+
+def latest_manifest_data():
+    """Read the downloaded manifest.json from the latest build"""
+    path = os.path.join(os.environ['EIB_TMPDIR'], 'latest',
+                        'manifest.json')
+    if not os.path.exists(path):
+        raise ImageBuildError('Could not find latest manifest.json at',
+                              path)
+    with open(path) as f:
+        return json.load(f)
