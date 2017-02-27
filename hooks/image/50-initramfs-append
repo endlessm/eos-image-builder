@@ -1,0 +1,31 @@
+# create /boot/initramfs-append if a custom plymouth theme is needed
+#
+# this will be added to the kernel command line as a 2nd initramfs
+# at boot time anything contained here will be unpacked in the initramfs
+# in addition to the default contents, so we can overwrite the plymouth
+# settings file and add our own theme
+
+# skip script if no watermark is required
+if [ -z "${EIB_IMAGE_INITRAMFS_PLYMOUTH_WATERMARK}" ]; then
+    exit 0
+fi
+
+tmpdir=$(mktemp -d)
+plymouthdir="usr/share/plymouth"
+
+pushd ${tmpdir}
+
+  mkdir -p "${plymouthdir}/themes"
+
+  cp "${OSTREE_DEPLOY}/${plymouthdir}/plymouthd.defaults" "${plymouthdir}"
+  sed -i "s/^Theme=.*/Theme=spinner/" "${plymouthdir}/plymouthd.defaults"
+
+  cp -r "${EIB_BUILD_DATADIR}/plymouth/themes/spinner" "${plymouthdir}/themes"
+  cp "${EIB_IMAGE_INITRAMFS_PLYMOUTH_WATERMARK}" "${plymouthdir}/themes/spinner/watermark.png"
+
+  find . | cpio -o -H newc | gzip -9 -n >"${BOOT}/initramfs-append"
+
+popd
+
+rm -rf "${tmpdir}"
+
