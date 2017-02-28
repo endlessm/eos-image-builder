@@ -24,6 +24,7 @@ from collections import OrderedDict
 import datetime
 import fnmatch
 import glob
+import itertools
 import os
 import shutil
 import subprocess
@@ -319,18 +320,38 @@ class ImageBuilder(object):
         # 2. Product, branch, arch, platform and personality settings.
         #    These are in $configdir subdirectories. For example,
         #    $configdir/product/$product.ini.
-        # 3. System config settings - $sysconfdir/config.ini.
-        # 4. Local user settings - $configdir/local.ini.
-        config_files = [
-            os.path.join(self.configdir, 'defaults.ini'),
-            os.path.join(self.configdir, 'product', self.product + '.ini'),
-            os.path.join(self.configdir, 'branch', self.branch + '.ini'),
-            os.path.join(self.configdir, 'arch', self.arch + '.ini'),
-            os.path.join(self.configdir, 'platform', self.platform + '.ini'),
-            os.path.join(self.configdir, 'personality', self.personality + '.ini'),
+        # 3. Product, branch, etc combination settings from the
+        #    $configdir subdirectory. For example,
+        #    $configdir/product-personality/$product-$personality.ini.
+        # 4. System config settings - $sysconfdir/config.ini.
+        # 5. Local user settings - $configdir/local.ini.
+
+        # Default configuration
+        config_files = [os.path.join(self.configdir, 'defaults.ini')]
+
+        # Add per-attribute config directories
+        config_attrs = ('product', 'branch', 'arch', 'platform',
+                        'personality')
+        for attr in config_attrs:
+            path = os.path.join(self.configdir, attr,
+                                getattr(self, attr) + '.ini')
+            config_files.append(path)
+
+        # Add combinations of per-attribute config directories
+        for attr1, attr2 in itertools.combinations(config_attrs, 2):
+            ini_name = getattr(self, attr1) + '-' + \
+                       getattr(self, attr2) + '.ini'
+            path = os.path.join(self.configdir, attr1 + '-' + attr2,
+                                ini_name)
+            config_files.append(path)
+
+        # Local configuration files
+        config_files.extend([
             os.path.join(self.sysconfdir, 'config.ini'),
             os.path.join(self.configdir, 'local.ini'),
-        ]
+        ])
+
+        # Read the config files
         for path in self.config.read(config_files):
             print('Loaded configuration file', path)
 
