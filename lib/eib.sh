@@ -285,13 +285,6 @@ ostree_write_refs() {
   cp -f "${repo}/refs/heads/${src}" "${repo}/refs/heads/${dest}"
 }
 
-jenkins_crumb() {
-  local token=$(<"${EIB_JENKINS_TOKEN}")
-
-  curl -u "${EIB_JENKINS_USER}:${token}" \
-    "${EIB_JENKINS_URL}"'/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)'
-}
-
 # Compress an image according to the configured compression type.
 eib_compress_image() {
   case "${EIB_IMAGE_COMPRESSION}" in
