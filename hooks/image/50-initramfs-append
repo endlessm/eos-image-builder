@@ -20,10 +20,10 @@ pushd ${tmpdir}
   cp "${OSTREE_DEPLOYMENT}/${plymouthdir}/plymouthd.defaults" "${plymouthdir}"
   sed -i "s/^Theme=.*/Theme=spinner/" "${plymouthdir}/plymouthd.defaults"
 
-  cp -r "${EIB_BUILD_DATADIR}/plymouth/themes/spinner" "${plymouthdir}/themes"
+  cp -r "${EIB_DATADIR}/plymouth/themes/spinner" "${plymouthdir}/themes"
   cp "${EIB_IMAGE_INITRAMFS_PLYMOUTH_WATERMARK}" "${plymouthdir}/themes/spinner/watermark.png"
 
-  find . | cpio -o -H newc | gzip -9 -n >"${BOOT}/initramfs-append"
+  find . | cpio -o -H newc | gzip -9 -n >"${EIB_OSTREE_CHECKOUT}/boot/initramfs-append"
 
 popd
 
