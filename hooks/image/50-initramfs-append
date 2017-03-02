@@ -10,7 +10,7 @@ if [ -z "${EIB_IMAGE_INITRAMFS_PLYMOUTH_WATERMARK}" ]; then
     exit 0
 fi
 
-tmpdir=$(mktemp -d)
+tmpdir=$(mktemp -d -p "$EIB_TMPDIR")
 plymouthdir="usr/share/plymouth"
 
 pushd ${tmpdir}
