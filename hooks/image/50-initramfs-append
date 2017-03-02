@@ -17,7 +17,7 @@ pushd ${tmpdir}
 
   mkdir -p "${plymouthdir}/themes"
 
-  cp "${OSTREE_DEPLOY}/${plymouthdir}/plymouthd.defaults" "${plymouthdir}"
+  cp "${OSTREE_DEPLOYMENT}/${plymouthdir}/plymouthd.defaults" "${plymouthdir}"
   sed -i "s/^Theme=.*/Theme=spinner/" "${plymouthdir}/plymouthd.defaults"
 
   cp -r "${EIB_BUILD_DATADIR}/plymouth/themes/spinner" "${plymouthdir}/themes"
