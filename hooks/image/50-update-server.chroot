@@ -1,5 +1,6 @@
 # makes the system into a local network server for ostree updates
 
+mkdir -p /usr/local/share/eos-updater
 cat >/usr/local/share/eos-updater/eos-update-server.conf <<EOF
 # Override defaults from /usr/share/eos-updater/eos-update-server.conf.
 [Local Network Updates]
