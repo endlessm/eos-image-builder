@@ -269,10 +269,15 @@ EOF
         # add the offsets. So we actually install this flavour of GRUB,
         # capture the boot sector and BIOS boot partition, and later overwrite
         # them with the standard version.
-        chroot "${DEPLOY}" /usr/sbin/grub-install \
-                     --modules="ext2 exfat ntfs part_msdos part_gpt search_fs_file" \
+        chroot "${DEPLOY}" /usr/bin/grub-mkimage \
                      --directory=/usr/lib/grub/i386-pc \
+                     --prefix=/boot/grub \
                      --config=/grub_embedded_image.cfg \
+                     --format=i386-pc \
+                     --output=/usr/lib/grub/i386-pc/core.img \
+                     biosdisk ext2 exfat ntfs part_msdos part_gpt search_fs_file
+        chroot "${DEPLOY}" /usr/sbin/grub-bios-setup \
+                     --directory=/usr/lib/grub/i386-pc \
                      /img
         mkdir -p "${boot_zip_dir}/live"
         dd if="${img_loop}" of="${boot_zip_dir}/live/boot.img" bs=446 count=1
