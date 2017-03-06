@@ -1,0 +1,5 @@
+mkdir -p /etc/systemd/system-preset
+cat >/etc/systemd/system-preset/40-eos-firewall-localonly.preset <<EOF
+enable eos-firewall-localonly.service
+EOF
+systemctl preset eos-firewall-localonly.service
