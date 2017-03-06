@@ -1,0 +1,15 @@
+# makes the system into a local network server for ostree updates
+
+cat >/usr/local/share/eos-updater/eos-update-server.conf <<EOF
+# Override defaults from /usr/share/eos-updater/eos-update-server.conf.
+[Local Network Updates]
+AdvertiseUpdates=true
+EOF
+
+mkdir -p /etc/systemd/system-preset
+cat >/etc/systemd/system-preset/40-eos-update-server.preset <<EOF
+enable eos-update-server.socket
+enable eos-updater-avahi.path
+EOF
+systemctl preset eos-update-server.socket eos-updater-avahi.path
+
