@@ -1,0 +1,7 @@
+# Create a SHA256SUMS{,.gpg} file of the entire directory, useful for
+# verifying downloads when using machinectl. sha256sum needs to be run in the
+# right directory so that it outputs appropriate relative paths.
+pushd "${EIB_OUTDIR}"
+sha256sum * > SHA256SUMS
+popd
+sign_file "$(eib_outfile SHA256SUMS)" "$(eib_outfile SHA256SUMS).gpg"
