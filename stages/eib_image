@@ -240,7 +240,6 @@ EOF
       > "${DEPLOY}"/img
       cp "${EIB_DATADIR}"/grub_embedded.cfg \
         "${EIB_DATADIR}"/grub_embedded_image.cfg \
-        "${EIB_DATADIR}"/grub_embedded_iso.cfg \
         "${DEPLOY}"
       mount --bind "${img}" "${DEPLOY}"/img
       mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
@@ -311,7 +310,7 @@ EOF
         chroot "${DEPLOY}" /usr/bin/grub-mkimage \
                      --directory=/usr/lib/grub/i386-pc \
                      --prefix=/endless/grub \
-                     --config=/grub_embedded_iso.cfg \
+                     --config=/grub_embedded_image.cfg \
                      --format=i386-pc-eltorito \
                      --compression=auto \
                      biosdisk iso9660 ext2 exfat ntfs part_msdos part_gpt search_fs_file search \
@@ -330,8 +329,7 @@ EOF
       umount "${DEPLOY}"/{boot,dev,img,proc,sys}
       rm -f "${DEPLOY}"/img \
         "${DEPLOY}"/grub_embedded.cfg \
-        "${DEPLOY}"/grub_embedded_image.cfg \
-        "${DEPLOY}"/grub_embedded_iso.cfg
+        "${DEPLOY}"/grub_embedded_image.cfg
 
       # UEFI bootloader install
       cp -r "${DEPLOY}"/boot/efi/EFI "${ESP}"
