@@ -36,6 +36,7 @@ trap cleanup EXIT
 
 recreate_dir "${EIB_OSTREE_CHECKOUT}"
 REPOPATH=${EIB_OSTREE_CHECKOUT}/ostree/repo
+REPO_EXTENSIONS="${REPOPATH}"/extensions/eos
 BOOT=${EIB_OSTREE_CHECKOUT}/boot
 
 ostree admin init-fs "${EIB_OSTREE_CHECKOUT}"
@@ -63,6 +64,15 @@ kargs=(--karg=rw --karg=splash \
 ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" deploy \
   --os=${EIB_OSTREE_OS} "${kargs[@]}" \
   ${EIB_OSTREE_REMOTE}:${EIB_OSTREE_BRANCH_DEPLOY}
+
+# Copy the summary file into the repository in the deployment, so it can be
+# served by eos-update-server to other computers, as soon as the image is
+# booted.
+mkdir -p "${REPO_EXTENSIONS}"
+cp "${EIB_OSTREE_REPODIR}/tmp/cache/summaries/${EIB_OSTREE_REMOTE}" \
+   "${REPO_EXTENSIONS}"/eos-summary
+cp "${EIB_OSTREE_REPODIR}/tmp/cache/summaries/${EIB_OSTREE_REMOTE}.sig" \
+   "${REPO_EXTENSIONS}"/eos-summary.sig
 
 # There's no current symlink anymore, so query the deployment status.
 # This will be the second parameter on the first line.
