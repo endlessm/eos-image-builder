@@ -270,7 +270,7 @@ EOF
         # capture the boot sector and BIOS boot partition, and later overwrite
         # them with the standard version.
         chroot "${DEPLOY}" /usr/sbin/grub-install \
-                     --modules="ext2 exfat ntfs part_msdos part_gpt search_fs_file search" \
+                     --modules="ext2 exfat ntfs part_msdos part_gpt search_fs_file" \
                      --directory=/usr/lib/grub/i386-pc \
                      --config=/grub_embedded_image.cfg \
                      /img
@@ -313,7 +313,7 @@ EOF
                      --config=/grub_embedded_image.cfg \
                      --format=i386-pc-eltorito \
                      --compression=auto \
-                     biosdisk iso9660 ext2 exfat ntfs part_msdos part_gpt search_fs_file search \
+                     biosdisk iso9660 ext2 exfat ntfs part_msdos part_gpt search_fs_file \
                      > "${boot_zip_dir}/iso/eltorito.img"
 
         # Capture second-stage config and modules
@@ -322,7 +322,7 @@ EOF
 
       # Install the real MBR bootloader
       chroot "${DEPLOY}" /usr/sbin/grub-install \
-                   --modules="ext2 part_msdos part_gpt search_fs_type search" \
+                   --modules="ext2 part_msdos part_gpt search" \
                    --directory=/usr/lib/grub/i386-pc \
                    --config=/grub_embedded.cfg \
                    /img
