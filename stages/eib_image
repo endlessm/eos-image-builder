@@ -238,7 +238,7 @@ EOF
     i386|amd64)
       # MBR bootloader install
       > "${DEPLOY}"/img
-      cp "${EIB_DATADIR}"/grub_embedded.cfg \
+      cp "${EIB_DATADIR}"/grub_embedded_bios.cfg \
         "${EIB_DATADIR}"/grub_embedded_image.cfg \
         "${DEPLOY}"
       mount --bind "${img}" "${DEPLOY}"/img
@@ -319,7 +319,7 @@ EOF
       chroot "${DEPLOY}" /usr/sbin/grub-install \
                    --modules="ext2 part_msdos part_gpt search" \
                    --directory=/usr/lib/grub/i386-pc \
-                   --config=/grub_embedded.cfg \
+                   --config=/grub_embedded_bios.cfg \
                    /img
 
       if [ "$EIB_IMAGE_ISO" == "true" ] && [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
@@ -343,7 +343,7 @@ EOF
 
       umount "${DEPLOY}"/{boot,dev,img,proc,sys}
       rm -f "${DEPLOY}"/img \
-        "${DEPLOY}"/grub_embedded.cfg \
+        "${DEPLOY}"/grub_embedded_bios.cfg \
         "${DEPLOY}"/grub_embedded_image.cfg
 
       # UEFI bootloader install
