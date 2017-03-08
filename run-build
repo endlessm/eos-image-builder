@@ -356,8 +356,7 @@ class ImageBuilder(object):
             print('Loaded configuration file', path)
 
         # Handle merged key prefixes
-        for section, prefix in self.CONFIG_MERGE_PREFIXES:
-            self.config.merge_option_prefix(section, prefix)
+        self.merge_config()
 
     def check_value(self, section, option, value):
         # Sections and key names match the config files, with suffixes as
@@ -390,6 +389,16 @@ class ImageBuilder(object):
         for sect in schema.sections():
             for option, value in schema.items_no_default(sect):
                 self.check_value(sect, option, value)
+
+    def merge_config(self, config=None):
+        """Merge the options in the configuration
+
+        If config is None, the instance's config is used.
+        """
+        if config is None:
+            config = self.config
+        for section, prefix in self.CONFIG_MERGE_PREFIXES:
+            config.merge_option_prefix(section, prefix)
 
     def setenv(self, section, option, value):
         """Export config values as variable in EIB namespace"""
