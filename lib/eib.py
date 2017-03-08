@@ -20,7 +20,7 @@
 
 from argparse import ArgumentParser
 import configparser
-from collections import Counter
+from collections import Counter, OrderedDict
 import fnmatch
 import glob
 import json
@@ -127,6 +127,21 @@ class ImageConfigParser(configparser.ConfigParser):
         # Remove the add/del options to cleanup the section
         for opt in add_opts + del_opts:
             del sect[opt]
+
+    def copy(self):
+        """Create a new instance from this one"""
+        # Construct a dict to feed into a new instance's read_dict
+        data = OrderedDict()
+        data[self.defaultsect] = OrderedDict(self.items(self.defaultsect,
+                                                        raw=True))
+        for sect in self.sections():
+            data[sect] = OrderedDict(self.items_no_default(sect,
+                                                           raw=True))
+
+        # Construct the new instance
+        new_config = ImageConfigParser()
+        new_config.read_dict(data)
+        return new_config
 
 
 def recreate_dir(path):
