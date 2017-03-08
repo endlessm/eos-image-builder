@@ -8,3 +8,4 @@ __pycache__
 
 # Don't include local config overrides
 config/local.ini
+config/private.ini
