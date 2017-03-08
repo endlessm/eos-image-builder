@@ -55,7 +55,7 @@ if [[ "${EIB_ARCH}" == "armhf" ]]; then
 else
   # Assume grub for all other architectures
   mkdir -p "${BOOT}"/grub
-  cp "${EIB_DATADIR}"/grub.cfg "${BOOT}"/grub/grub.cfg
+  cp "${EIB_DATADIR}"/usr/lib/grub/conf/grub.cfg "${BOOT}"/grub/grub.cfg
 fi
 
 kargs=(--karg=rw --karg=splash \
@@ -238,9 +238,6 @@ EOF
     i386|amd64)
       # MBR bootloader install
       > "${DEPLOY}"/img
-      cp "${EIB_DATADIR}"/grub_embedded_bios.cfg \
-        "${EIB_DATADIR}"/grub_embedded_image.cfg \
-        "${DEPLOY}"
       mount --bind "${img}" "${DEPLOY}"/img
       mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
       mount --bind /dev "${DEPLOY}"/dev
@@ -277,7 +274,7 @@ EOF
                      --modules="biosdisk ext2 exfat ntfs part_msdos part_gpt" \
                      --install-modules="normal search configfile" \
                      --output=/usr/lib/grub/i386-pc/core.img \
-                     /boot/grub/grub.cfg='/grub_embedded_image.cfg'
+                     /boot/grub/grub.cfg='/usr/lib/grub/conf/grub_embedded_image.cfg'
         chroot "${DEPLOY}" /usr/sbin/grub-bios-setup \
                      --directory=/usr/lib/grub/i386-pc \
                      /img
@@ -298,7 +295,7 @@ EOF
                      --modules="biosdisk ext2 ntfs part_msdos part_gpt" \
                      --install-modules="normal search configfile" \
                      --output=/usr/lib/grub/i386-pc/core.img \
-                     /boot/grub/grub.cfg='/grub_embedded_image.cfg'
+                     /boot/grub/grub.cfg='/usr/lib/grub/conf/grub_embedded_image.cfg'
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/core.img" "${boot_zip_dir}/ntfs"
       fi
@@ -321,7 +318,7 @@ EOF
                      --modules="biosdisk iso9660 ext2 exfat ntfs part_msdos part_gpt" \
                      --install-modules="normal search configfile" \
                      --output=/usr/lib/grub/i386-pc/eltorito.img \
-                     /boot/grub/grub.cfg='/grub_embedded_image.cfg'
+                     /boot/grub/grub.cfg='/usr/lib/grub/conf/grub_embedded_image.cfg'
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot_hybrid.img" "${boot_zip_dir}/iso"
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/eltorito.img" "${boot_zip_dir}/iso"
 
@@ -330,9 +327,7 @@ EOF
       fi
 
       umount "${DEPLOY}"/{boot,dev,img,proc,sys}
-      rm -f "${DEPLOY}"/img \
-        "${DEPLOY}"/grub_embedded_bios.cfg \
-        "${DEPLOY}"/grub_embedded_image.cfg
+      rm -f "${DEPLOY}"/img
 
       # UEFI bootloader install
       cp -r "${DEPLOY}"/boot/efi/EFI "${ESP}"
