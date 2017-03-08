@@ -275,7 +275,7 @@ EOF
                      --themes= \
                      --fonts= \
                      --modules="biosdisk ext2 exfat ntfs part_msdos part_gpt" \
-                     --install-modules="normal search_fs_file configfile" \
+                     --install-modules="normal search configfile" \
                      --output=/usr/lib/grub/i386-pc/core.img \
                      /boot/grub/grub.cfg='/grub_embedded_image.cfg'
         chroot "${DEPLOY}" /usr/sbin/grub-bios-setup \
@@ -296,7 +296,7 @@ EOF
                      --themes= \
                      --fonts= \
                      --modules="biosdisk ext2 ntfs part_msdos part_gpt" \
-                     --install-modules="normal search_fs_file configfile" \
+                     --install-modules="normal search configfile" \
                      --output=/usr/lib/grub/i386-pc/core.img \
                      /boot/grub/grub.cfg='/grub_embedded_image.cfg'
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
@@ -331,7 +331,7 @@ EOF
                      --themes= \
                      --fonts= \
                      --modules="biosdisk iso9660 ext2 exfat ntfs part_msdos part_gpt" \
-                     --install-modules="normal configfile search_fs_file" \
+                     --install-modules="normal search configfile" \
                      --output=/usr/lib/grub/i386-pc/eltorito.img \
                      /boot/grub/grub.cfg='/grub_embedded_image.cfg'
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot_hybrid.img" "${boot_zip_dir}/iso"
