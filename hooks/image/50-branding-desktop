@@ -1,0 +1,19 @@
+# Adds the configuration file and assets to customize the desktop.
+#
+# The file will live in /etc/gnome-shell/branding.conf, and any related
+# resources (e.g. logo) under /etc/gnome-shell/assets.
+
+if [ -z "${EIB_IMAGE_BRANDING_DESKTOP_CONFIG}" ]; then
+    exit 0
+fi
+
+CONFIG_DIR="${OSTREE_DEPLOYMENT}"/etc/gnome-shell
+
+mkdir -p "${CONFIG_DIR}"
+cp "${EIB_IMAGE_BRANDING_DESKTOP_CONFIG}" "${CONFIG_DIR}"/
+
+# The logo is optional
+if [ -n "${EIB_IMAGE_BRANDING_DESKTOP_LOGO}" ]; then
+    mkdir -p "${CONFIG_DIR}"/assets
+    cp "${EIB_IMAGE_BRANDING_DESKTOP_LOGO}" "${CONFIG_DIR}"/assets/
+fi
