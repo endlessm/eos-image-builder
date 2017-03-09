@@ -12,7 +12,11 @@ CONFIG_DIR="${OSTREE_DEPLOYMENT}"/etc/gnome-initial-setup
 mkdir -p "${CONFIG_DIR}"
 cp "${EIB_IMAGE_BRANDING_FBE_CONFIG}" "${CONFIG_DIR}"/
 
-# The logo is optional
+# The skipped pages file and the logo are optional
+if [ -n "${EIB_IMAGE_BRANDING_FBE_SKIP_PAGES_FILE}" ]; then
+    cp "${EIB_IMAGE_BRANDING_FBE_SKIP_PAGES_FILE}" "${CONFIG_DIR}"/
+fi
+
 if [ -n "${EIB_IMAGE_BRANDING_FBE_LOGO}" ]; then
     mkdir -p "${CONFIG_DIR}"/assets
     cp "${EIB_IMAGE_BRANDING_FBE_LOGO}" "${CONFIG_DIR}"/assets/
