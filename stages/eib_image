@@ -266,6 +266,10 @@ EOF
         # add the offsets. So we actually install this flavour of GRUB,
         # capture the boot sector and BIOS boot partition, and later overwrite
         # them with the standard version.
+        #
+        # Also create BIOS-boot GRUB core.img for images on NTFS. Windows only supports
+        # BIOS-booting from MBR partition tables, so the pristine boot.img and
+        # core.img (which both have a 1-sector offset embedded in them) are fine.
         chroot "${DEPLOY}" /usr/bin/grub-mkstandalone \
                      --directory=/usr/lib/grub/i386-pc \
                      --format=i386-pc \
@@ -278,24 +282,13 @@ EOF
         chroot "${DEPLOY}" /usr/sbin/grub-bios-setup \
                      --directory=/usr/lib/grub/i386-pc \
                      /img
+
         mkdir -p "${boot_zip_dir}/live"
         dd if="${img_loop}" of="${boot_zip_dir}/live/boot.img" bs=446 count=1
         dd if="${bios_boot_loop}" of="${boot_zip_dir}/live/core.img" \
                      bs=512 count=2048
 
-        # Create BIOS-boot GRUB core.img for images on NTFS. Windows only supports
-        # BIOS-booting from MBR partition tables, so the pristine boot.img and
-        # core.img (which both have a 1-sector offset embedded in them) are fine.
         mkdir -p "${boot_zip_dir}/ntfs"
-        chroot "${DEPLOY}" /usr/bin/grub-mkstandalone \
-                     --directory=/usr/lib/grub/i386-pc \
-                     --format=i386-pc \
-                     --themes= \
-                     --fonts= \
-                     --modules="biosdisk ext2 ntfs part_msdos part_gpt" \
-                     --install-modules="normal search configfile" \
-                     --output=/usr/lib/grub/i386-pc/core.img \
-                     /boot/grub/grub.cfg='/usr/lib/grub/conf/grub_embedded_image.cfg'
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/core.img" "${boot_zip_dir}/ntfs"
       fi
