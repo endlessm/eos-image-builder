@@ -283,7 +283,6 @@ EOF
         # BIOS-booting from MBR partition tables, so the pristine boot.img and
         # core.img (which both have a 1-sector offset embedded in them) are fine.
         mkdir -p "${boot_zip_dir}/ntfs"
-        cp "${DEPLOY}/boot/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
         chroot "${DEPLOY}" /usr/bin/grub-mkimage \
                      --directory=/usr/lib/grub/i386-pc \
                      --prefix=/boot/grub \
@@ -291,6 +290,7 @@ EOF
                      --format=i386-pc \
                      biosdisk ext2 ntfs part_msdos part_gpt search_fs_file \
                      > "${boot_zip_dir}/ntfs/core.img"
+        cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
         # Assuming the worst case:
         # * the first partition starts at the second track
         # * a track is 64 512-byte sectors
@@ -303,7 +303,16 @@ EOF
             echo "It must be <= ${max_ntfs_core_img_bytes}" >&2
             return 1
         fi
+      fi
 
+      # Install the real MBR bootloader
+      chroot "${DEPLOY}" /usr/sbin/grub-install \
+                   --modules="ext2 part_msdos part_gpt search" \
+                   --directory=/usr/lib/grub/i386-pc \
+                   --config=/grub_embedded.cfg \
+                   /img
+
+      if [ "$EIB_IMAGE_ISO" == "true" ] && [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
         # Save boot_hybrid.img MBR code for the hybrid ISO and the El-Torito boot image
         mkdir -p "${boot_zip_dir}/iso"
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot_hybrid.img" "${boot_zip_dir}/iso"
@@ -320,12 +329,6 @@ EOF
         cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
       fi
 
-      # Install the real MBR bootloader
-      chroot "${DEPLOY}" /usr/sbin/grub-install \
-                   --modules="ext2 part_msdos part_gpt search" \
-                   --directory=/usr/lib/grub/i386-pc \
-                   --config=/grub_embedded.cfg \
-                   /img
       umount "${DEPLOY}"/{boot,dev,img,proc,sys}
       rm -f "${DEPLOY}"/img \
         "${DEPLOY}"/grub_embedded.cfg \
