@@ -1,18 +1,22 @@
 # Adds the configuration file and assets to customize the welcome page of the FBE.
 #
-# The file will live in /etc/eos-branding/gnome-initial-setup/pages.conf,
-# and any related resources (e.g. logo) under /etc/eos-branding/assets.
+# The file will live in /etc/gnome-initial-setup/branding.conf, and any related
+# resources (e.g. logo) under /etc/gnome-initial-setup/assets.
 
 if [ -z "${EIB_IMAGE_BRANDING_FBE_CONFIG}" ]; then
     exit 0
 fi
 
-CONFIG_DIR="${OSTREE_DEPLOYMENT}"/etc/eos-branding
+CONFIG_DIR="${OSTREE_DEPLOYMENT}"/etc/gnome-initial-setup
 
-mkdir -p "${CONFIG_DIR}"/gnome-initial-setup
-cp "${EIB_IMAGE_BRANDING_FBE_CONFIG}" "${CONFIG_DIR}"/gnome-initial-setup/
+mkdir -p "${CONFIG_DIR}"
+cp "${EIB_IMAGE_BRANDING_FBE_CONFIG}" "${CONFIG_DIR}"/
 
-# The logo is optional
+# The skipped pages file and the logo are optional
+if [ -n "${EIB_IMAGE_BRANDING_FBE_SKIP_PAGES_FILE}" ]; then
+    cp "${EIB_IMAGE_BRANDING_FBE_SKIP_PAGES_FILE}" "${CONFIG_DIR}"/
+fi
+
 if [ -n "${EIB_IMAGE_BRANDING_FBE_LOGO}" ]; then
     mkdir -p "${CONFIG_DIR}"/assets
     cp "${EIB_IMAGE_BRANDING_FBE_LOGO}" "${CONFIG_DIR}"/assets/
