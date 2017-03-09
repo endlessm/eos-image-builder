@@ -301,18 +301,6 @@ EOF
                      /boot/grub/grub.cfg='/grub_embedded_image.cfg'
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/core.img" "${boot_zip_dir}/ntfs"
-        # Assuming the worst case:
-        # * the first partition starts at the second track
-        # * a track is 64 512-byte sectors
-        # * the MBR is one sector
-        # then we have (64 - 1) * 512 == 32256 of space.
-        local ntfs_core_img_bytes=$(wc -c <"${boot_zip_dir}/ntfs/core.img")
-        local max_ntfs_core_img_bytes=32256
-        if [ $ntfs_core_img_bytes -gt $max_ntfs_core_img_bytes ]; then
-            echo "${boot_zip_dir}/ntfs/core.img is ${ntfs_core_img_bytes}" &>2
-            echo "It must be <= ${max_ntfs_core_img_bytes}" >&2
-            return 1
-        fi
       fi
 
       # Install the real MBR bootloader
