@@ -319,6 +319,10 @@ EOF
         cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
       fi
 
+      # Cleanup
+      rm -f "${DEPLOY}"/usr/lib/grub/i386-pc/eltorito.img
+      rm -f "${DEPLOY}"/usr/lib/grub/i386-pc/core.img
+
       umount "${DEPLOY}"/{boot,dev,img,proc,sys}
       rm -f "${DEPLOY}"/img
 
