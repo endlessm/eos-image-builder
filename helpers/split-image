@@ -265,6 +265,10 @@ split_image() {
   eib_mount --bind "${EIB_CONTENTDIR}" \
             "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
 
+  # Copy in the host's /etc/resolv.conf so the one from the ostree (if
+  # it exists) is not used and DNS can be resolved.
+  cp -f /etc/resolv.conf "${OSTREE_DEPLOYMENT}"/etc/resolv.conf
+
   run_hooks split "${OSTREE_DEPLOYMENT}"
   "${EIB_HELPERSDIR}"/kill-chroot-procs "${OSTREE_DEPLOYMENT}"
 
@@ -275,6 +279,9 @@ split_image() {
 
   # Clear the content mount variable in case it's used somewhere else
   unset EIB_CONTENTDIR_CHROOT
+
+  # Delete the resolv.conf copy so it's not shipped
+  rm -f "${OSTREE_DEPLOYMENT}"/etc/resolv.conf
 
   # Unmount the filesystems and shrink the image files.
   eib_umount_all

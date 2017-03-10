@@ -526,6 +526,10 @@ mkdir -p "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
 eib_mount --bind "${EIB_CONTENTDIR}" \
           "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
 
+# Copy in the host's /etc/resolv.conf so the one from the ostree (if it
+# exists) is not used and DNS can be resolved.
+cp -f /etc/resolv.conf "${OSTREE_DEPLOYMENT}"/etc/resolv.conf
+
 # /usr/local is a symlink to /var/local in the ostree, but /var/local
 # doesn't exist yet since it's created from systemd-tmpfiles at runtime.
 # Create it now so that hooks can populate /usr/local.
@@ -549,5 +553,8 @@ eib_umount_all
 
 # Clear the content mount variable in case it's used somewhere else
 unset EIB_CONTENTDIR_CHROOT
+
+# Delete the resolv.conf copy so it's not shipped
+rm -f "${OSTREE_DEPLOYMENT}"/etc/resolv.conf
 
 create_image "$(eib_outfile img.${EIB_IMAGE_COMPRESSION})"
