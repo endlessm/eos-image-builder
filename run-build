@@ -246,6 +246,9 @@ class ImageBuilder(object):
         self.dry_run = dry_run
         self.use_production = use_production
 
+        # Config instance without private settings
+        self._public_config = eib.ImageConfigParser()
+
         # Release series. E.g., eos2.4 is in series eos2 while master is
         # in series master.
         self.series = self.branch.rsplit('.', 1)[0]
@@ -355,9 +358,32 @@ class ImageBuilder(object):
         for path in self.config.read(config_files):
             print('Loaded configuration file', path)
 
-        # Handle merged key prefixes
-        for section, prefix in self.CONFIG_MERGE_PREFIXES:
-            self.config.merge_option_prefix(section, prefix)
+        # Copy the configuration to the public instance and merge the
+        # options.
+        self._public_config = self.config.copy()
+        self.merge_config(self._public_config)
+
+    def configure_private(self):
+        """Build settings from private configuration files
+
+        Read additional private configuration files that will not be
+        displayed in the merged configuration file. There are 2 private
+        configuration files:
+
+        1. System private settings - $sysconfdir/private.ini
+        2. Local private settings - $configdir/private.ini
+        """
+        config_files = [
+            os.path.join(self.sysconfdir, 'private.ini'),
+            os.path.join(self.configdir, 'private.ini'),
+        ]
+
+        # Read the config files
+        for path in self.config.read(config_files):
+            print('Loaded private configuration file', path)
+
+        # Merge the key prefixes for the real configuration
+        self.merge_config()
 
     def check_value(self, section, option, value):
         # Sections and key names match the config files, with suffixes as
@@ -390,6 +416,16 @@ class ImageBuilder(object):
         for sect in schema.sections():
             for option, value in schema.items_no_default(sect):
                 self.check_value(sect, option, value)
+
+    def merge_config(self, config=None):
+        """Merge the options in the configuration
+
+        If config is None, the instance's config is used.
+        """
+        if config is None:
+            config = self.config
+        for section, prefix in self.CONFIG_MERGE_PREFIXES:
+            config.merge_option_prefix(section, prefix)
 
     def setenv(self, section, option, value):
         """Export config values as variable in EIB namespace"""
@@ -479,16 +515,17 @@ class ImageBuilder(object):
         os.makedirs(self.contentdir, exist_ok=True)
 
     def create_tmp_config(self):
-        """Take the merged configuration and output it to a single file
+        """Take the merged public configuration and output it to a single file
         in the tmp directory.
         """
         with open(self.tmpconfig, 'w') as out:
             out.write('# Configuration for %s\n' % self.outversion)
-            self.config.write(out)
+            self._public_config.write(out)
 
     def run(self):
         print('Configuring image build', flush=True)
         self.configure()
+        self.configure_private()
         self.check_config()
         if self.show_config:
             # Just show the configuration without doing anything
