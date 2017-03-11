@@ -202,6 +202,7 @@ class ImageBuilder(object):
         ('split', 'hooks'),
         ('flatpak', 'install_eos'),
         ('flatpak', 'install_gnome'),
+        ('flatpak', 'install_extra'),
         ('flatpak', 'nosplit'),
         ('manifest', 'hooks'),
         ('publish', 'hooks'),
