@@ -253,55 +253,6 @@ EOF
       mount --bind /proc "${DEPLOY}"/proc
       mount --bind /sys "${DEPLOY}"/sys
 
-      if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
-        local boot_zip_dir=${EIB_TMPDIR}/boot_zip
-        mkdir "${boot_zip_dir}"
-
-        # Capture BIOS-boot GRUB boot.img and core.img for live+installer USBs.
-        #
-        # grub-install invokes grub-mkimage, which writes a core.img file to
-        # /boot/grub/i386-pc/; it then invokes grub-bios-setup to write this
-        # file to the BIOS boot partition, and write an appropriate MBR (boot.img,
-        # as shipped with GRUB, patched with the offset to the BIOS boot
-        # partition).
-        #
-        # You might hope that we could just add core.img to $boot_zip, and later
-        # dd it verbatim onto the BIOS boot partition, but it transpires that
-        # grub-bios-setup does more than this: it patches the partition offset
-        # here too, and (if there's extra space, which there is here) adds some
-        # redundancy to the image.
-        #
-        # We could disable the latter with --no-rs-codes, but we'd still have to
-        # add the offsets. So we actually install this flavour of GRUB,
-        # capture the boot sector and BIOS boot partition, and later overwrite
-        # them with the standard version.
-        #
-        # Also create BIOS-boot GRUB core.img for images on NTFS. Windows only supports
-        # BIOS-booting from MBR partition tables, so the pristine boot.img and
-        # core.img (which both have a 1-sector offset embedded in them) are fine.
-        chroot "${DEPLOY}" /usr/bin/grub-mkstandalone \
-                     --directory=/usr/lib/grub/i386-pc \
-                     --format=i386-pc \
-                     --themes= \
-                     --fonts= \
-                     --modules="biosdisk ext2 exfat ntfs part_msdos part_gpt" \
-                     --install-modules="normal search configfile regexp" \
-                     --output=/usr/lib/grub/i386-pc/core.img \
-                     /boot/grub/grub.cfg='/usr/lib/grub/conf/grub_embedded_image.cfg'
-        chroot "${DEPLOY}" /usr/sbin/grub-bios-setup \
-                     --directory=/usr/lib/grub/i386-pc \
-                     /img
-
-        mkdir -p "${boot_zip_dir}/live"
-        dd if="${img_loop}" of="${boot_zip_dir}/live/boot.img" bs=446 count=1
-        dd if="${bios_boot_loop}" of="${boot_zip_dir}/live/core.img" \
-                     bs=512 count=2048
-
-        mkdir -p "${boot_zip_dir}/ntfs"
-        cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
-        cp -a "${DEPLOY}/usr/lib/grub/i386-pc/core.img" "${boot_zip_dir}/ntfs"
-      fi
-
       # Install the real MBR bootloader
       chroot "${DEPLOY}" /usr/sbin/grub-install \
                    --modules="ext2 part_msdos part_gpt search" \
@@ -309,27 +260,19 @@ EOF
                    --config=/usr/lib/grub/conf/grub_embedded_bios.cfg \
                    /img
 
-      if [ "$EIB_IMAGE_ISO" == "true" ] && [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
-        # Save boot_hybrid.img MBR code for the hybrid ISO and the El-Torito boot image
-        mkdir -p "${boot_zip_dir}/iso"
-        chroot "${DEPLOY}" /usr/bin/grub-mkstandalone \
-                     --directory=/usr/lib/grub/i386-pc \
-                     --format=i386-pc-eltorito \
-                     --themes= \
-                     --fonts= \
-                     --modules="biosdisk iso9660 ext2 exfat ntfs part_msdos part_gpt" \
-                     --install-modules="normal search configfile regexp" \
-                     --output=/usr/lib/grub/i386-pc/eltorito.img \
-                     /boot/grub/grub.cfg='/usr/lib/grub/conf/grub_embedded_image.cfg'
-        cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot_hybrid.img" "${boot_zip_dir}/iso"
-        cp -a "${DEPLOY}/usr/lib/grub/i386-pc/eltorito.img" "${boot_zip_dir}/iso"
-      fi
-
       # Copy grub.cfg
       cp "${DEPLOY}/usr/lib/grub/conf/grub.cfg" "${DEPLOY}/boot/grub/grub.cfg"
 
-      # Capture second-stage config and modules
-      cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
+      if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
+        local boot_zip_dir=${EIB_TMPDIR}/boot_zip
+        mkdir "${boot_zip_dir}"
+
+        # Copy images
+        cp -a "${DEPLOY}/usr/lib/grub/images/*" "${boot_zip_dir}"
+
+        # Capture second-stage config and modules
+        cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
+      fi
 
       # Cleanup
       rm -f "${DEPLOY}"/usr/lib/grub/i386-pc/eltorito.img
