@@ -306,7 +306,7 @@ EOF
       chroot "${DEPLOY}" /usr/sbin/grub-install \
                    --modules="ext2 part_msdos part_gpt search" \
                    --directory=/usr/lib/grub/i386-pc \
-                   --config=/grub_embedded_bios.cfg \
+                   --config=/usr/lib/grub/conf/grub_embedded_bios.cfg \
                    /img
 
       if [ "$EIB_IMAGE_ISO" == "true" ] && [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
