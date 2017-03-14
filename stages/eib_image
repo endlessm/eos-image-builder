@@ -56,7 +56,6 @@ if [[ "${EIB_ARCH}" == "armhf" ]]; then
 else
   # Assume grub for all other architectures
   mkdir -p "${BOOT}"/grub
-  cp "${EIB_DATADIR}"/usr/lib/grub/conf/grub.cfg "${BOOT}"/grub/grub.cfg
 fi
 
 kargs=(--karg=rw --karg=splash \
@@ -307,7 +306,7 @@ EOF
       chroot "${DEPLOY}" /usr/sbin/grub-install \
                    --modules="ext2 part_msdos part_gpt search" \
                    --directory=/usr/lib/grub/i386-pc \
-                   --config=/grub_embedded_bios.cfg \
+                   --config=/usr/lib/grub/conf/grub_embedded_bios.cfg \
                    /img
 
       if [ "$EIB_IMAGE_ISO" == "true" ] && [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
@@ -324,10 +323,13 @@ EOF
                      /boot/grub/grub.cfg='/usr/lib/grub/conf/grub_embedded_image.cfg'
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot_hybrid.img" "${boot_zip_dir}/iso"
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/eltorito.img" "${boot_zip_dir}/iso"
-
-        # Capture second-stage config and modules
-        cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
       fi
+
+      # Copy grub.cfg
+      cp "${DEPLOY}/usr/lib/grub/conf/grub.cfg" "${DEPLOY}/boot/grub/grub.cfg"
+
+      # Capture second-stage config and modules
+      cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
 
       # Cleanup
       rm -f "${DEPLOY}"/usr/lib/grub/i386-pc/eltorito.img
