@@ -324,10 +324,10 @@ EOF
                      /boot/grub/grub.cfg='/usr/lib/grub/conf/grub_embedded_image.cfg'
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot_hybrid.img" "${boot_zip_dir}/iso"
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/eltorito.img" "${boot_zip_dir}/iso"
-
-        # Capture second-stage config and modules
-        cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
       fi
+
+      # Capture second-stage config and modules
+      cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
 
       # Cleanup
       rm -f "${DEPLOY}"/usr/lib/grub/i386-pc/eltorito.img
