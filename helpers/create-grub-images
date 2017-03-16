@@ -1,0 +1,134 @@
+#!/bin/bash -ex
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
+. "${EIB_BASELIB}"
+
+cleanup() {
+  if [ -n "${img_loop}" ]; then
+    partx -v -d "${img_loop}"
+    eib_delete_loop "${img_loop}"
+  fi
+  rm -f "${img}"
+  rm -f "${deploy}"/usr/lib/grub/i386-pc/eltorito.img
+  rm -f "${deploy}"/usr/lib/grub/i386-pc/core.img
+  rm -f "${deploy}"/usr/lib/grub/i386-pc/eosldr.mbr
+}
+trap cleanup EXIT
+
+create_grub_images() {
+  local deploy=$1
+  local boot_zip_dir=$2
+
+  img="${EIB_TMPDIR}/${EIB_OUTVERSION}-grub-images.img"
+  rm -f "${img}"
+  truncate -s 70M "${img}"
+
+  (
+    echo -n "start=2048, "
+    echo "size=62MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+    echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
+  ) | sfdisk --force --label gpt "${img}"
+
+  img_loop=$(losetup -f --show "${img}")
+  eib_partx_scan "${img_loop}"
+
+  local bios_boot_loop=${img_loop}p2
+
+  local EMBEDDED_MODULES="
+        biosdisk
+        ext2
+        exfat
+        ntfs
+        part_msdos
+        part_gpt
+        "
+
+  local MEMDISK_MODULES="
+        normal
+        search
+        configfile
+        regexp
+        "
+
+  local ISO_EMBEDDED_MODULES="
+        ${EMBEDDED_MODULES}
+        iso9660
+        "
+  # Capture BIOS-boot GRUB boot.img and core.img for live+installer USBs.
+  #
+  # grub-install invokes grub-mkimage, which writes a core.img file to
+  # /boot/grub/i386-pc/; it then invokes grub-bios-setup to write this
+  # file to the BIOS boot partition, and write an appropriate MBR (boot.img,
+  # as shipped with GRUB, patched with the offset to the BIOS boot
+  # partition).
+  #
+  # When dealing with standalone images instead of grub-mkimage,
+  # grub-mkstandalone is used.
+  #
+  # You might hope that we could just save core.img somewher, and later
+  # dd it verbatim onto the BIOS boot partition, but it transpires that
+  # grub-bios-setup does more than this: it patches the partition offset
+  # here too, and (if there's extra space, which there is here) adds some
+  # redundancy to the image.
+  #
+  # We could disable the latter with --no-rs-codes, but we'd still have to
+  # add the offsets. So we actually install this flavour of GRUB,
+  # capturing the boot sector and BIOS boot partition.
+  #
+  # Also create BIOS-boot GRUB core.img for images on NTFS. Windows only supports
+  # BIOS-booting from MBR partition tables, so the pristine boot.img and
+  # core.img (which both have a 1-sector offset embedded in them) are fine.
+  chroot "${deploy}" /usr/bin/grub-mkstandalone \
+               --directory=/usr/lib/grub/i386-pc \
+               --format=i386-pc \
+               --themes= \
+               --fonts= \
+               --modules="${EMBEDDED_MODULES}" \
+               --install-modules="${MEMDISK_MODULES}" \
+               --output=/usr/lib/grub/i386-pc/core.img \
+               /boot/grub/grub.cfg='/usr/lib/grub/conf/grub_embedded_image.cfg'
+  chroot "${deploy}" /usr/sbin/grub-bios-setup \
+               --directory=/usr/lib/grub/i386-pc \
+               ${img_loop}
+
+  mkdir -p "${boot_zip_dir}/live"
+  dd if="${img_loop}" of="${boot_zip_dir}/live/boot.img" bs=446 count=1
+  dd if="${bios_boot_loop}" of="${boot_zip_dir}/live/core.img" bs=512 count=2048
+
+  mkdir -p "${boot_zip_dir}/ntfs"
+  cp -a "${deploy}/usr/lib/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
+  cp -a "${deploy}/usr/lib/grub/i386-pc/core.img" "${boot_zip_dir}/ntfs"
+
+  # Save boot_hybrid.img MBR code for the hybrid ISO and the El-Torito boot image
+  chroot "${deploy}" /usr/bin/grub-mkstandalone \
+               --directory=/usr/lib/grub/i386-pc \
+               --format=i386-pc-eltorito \
+               --themes= \
+               --fonts= \
+               --modules="${ISO_EMBEDDED_MODULES}" \
+               --install-modules="${MEMDISK_MODULES}" \
+               --output=/usr/lib/grub/i386-pc/eltorito.img \
+               /boot/grub/grub.cfg='/usr/lib/grub/conf/grub_embedded_image.cfg'
+
+  mkdir -p "${boot_zip_dir}/iso"
+  cp -a "${deploy}/usr/lib/grub/i386-pc/boot_hybrid.img" "${boot_zip_dir}/iso"
+  cp -a "${deploy}/usr/lib/grub/i386-pc/eltorito.img" "${boot_zip_dir}/iso"
+
+  # Generate an eosldr.mbr file (up to 8k) to be chainloaded by the
+  # Windows bootloader modifying boot.ini (<= Windows 2003) or the BCD
+  # (>= Windows Vista).
+  # This binary has just enough NTFS knowledge to find the 2nd stage
+  # eosldr and chainload it. eosldr is our core.img + a special header
+  # shipped by lnxboot.img.
+  chroot "${deploy}" /usr/bin/grub-ntldr-img \
+               --grub2 \
+               --boot-file=eosldr \
+               --output /usr/lib/grub/i386-pc/eosldr.mbr
+
+  mkdir -p "${boot_zip_dir}/eosldr"
+  cp -a "${deploy}/usr/lib/grub/i386-pc/eosldr.mbr" "${boot_zip_dir}/eosldr"
+  cat "${deploy}/usr/lib/grub/i386-pc/lnxboot.img" "${deploy}/usr/lib/grub/i386-pc/core.img" \
+               > "${boot_zip_dir}/eosldr/eosldr"
+}
+
+# Run main function for this image.
+create_grub_images "$@"
