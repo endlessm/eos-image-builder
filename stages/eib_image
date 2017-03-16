@@ -300,6 +300,22 @@ EOF
         mkdir -p "${boot_zip_dir}/ntfs"
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/boot.img" "${boot_zip_dir}/ntfs"
         cp -a "${DEPLOY}/usr/lib/grub/i386-pc/core.img" "${boot_zip_dir}/ntfs"
+
+        # Generate an eosldr.mbr file (up to 8k) to be chainloaded by the
+        # Windows bootloader modifying boot.ini (<= Windows 2003) or the BCD
+        # (>= Windows Vista).
+        # This binary has just enough NTFS knowledge to find the 2nd stage
+        # eosldr and chainload it. eosldr is our core.img + a special header
+        # shipped by lnxboot.img.
+        chroot "${DEPLOY}" /usr/bin/grub-ntldr-img \
+                     --grub2 \
+                     --boot-file=eosldr \
+                     --output /usr/lib/grub/i386-pc/eosldr.mbr
+
+        mkdir -p "${boot_zip_dir}/eosldr"
+        cp -a "${DEPLOY}/usr/lib/grub/i386-pc/eosldr.mbr" "${boot_zip_dir}/eosldr"
+        cat "${DEPLOY}/usr/lib/grub/i386-pc/lnxboot.img" "${DEPLOY}/usr/lib/grub/i386-pc/core.img" \
+                     > "${boot_zip_dir}/eosldr/eosldr"
       fi
 
       # Install the real MBR bootloader
@@ -336,6 +352,7 @@ EOF
       # Cleanup
       rm -f "${DEPLOY}"/usr/lib/grub/i386-pc/eltorito.img
       rm -f "${DEPLOY}"/usr/lib/grub/i386-pc/core.img
+      rm -f "${DEPLOY}"/usr/lib/grub/i386-pc/eosldr.mbr
 
       umount "${DEPLOY}"/{boot,dev,img,proc,sys}
       rm -f "${DEPLOY}"/img
