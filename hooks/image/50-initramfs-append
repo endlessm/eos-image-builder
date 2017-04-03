@@ -12,16 +12,17 @@ fi
 
 tmpdir=$(mktemp -d -p "$EIB_TMPDIR")
 plymouthdir="usr/share/plymouth"
+plymouthcustomizationdir="eos-customization/plymouth"
 
 pushd ${tmpdir}
 
-  mkdir -p "${plymouthdir}/themes"
+  mkdir -p "${plymouthcustomizationdir}/themes"
 
-  cp "${OSTREE_DEPLOYMENT}/${plymouthdir}/plymouthd.defaults" "${plymouthdir}"
-  sed -i "s/^Theme=.*/Theme=spinner/" "${plymouthdir}/plymouthd.defaults"
+  cp "${OSTREE_DEPLOYMENT}/${plymouthdir}/plymouthd.defaults" "${plymouthcustomizationdir}"
+  sed -i "s/^Theme=.*/Theme=spinner/" "${plymouthcustomizationdir}/plymouthd.defaults"
 
-  cp -r "${EIB_DATADIR}/plymouth/themes/spinner" "${plymouthdir}/themes"
-  cp "${EIB_IMAGE_INITRAMFS_PLYMOUTH_WATERMARK}" "${plymouthdir}/themes/spinner/watermark.png"
+  cp -r "${EIB_DATADIR}/plymouth/themes/spinner" "${plymouthcustomizationdir}/themes"
+  cp "${EIB_IMAGE_INITRAMFS_PLYMOUTH_WATERMARK}" "${plymouthcustomizationdir}/themes/spinner/watermark.png"
 
   find . | cpio -o -H newc | gzip -9 -n >"${EIB_OSTREE_CHECKOUT}/boot/initramfs-append"
 
