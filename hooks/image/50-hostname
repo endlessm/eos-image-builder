@@ -1,0 +1,6 @@
+# Overrides the hostname set by the OSTree builder.
+
+[ -n "${EIB_IMAGE_HOSTNAME}" ] || exit 0
+
+sed -i "s/127.0.1.1 endless/127.0.1.1 ${EIB_IMAGE_HOSTNAME}/" "${OSTREE_DEPLOYMENT}"/etc/hosts
+echo "${EIB_IMAGE_HOSTNAME}" > "${OSTREE_DEPLOYMENT}"/etc/hostname
