@@ -40,19 +40,13 @@ hooks_del_local = 50-gnome-software-cache
 compression = gz
 
 [ostree]
-# Normally the ostree commits are fetched from the internal ostree
-# server in the endlessm-sf.com domain for speed. However, testing
-# outside of the SF office is likely to be faster (and not require VPN)
-# by using the public dev repo.
-#int_url = https://endless:***REMOVED***@origin.ostree.endlessm.com/staging/dev/${repo}
+# Normally the ostree commits for OS and apps are fetched from the
+# internal ostree server in the endlessm-sf.com domain for speed.
+# However, testing outside of the SF office is likely to be faster (and
+# not require VPN) by using the public dev repo.
+#dev_url_root = https://endless:***REMOVED***@origin.ostree.endlessm.com/staging/dev
 
 [flatpak]
-# Like ostree commits, flatpak apps and runtimes are fetched from the
-# internal ostree server. When outside SF office, it may bet better to
-# use the public dev repos.
-#apps_server = https://endless:***REMOVED***@origin.ostree.endlessm.com/staging/dev/${apps_repo}
-#runtimes_server = https://endless:***REMOVED***@origin.ostree.endlessm.com/staging/dev/${runtimes_repo}
-
 # Completely override the set of installed EOS apps for testing. This will
 # take precedence over all other image variant configuration. This can
 # be useful if the exact app set is known or if the build is for testing
