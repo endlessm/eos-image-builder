@@ -204,6 +204,7 @@ class ImageBuilder(object):
         ('flatpak', 'install_gnome'),
         ('flatpak', 'install_extra'),
         ('flatpak', 'nosplit'),
+        ('flatpak', 'gnome_branch'),
         ('manifest', 'hooks'),
         ('publish', 'hooks'),
         ('error', 'hooks'),
