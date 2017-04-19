@@ -41,6 +41,11 @@ create_iso() {
   local img_size=$(stat -c "%s" "${img}")
   echo "${img_size}" > "${iso}.size"
 
+  local squashfs_comp=gzip
+  if [ "${EIB_IMAGE_COMPRESSION}" == "xz" ]; then
+    squashfs_comp=xz
+  fi
+
   TMPDIR="${EIB_TMPDIR}" eos-write-live-image --debug \
     --iso \
     --os-image "${img}" \
@@ -48,6 +53,7 @@ create_iso() {
     --delete-os-image \
     --force \
     --label "${label}" \
+    --squashfs-comp "${squashfs_comp}" \
     "${iso}"
 
   # Sign ISO
