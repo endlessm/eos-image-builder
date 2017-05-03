@@ -337,6 +337,17 @@ EOF
       "signature": "${boot_zip_signature}"
     },
 EOF
+      else
+        # No boot.zip means this is eosinstaller, not an installable image.
+        # Since this will only be used on removable media, it should not
+        # include fallback.efi, which alters the system's BootOrder. In effect,
+        # we are recreating the layout in boot.zip/EFI, only on the real ESP.
+        rm "${ESP}/EFI/BOOT/fallback.efi"
+        mv \
+          "${ESP}/EFI/endless/MokManager.efi" \
+          "${ESP}/EFI/endless/grubx64.efi" \
+          "${ESP}/EFI/BOOT/"
+        rm -r "${ESP}/EFI/endless"
       fi
       ;;
     *)
