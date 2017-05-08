@@ -1,14 +1,14 @@
 # Adds the configuration file and assets to customize the welcome page of the FBE.
 #
-# The file will live in /var/eos-image-defaults/branding/gnome-initial-setup.conf,
-# and any related resources (e.g. logo) under /var/eos-image-defaults/branding/assets.
+# The file will live in /var/lib/eos-image-defaults/branding/gnome-initial-setup.conf,
+# and any related resources (e.g. logo) under /var/lib/eos-image-defaults/branding/assets.
 
 if [ -z "${EIB_IMAGE_BRANDING_FBE_CONFIG}" ]; then
     exit 0
 fi
 
-CONFIG_DIR="${OSTREE_VAR}"/eos-image-defaults/branding
-ASSETS_DIR="${OSTREE_VAR}"/eos-image-defaults/branding/assets
+CONFIG_DIR="${OSTREE_VAR}"/lib/eos-image-defaults/branding
+ASSETS_DIR="${OSTREE_VAR}"/lib/eos-image-defaults/branding/assets
 
 mkdir -p "${CONFIG_DIR}"
 cp "${EIB_IMAGE_BRANDING_FBE_CONFIG}" "${CONFIG_DIR}"/

@@ -1,6 +1,6 @@
 # Copy icon-grid overrides to the correct location in the image
 
-TGT=${OSTREE_VAR}/eos-image-defaults/icon-grid
+TGT=${OSTREE_VAR}/lib/eos-image-defaults/icon-grid
 mkdir -p ${TGT}
 
 for file in ${EIB_IMAGE_ICON_GRID}; do
