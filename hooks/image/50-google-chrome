@@ -18,7 +18,7 @@ fi
 # so that Chrome is on the desktop by default rather than Chromium
 
 ICON_SOURCE_DIR="${OSTREE_DEPLOYMENT}"/usr/share/eos-shell-content/icon-grid-defaults
-ICON_TARGET_DIR="${OSTREE_VAR}"/eos-image-defaults/icon-grid
+ICON_TARGET_DIR="${OSTREE_VAR}"/lib/eos-image-defaults/icon-grid
 
 mkdir -p "${ICON_TARGET_DIR}"
 for file in "${ICON_SOURCE_DIR}"/icon-grid-*.json; do

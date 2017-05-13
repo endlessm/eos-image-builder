@@ -2,7 +2,7 @@
 # by our dconf default user profile
 
 OVERRIDES_DIR=/tmp/dconf-overrides
-TARGET_DIR=/var/eos-image-defaults
+TARGET_DIR=/var/lib/eos-image-defaults
 TARGET_DB=${TARGET_DIR}/settings
 
 mkdir -p ${TARGET_DIR}
