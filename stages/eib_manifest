@@ -14,7 +14,6 @@ cat > "${EIB_MANIFESTDIR}"/basic-info.json <<EOF
   "arch": "${EIB_ARCH}",
   "platform": "${EIB_PLATFORM}",
   "personality": "${EIB_PERSONALITY}",
-  "personality_name": "${EIB_PERSONALITY_NAME}",
   "build_version": "${EIB_BUILD_VERSION}",
   "builder_commit": "${builder_commit}"
 }
