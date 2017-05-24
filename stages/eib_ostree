@@ -14,7 +14,7 @@ fi
 ostree --repo="${EIB_OSTREE_REPODIR}" prune --refs-only --depth=0
 
 # Optionally use the production ostree repo rather than staging.
-if [ "${EIB_USE_PRODUCTION}" = true ]; then
+if [ "${EIB_USE_PRODUCTION_OSTREE}" = true ]; then
   BUILD_OSTREE_URL="${EIB_OSTREE_URL}"
 else
   BUILD_OSTREE_URL="${EIB_OSTREE_INT_URL}"
