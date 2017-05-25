@@ -1,5 +1,5 @@
-# Overrides the default configuration for the automatic Chrome installer
-# and overrides the default icon grid and taskbar pins accordingly
+# Overrides the default configuration for the automatic Chrome installer and
+# overrides the default icon grid and favorite apps (taskbar pins) accordingly
 
 
 # Set up the Google Chrome helper to enable automatic installation
@@ -26,30 +26,30 @@ for file in "${ICON_SOURCE_DIR}"/icon-grid-*.json; do
 done
 
 
-# Override the gsetting for taskbar pins so that
+# Override the gsetting for favorite apps so that
 # Chrome is on the taskbar by default rather than Chromium
 
 # Parse the gschema XML file for lines such as the following:
 #
-#     <key type="as" name="taskbar-pins">
+#     <key name="favorite-apps" type="as">
 #       <default>[ 'org.gnome.Software.desktop', 'chromium-browser.desktop', 'org.gnome.Nautilus.desktop' ]</default>
 #
 # And then write a settings file such as the following that
 # will be picked up by the 61-dconf-compile.chroot hook:
 #
 # [org/gnome/shell]
-# tasbar-pins=['org.gnome.Software.desktop', 'chromium-browser.desktop', 'org.gnome.Nautilus.desktop']
+# favorite-apps=['org.gnome.Software.desktop', 'chromium-browser.desktop', 'org.gnome.Nautilus.desktop']
 
 GSCHEMA_XML="${OSTREE_DEPLOYMENT}"/usr/share/glib-2.0/schemas/org.gnome.shell.gschema.xml
 SETTINGS_DIR="${OSTREE_DEPLOYMENT}"/tmp/dconf-overrides
 TASKBAR_SETTINGS="${SETTINGS_DIR}"/taskbar-settings
 
-pins=`grep -A1 taskbar-pins "${GSCHEMA_XML}" | tail -1`
-pins=${pins#*[ }
-pins=${pins% ]*}
-pins=${pins/chromium-browser/google-chrome}
+apps=`grep -A1 'name="favorite-apps"' "${GSCHEMA_XML}" | tail -1`
+apps=${apps#*[ }
+apps=${apps% ]*}
+apps=${apps/chromium-browser/google-chrome}
 mkdir -p "${SETTINGS_DIR}"
 cat <<EOF > "${TASKBAR_SETTINGS}"
 [org/gnome/shell]
-taskbar-pins=[${pins}]
+favorite-apps=[${apps}]
 EOF
