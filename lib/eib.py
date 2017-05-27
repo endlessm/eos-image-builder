@@ -176,7 +176,11 @@ def add_cli_options(argparser):
     argparser.add_argument('-n', '--dry-run', action='store_true',
                            help="don't publish images")
     argparser.add_argument('--use-production', action='store_true',
-                           help="use production ostree/flatpak repos rather than staging")
+                           help="use production ostree/flatpak repos rather than staging (deprecated)")
+    argparser.add_argument('--use-production-apps', action='store_true',
+                           help="use production flatpak repos rather than staging")
+    argparser.add_argument('--use-production-ostree', action='store_true',
+                           help="use production ostree repos rather than staging")
     argparser.add_argument('--checkout', action='store_true',
                            help='copy the git repo to the build directory')
     add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,

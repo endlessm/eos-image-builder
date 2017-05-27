@@ -31,7 +31,7 @@ branch = os.environ['EIB_BRANCH']
 apps_deploy_branch = os.environ['EIB_FLATPAK_APPS_BRANCH']
 
 # Optionally use the production flatpak repos rather than staging.
-if os.environ.get('EIB_USE_PRODUCTION') == 'true':
+if os.environ.get('EIB_USE_PRODUCTION_APPS') == 'true':
     runtimes_url = runtimes_deploy_url
     apps_url = apps_deploy_url
 
