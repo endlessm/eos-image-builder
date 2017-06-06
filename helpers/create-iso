@@ -25,11 +25,11 @@ create_iso() {
   # builder is unaware of localised personality names
   label="${EIB_IMAGE_PRODUCT_NAME} ${version} ${personality}"
 
-  # Download from a non-standard URL to allow us to (temporarily) ship a
-  # different version in the ISO to what's on our website.
+  # Download from a non-standard URL to allow us to QA the installer for
+  # the branch we're building, ahead of the main release.
   # TODO: Perhaps we should create a package in OBS which just contains
   # endless-installer.exe?
-  local ei_url=https://d1anzknqnc1kmb.cloudfront.net/endless-installer/endless-installer-iso.exe
+  local ei_url="https://d1anzknqnc1kmb.cloudfront.net/endless-installer/endless-installer-${EIB_BRANCH}.exe"
   local ei_exe="${EIB_TMPDIR}/endless-installer.exe"
   wget -O "${ei_exe}" "${ei_url}"
 
