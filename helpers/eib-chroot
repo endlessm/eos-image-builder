@@ -18,6 +18,15 @@ env_vars+=( SHLVL="${SHLVL}" )  # Makes shell debug output nest properly.
 env_vars+=( TERM="${TERM}" )    # Allows programs to do output nicely.
 env_vars+=( PS4="${PS4}" )      # Our custom xtrace prompt.
 
+# For any EIB_*_CHROOT variables, use their values for the non-CHROOT
+# variants and unset the CHROOT variant.
+for name in ${!EIB_*} ; do
+  [[ $name =~ _CHROOT$ ]] || continue
+  name_no_chroot=${name%_CHROOT}
+  eval ${name_no_chroot}=\"\${${name}}\"
+  unset ${name}
+done
+
 # Add the EIB_* variables, which hooks use.
 for name in ${!EIB_*} ; do
   eval value=\"\${${name}}\"
