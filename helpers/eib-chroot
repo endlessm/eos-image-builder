@@ -31,6 +31,12 @@ if [ -n "${EIB_SRCDIR_CHROOT}" ]; then
       eval ${name_chroot}=\"${value_chroot}\"
     fi
   done
+
+  # Create a special PYTHONPATH for chroot hooks so they can access the
+  # eib module.
+  #
+  # XXX: Keep this in sync with the PYTHONPATH setting in buildscript.
+  env_vars+=( PYTHONPATH="${EIB_SRCDIR_CHROOT}/lib" )
 fi
 
 # If EIB_CACHEDIR_CHROOT is set, derive EIB_CACHEDIR based settings for
