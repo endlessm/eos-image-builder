@@ -258,12 +258,12 @@ split_image() {
   # is available for split hooks
   eib_mount --bind "${ROOT}" "${OSTREE_DEPLOYMENT}"/sysroot
 
-  # Bind mount the content directory into the deployment so chroot hooks
+  # Bind mount the cache directory into the deployment so chroot hooks
   # can access it
-  export EIB_CONTENTDIR_CHROOT=/tmp/content
-  mkdir -p "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
-  eib_mount --bind "${EIB_CONTENTDIR}" \
-            "${OSTREE_DEPLOYMENT}${EIB_CONTENTDIR_CHROOT}"
+  export EIB_CACHEDIR_CHROOT=/tmp/eos-image-builder
+  mkdir -p "${OSTREE_DEPLOYMENT}${EIB_CACHEDIR_CHROOT}"
+  eib_mount --bind "${EIB_CACHEDIR}" \
+            "${OSTREE_DEPLOYMENT}${EIB_CACHEDIR_CHROOT}"
 
   # Copy in the host's /etc/resolv.conf so the one from the ostree (if
   # it exists) is not used and DNS can be resolved.
@@ -277,8 +277,8 @@ split_image() {
   ln -sf "/lib/systemd/system/var-endless\x2dextra.mount" \
     "${OSTREE_DEPLOYMENT}"/etc/systemd/system/local-fs.target.wants/
 
-  # Clear the content mount variable in case it's used somewhere else
-  unset EIB_CONTENTDIR_CHROOT
+  # Clear the cache mount variable in case it's used somewhere else
+  unset EIB_CACHEDIR_CHROOT
 
   # Delete the resolv.conf copy so it's not shipped
   rm -f "${OSTREE_DEPLOYMENT}"/etc/resolv.conf
