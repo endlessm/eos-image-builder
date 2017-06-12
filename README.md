@@ -321,10 +321,11 @@ to migrate content from the root into this filesystem. The filesystem is
 a fixed size (currently 8 GB), so hooks are required to ignore failures
 due to insufficient space and revert to the original layout.
 
-The entire cache directory (`${EIB_CACHEDIR}`) is made available to both
-the `image` and `split` chroot hooks. This includes other directories
-and files derived from the cache directory such as `${EIB_CONTENTDIR}`
-and `${EIB_OUTDIR}`.
+The entire cache (`${EIB_CACHEDIR}`) and source (`${EIB_SRCDIR}`)
+directories are made available to both the `image` and `split` chroot
+hooks. This includes other directories and files derived from the cache
+directory such as `${EIB_CONTENTDIR}` and `${EIB_OUTDIR}` or source
+directory such as `${EIB_DATADIR}` or `${EIB_HELPERSDIR}`.
 
 manifest customization
 ----------------------

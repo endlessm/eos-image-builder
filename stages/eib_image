@@ -464,12 +464,16 @@ eib_mount --bind "${OSTREE_VAR}" "${OSTREE_DEPLOYMENT}"/var
 # is available for image hooks
 eib_mount --bind "${EIB_OSTREE_CHECKOUT}" "${OSTREE_DEPLOYMENT}"/sysroot
 
-# Bind mount the cache directory into the deployment so chroot hooks
-# can access it
+# Bind mount the cache and source directories into the deployment so
+# chroot hooks can access them
 export EIB_CACHEDIR_CHROOT=/tmp/eos-image-builder
-mkdir -p "${OSTREE_DEPLOYMENT}${EIB_CACHEDIR_CHROOT}"
+export EIB_SRCDIR_CHROOT=${EIB_CACHEDIR_CHROOT}/src
+mkdir -p "${OSTREE_DEPLOYMENT}${EIB_CACHEDIR_CHROOT}" \
+      "${OSTREE_DEPLOYMENT}${EIB_SRCDIR_CHROOT}"
 eib_mount --bind "${EIB_CACHEDIR}" \
           "${OSTREE_DEPLOYMENT}${EIB_CACHEDIR_CHROOT}"
+eib_mount --bind "${EIB_SRCDIR}" \
+          "${OSTREE_DEPLOYMENT}${EIB_SRCDIR_CHROOT}"
 
 # Copy in the host's /etc/resolv.conf so the one from the ostree (if it
 # exists) is not used and DNS can be resolved.
@@ -496,8 +500,9 @@ run_hooks image "${OSTREE_DEPLOYMENT}"
 "${EIB_HELPERSDIR}"/kill-chroot-procs "${OSTREE_DEPLOYMENT}"
 eib_umount_all
 
-# Clear the cache mount variable in case it's used somewhere else
-unset EIB_CACHEDIR_CHROOT
+# Clear the cache and source mount variables in case they're used
+# somewhere else
+unset EIB_CACHEDIR_CHROOT EIB_SRCDIR_CHROOT
 
 # Delete the resolv.conf copy so it's not shipped
 rm -f "${OSTREE_DEPLOYMENT}"/etc/resolv.conf

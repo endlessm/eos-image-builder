@@ -18,6 +18,21 @@ env_vars+=( SHLVL="${SHLVL}" )  # Makes shell debug output nest properly.
 env_vars+=( TERM="${TERM}" )    # Allows programs to do output nicely.
 env_vars+=( PS4="${PS4}" )      # Our custom xtrace prompt.
 
+# If EIB_SRCDIR_CHROOT is set, derive EIB_SRCDIR based settings for the
+# chroot.
+if [ -n "${EIB_SRCDIR_CHROOT}" ]; then
+  for name in ${!EIB_*} ; do
+    eval value=\"\${${name}}\"
+    [[ $value =~ ^${EIB_SRCDIR}/ ]] || continue
+    name_chroot="${name}_CHROOT"
+    eval value_chroot=\"\${${name_chroot}}\"
+    if [ -z "${value_chroot}" ]; then
+      value_chroot="${EIB_SRCDIR_CHROOT}${value#${EIB_SRCDIR}}"
+      eval ${name_chroot}=\"${value_chroot}\"
+    fi
+  done
+fi
+
 # If EIB_CACHEDIR_CHROOT is set, derive EIB_CACHEDIR based settings for
 # the chroot.
 if [ -n "${EIB_CACHEDIR_CHROOT}" ]; then
