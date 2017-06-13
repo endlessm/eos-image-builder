@@ -2,6 +2,7 @@
 
 # Pull flatpak apps, appstream and runtimes to a local repository
 
+import eib
 from gi import require_version
 require_version('Flatpak', '1.0')
 require_version('OSTree', '1.0')
@@ -76,7 +77,8 @@ installation.drop_caches()
 for refspec in app_refs:
     # Fetch the metadata for the app
     ref = Flatpak.Ref.parse(refspec)
-    buf = installation.fetch_remote_metadata_sync(apps_remote, ref)
+    buf = eib.retry(installation.fetch_remote_metadata_sync,
+                    apps_remote, ref)
 
     # Load it into a keyfile and get the runtime
     metadata = GLib.KeyFile.new()
@@ -110,9 +112,10 @@ app_refs = sorted(app_refs)
 
 # Pull the refs
 print('Pulling runtime refs:', *runtime_refs, sep='\n')
-repo.pull(runtimes_remote, runtime_refs, OSTree.RepoPullFlags.MIRROR)
+eib.retry(repo.pull, runtimes_remote, runtime_refs,
+          OSTree.RepoPullFlags.MIRROR)
 print('Pulling app refs:', *app_refs, sep='\n')
-repo.pull(apps_remote, app_refs, OSTree.RepoPullFlags.MIRROR)
+eib.retry(repo.pull, apps_remote, app_refs, OSTree.RepoPullFlags.MIRROR)
 
 # Create refs to the stable series for flatpak to pull from
 for ref in app_refs:

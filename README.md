@@ -301,9 +301,7 @@ At the start of the image stage, the customization hooks under `content`
 are run. These hooks are intended to ensure that all content for the
 current personality is available on the host disk, to be used later.
 `${EIB_CONTENTDIR}` should be used for storing this, and
-`${EIB_PERSONALITY}` states which personality is being built. The
-content directory will be made available to `image` and `split` chroot
-hooks using the variable `${EIB_CONTENTDIR_CHROOT}`.
+`${EIB_PERSONALITY}` states which personality is being built.
 
 Once the ostree has been checked out (onto the host disk), customization
 hooks under `image` are run. `${OSTREE_DEPLOYMENT}` contains the path to
@@ -322,6 +320,12 @@ mounted at `${OSTREE_DEPLOYMENT}/${EIB_EXTRA_MOUNT}`. Hooks are intended
 to migrate content from the root into this filesystem. The filesystem is
 a fixed size (currently 8 GB), so hooks are required to ignore failures
 due to insufficient space and revert to the original layout.
+
+The entire cache (`${EIB_CACHEDIR}`) and source (`${EIB_SRCDIR}`)
+directories are made available to both the `image` and `split` chroot
+hooks. This includes other directories and files derived from the cache
+directory such as `${EIB_CONTENTDIR}` and `${EIB_OUTDIR}` or source
+directory such as `${EIB_DATADIR}` or `${EIB_HELPERSDIR}`.
 
 manifest customization
 ----------------------
