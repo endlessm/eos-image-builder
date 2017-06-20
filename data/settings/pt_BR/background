@@ -1,2 +1,5 @@
 [org/gnome/desktop/background]
 picture-uri='file:///usr/share/eos-media/desktop-background-pt_BR.jpg'
+
+[org/gnome/desktop/screensaver]
+picture-uri='file:///usr/share/eos-media/desktop-background-pt_BR.jpg'
