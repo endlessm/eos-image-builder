@@ -28,6 +28,7 @@ apps_remote = os.environ['EIB_FLATPAK_APPS_REMOTE']
 apps_url = os.environ['EIB_FLATPAK_APPS_SERVER']
 apps_deploy_url = os.environ['EIB_FLATPAK_APPS_DEPLOY_SERVER']
 apps = os.environ['EIB_FLATPAK_INSTALL_EOS'].split()
+extensions = os.environ['EIB_FLATPAK_INSTALL_EXTENSIONS'].split()
 arch = os.environ['EIB_FLATPAK_RUNTIME_ARCH']
 branch = os.environ['EIB_BRANCH']
 apps_deploy_branch = os.environ['EIB_FLATPAK_APPS_BRANCH']
@@ -83,6 +84,11 @@ if install_endless_apps_sdk_sdk == 'true':
     sdk_refs.add('runtime/{}/{}/{}'.format(endless_apps_sdk_sdk, arch,
                                            endless_apps_sdk_branch))
 app_refs = {'app/{}/{}/{}'.format(app, arch, branch) for app in apps}
+extension_remotes_refs = set()
+for ext in extensions:
+    remote, ext_id, branch = ext.split('|', 2)
+    refspec = 'runtime/{}/{}/{}'.format(ext_id, arch, branch)
+    extension_remotes_refs.add((remote, refspec))
 
 # For each app, make sure that the necessary runtime will be installed.
 # Drop the installation caches so the above repo changes are seen by
@@ -98,7 +104,19 @@ for refspec in app_refs:
     metadata = GLib.KeyFile.new()
     metadata.load_from_bytes(buf, GLib.KeyFileFlags.NONE)
     runtime = metadata.get_string('Application', 'runtime')
-    runtime_refs.add('runtime/' + runtime)
+    if runtime in (endless_apps_sdk_runtime, endless_apps_sdk_sdk):
+        sdk_refs.add('runtime/' + runtime)
+    else:
+        runtime_refs.add('runtime/' + runtime)
+
+# Add each requested extension to the set of refs to be pulled.
+for remote, refspec in extension_remotes_refs:
+    if remote == endless_apps_sdk_remote:
+        sdk_refs.add(refspec)
+    elif remote == runtimes_remote:
+        runtime_refs.add(refspec)
+    else:
+        pass  # external extension
 
 # Check that all the wanted runtimes are available on the remote. If
 # they're not there, warn and assume they'll be added from another

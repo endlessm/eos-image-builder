@@ -204,6 +204,7 @@ class ImageBuilder(object):
         ('flatpak', 'install_eos'),
         ('flatpak', 'install_gnome'),
         ('flatpak', 'install_extra'),
+        ('flatpak', 'install_extensions'),
         ('flatpak', 'nosplit'),
         ('flatpak', 'gnome_branch'),
         ('flatpak', 'freedesktop_branch'),
