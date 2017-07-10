@@ -51,8 +51,7 @@ compression = gz
 # take precedence over all other image variant configuration. This can
 # be useful if the exact app set is known or if the build is for testing
 # and the full multi-gigabyte app set is not needed.
-install_eos = com.endlessm.EknServices
-              com.endlessm.photos
+install_eos = com.endlessm.photos
               org.gnome.Gnote
 
 # Alternatively, a set of apps can be added or deleted from the existing
