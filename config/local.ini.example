@@ -39,13 +39,6 @@ hooks_del_local = 50-gnome-software-cache
 # file is, but you'd probably like it to build quickly.
 compression = gz
 
-[ostree]
-# Normally the ostree commits for OS and apps are fetched from the
-# internal ostree server in the endlessm-sf.com domain for speed.
-# However, testing outside of the SF office is likely to be faster (and
-# not require VPN) by using the public dev repo.
-#dev_url_root = https://endless:***REMOVED***@origin.ostree.endlessm.com/staging/dev
-
 [flatpak]
 # Completely override the set of installed EOS apps for testing. This will
 # take precedence over all other image variant configuration. This can
