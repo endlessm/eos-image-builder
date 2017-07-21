@@ -126,7 +126,8 @@ if install_ekn_services:
     found_runtimes.add(runtime)
 
 for runtime in found_runtimes:
-    if runtime in (endless_apps_sdk_runtime, endless_apps_sdk_sdk):
+    if (runtime.startswith(endless_apps_sdk_runtime) or
+        runtime.startswith(endless_apps_sdk_sdk)):
         sdk_refs.add('runtime/' + runtime)
     else:
         runtime_refs.add('runtime/' + runtime)
