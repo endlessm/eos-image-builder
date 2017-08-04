@@ -28,6 +28,11 @@ def _find_runtime_for_refspec(installation, remote, refspec):
     metadata.load_from_bytes(buf, GLib.KeyFileFlags.NONE)
     return metadata.get_string('Application', 'runtime')
 
+
+def _add_runtime_and_locale(bag, runtime, arch, branch):
+    bag.add('runtime/{}/{}/{}'.format(runtime, arch, branch))
+    bag.add('runtime/{}.Locale/{}/{}'.format(runtime, arch, branch))
+
 # Pull settings out of environment variables
 runtimes_remote = os.environ['EIB_FLATPAK_RUNTIMES_REMOTE']
 runtimes_url = os.environ['EIB_FLATPAK_RUNTIMES_SERVER']
@@ -89,14 +94,18 @@ for remote, url in ((runtimes_remote, runtimes_url),
 
 # Put together a list of refs that will be pulled to find out which
 # existing refs can be pruned
-runtime_refs = {'runtime/{}/{}/{}'.format(runtime, arch, branch)}
+runtime_refs = set()
+_add_runtime_and_locale(runtime_refs, runtime, arch, branch)
 if install_sdk == 'true':
-    runtime_refs.add('runtime/{}/{}/{}'.format(sdk, arch, branch))
-sdk_refs = {'runtime/{}/{}/{}'.format(endless_apps_sdk_runtime, arch,
-                                      endless_apps_sdk_branch)}
+    _add_runtime_and_locale(runtime_refs, sdk, arch, branch)
+
+sdk_refs = set()
+_add_runtime_and_locale(sdk_refs, endless_apps_sdk_runtime, arch,
+                        endless_apps_sdk_branch)
 if install_endless_apps_sdk_sdk == 'true':
-    sdk_refs.add('runtime/{}/{}/{}'.format(endless_apps_sdk_sdk, arch,
-                                           endless_apps_sdk_branch))
+    _add_runtime_and_locale(sdk_refs, install_endless_apps_sdk_sdk, arch,
+                            endless_apps_sdk_branch)
+
 app_refs = {'app/{}/{}/{}'.format(app, arch, branch) for app in apps}
 extension_remotes_refs = set()
 for ext in extensions:
@@ -126,11 +135,12 @@ if install_ekn_services:
     found_runtimes.add(runtime)
 
 for runtime in found_runtimes:
+    runtime_id, arch, branch = runtime.split('/')
     if (runtime.startswith(endless_apps_sdk_runtime) or
         runtime.startswith(endless_apps_sdk_sdk)):
-        sdk_refs.add('runtime/' + runtime)
+        _add_runtime_and_locale(sdk_refs, runtime_id, arch, branch)
     else:
-        runtime_refs.add('runtime/' + runtime)
+        _add_runtime_and_locale(runtime_refs, runtime_id, arch, branch)
 
 # Add each requested extension to the set of refs to be pulled.
 for remote, refspec in extension_remotes_refs:
