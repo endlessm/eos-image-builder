@@ -22,9 +22,13 @@ create_iso() {
   mkdir -p "$DIR_EFI" "$DIR_ESP" "$DIR_IMAGES_ENDLESS"
 
   ln "$boot_zip" "${DIR_IMAGES_ENDLESS}/$(basename "$boot_zip")"
-  # Link img.asc, boot.zip.asc into ISO tree
+  # Link img.asc, boot.zip.asc into ISO tree if they exist. During manual
+  # testing, the GPG key may not be available in which case no signatures will
+  # be generated -- allow that here.
   for i in "$@"; do
-    ln "$i" "${DIR_IMAGES_ENDLESS}/$(basename "$i")"
+    if [ -e "$i" ]; then
+      ln "$i" "${DIR_IMAGES_ENDLESS}/$(basename "$i")"
+    fi
   done
 
   echo -n "${EIB_OUTVERSION}.img" > "${DIR_IMAGES_ENDLESS}/live"
