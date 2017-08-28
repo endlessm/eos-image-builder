@@ -181,6 +181,8 @@ def add_cli_options(argparser):
                            help="use production flatpak repos rather than staging")
     argparser.add_argument('--use-production-ostree', action='store_true',
                            help="use production ostree repos rather than staging")
+    argparser.add_argument('--build-from-tag',
+                           help="use an eos-image-builder tag rather than the latest branch")
     argparser.add_argument('--checkout', action='store_true',
                            help='copy the git repo to the build directory')
     add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,
