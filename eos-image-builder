@@ -103,8 +103,11 @@ with open(eib.LOCKFILE, 'a+') as lf:
         shutil.copytree(MYDIR, srcdir, symlinks=True)
         os.chdir(srcdir)
 
-        # Checkout the appropriate branch
-        subprocess.check_call(['git', 'checkout', 'origin/' + args.branch])
+        # Checkout the appropriate branch or tag
+        if args.build_from_tag:
+            subprocess.check_call(['git', 'checkout', 'tags/' + args.build_from_tag])
+        else:
+            subprocess.check_call(['git', 'checkout', 'origin/' + args.branch])
         subprocess.check_call(['git', 'clean', '-xdf'])
 
     # Run the real builder
