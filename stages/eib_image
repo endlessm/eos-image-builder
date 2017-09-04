@@ -184,17 +184,18 @@ create_image() {
   if [[ -e "$readahead_size" ]]; then
     # Created by hooks/image/50-readahead, if run.  Initially create the
     # filesystem with just enough space to hold files used during first boot,
-    # with 10% extra for filesystem overhead and to reduce fragmentation.
+    # with some extra for filesystem overhead and to reduce fragmentation.
     readahead_files="$EIB_TMPDIR/readahead-files.txt"
     if [[ ! -e "$readahead_files" ]]; then
       echo "$readahead_size exists but $readahead_files does not" >&2
       return 1
     fi
 
-    root_size_kib=$(( $(cat "$readahead_size") * 11 / 10240 ))
+    root_size_kib=$(( $(cat "$readahead_size") * 12 / 10240 ))
   fi
 
-  mke2fs -t ext4 -O dir_index,^huge_file -m1 -L ostree ${root_loop} $root_size_kib
+  mke2fs -t ext4 -O dir_index,^huge_file -m1 -L ostree -T default \
+    ${root_loop} $root_size_kib
   ROOT="${EIB_TMPDIR}"/mnt
   DEPLOY="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
   mkdir -p "${ROOT}"
