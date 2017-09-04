@@ -181,7 +181,7 @@ create_image() {
   local readahead_files=
   local root_size_kib=
 
-  if [[ -e "$readahead_size" ]]; then
+  if [[ "$EIB_IMAGE_REORDER" == true && -e "$readahead_size" ]]; then
     # Created by hooks/image/50-readahead, if run.  Initially create the
     # filesystem with just enough space to hold files used during first boot,
     # with some extra for filesystem overhead and to reduce fragmentation.
