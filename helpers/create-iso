@@ -11,11 +11,27 @@ create_iso() {
   shift
   local img=${1:?No image supplied to $FUNCNAME}
   shift
+  local boot_zip=${1:?No boot.zip supplied to $FUNCNAME}
+  shift
 
-  # Symlink img.asc, boot.zip, boot.zip.asc into the same directory as $img
+  local ISO_TMPDIR="$EIB_TMPDIR/iso"
+  local DIR_EFI="$ISO_TMPDIR/efi"
+  local DIR_IMAGES="$ISO_TMPDIR/images"
+  local DIR_ESP="$ISO_TMPDIR/esp"
+  local DIR_IMAGES_ENDLESS="${DIR_IMAGES}/endless"
+  mkdir -p "$DIR_EFI" "$DIR_ESP" "$DIR_IMAGES_ENDLESS"
+
+  ln "$boot_zip" "${DIR_IMAGES_ENDLESS}/$(basename "$boot_zip")"
+  # Link img.asc, boot.zip.asc into ISO tree if they exist. During manual
+  # testing, the GPG key may not be available in which case no signatures will
+  # be generated -- allow that here.
   for i in "$@"; do
-    ln -s $i "${EIB_TMPDIR}/$(basename $i)"
+    if [ -e "$i" ]; then
+      ln "$i" "${DIR_IMAGES_ENDLESS}/$(basename "$i")"
+    fi
   done
+
+  echo -n "${EIB_OUTVERSION}.img" > "${DIR_IMAGES_ENDLESS}/live"
 
   # Trim duplication of product name from personality name (eg fnde_aluno)
   personality=${EIB_PERSONALITY#${EIB_PRODUCT}_}
@@ -30,12 +46,25 @@ create_iso() {
   # TODO: Perhaps we should create a package in OBS which just contains
   # endless-installer.exe?
   local ei_url="https://d1anzknqnc1kmb.cloudfront.net/endless-installer/endless-installer-${EIB_BRANCH}.exe"
-  local ei_exe="${EIB_TMPDIR}/endless-installer.exe"
+  local ei_exe="${DIR_IMAGES}/endless-installer.exe"
   wget -O "${ei_exe}" "${ei_url}"
+
+  # This is for Windows' benefit, so it should be in utf-16 with CRLF line endings
+  sed 's/$/\r/' <<AUTORUN_INF | iconv -f utf-8 -t utf-16 > "${DIR_IMAGES}/autorun.inf"
+[AutoRun]
+label=${label}
+icon=endless-installer.exe
+open=endless-installer.exe
+
+[Content]
+MusicFiles=false
+PictureFiles=false
+VideoFiles=false
+AUTORUN_INF
 
   # Publish size of image inside the ISO (& squashfs). This is the interesting
   # number that can't be easily determined from the size of the ISO itself.
-  # eos-write-live-image will delete $img after creating the squashfs to reduce
+  # We will delete $img after creating the squashfs to reduce
   # peak disk usage, so we need to determine its size beforehand.
   local img_size=$(stat -c "%s" "${img}")
   echo "${img_size}" > "${iso}.size"
@@ -45,15 +74,69 @@ create_iso() {
     squashfs_comp=xz
   fi
 
-  TMPDIR="${EIB_TMPDIR}" eos-write-live-image --debug \
-    --iso \
-    --os-image "${img}" \
-    --windows-tool "${ei_exe}" \
-    --delete-os-image \
-    --force \
-    --label "${label}" \
-    --squashfs-comp "${squashfs_comp}" \
-    "${iso}"
+  # Create squashfs containing just $img, under the name endless.img
+  ln "$img" "${DIR_IMAGES_ENDLESS}/endless.img"
+  mksquashfs "${DIR_IMAGES_ENDLESS}/endless.img" "${DIR_IMAGES_ENDLESS}/endless.squash" \
+    -comp $squashfs_comp \
+    -b 131072
+  rm -f "${DIR_IMAGES_ENDLESS}/endless.img"
+
+  # Delete raw image to reduce peak disk usage.
+  rm -f "$img"
+
+  # Construct ESP
+  unzip -q -d "${DIR_EFI}" "${boot_zip}" "EFI/*"
+  local DIR_EFI_SIZE=$(du -s "${DIR_EFI}" | cut -f1)
+  local ESP_SIZE=$(( (DIR_EFI_SIZE + 1024) / 1024 * 1024 ))
+
+  # Create ESP and copy the EFI content
+  truncate -s ${ESP_SIZE}K "${DIR_ESP}/efi.img"
+  mkdosfs "${DIR_ESP}/efi.img"
+  mcopy -s -i "${DIR_ESP}/efi.img" "${DIR_EFI}/EFI" '::/'
+
+  # Unpack generic and ISO-specific GRUB files
+  unzip -q -d "${DIR_IMAGES_ENDLESS}" "${boot_zip}" "grub/*"
+  unzip -q -d "${DIR_IMAGES_ENDLESS}/grub/i386-pc/" "${boot_zip}" "iso/*"
+
+  local VOLID=$(echo -n "$label" | tr -cs 'A-Za-z0-9_' '-')
+
+  if [ -f "${EIB_TMPDIR}/iso-initramfs-append" ]; then
+    cp "${EIB_TMPDIR}/iso-initramfs-append" "${DIR_IMAGES_ENDLESS}/initramfs-append"
+    cp "${EIB_TMPDIR}/iso-grub.cfg" "${DIR_IMAGES_ENDLESS}/grub/grub.cfg"
+  fi
+
+  # Generate the ISO image.
+  # Parameters found using https://dev.lovelyhq.com/libburnia/libisoburn/raw/master/frontend/grub-mkrescue-sed.sh
+  #
+  # export MKRESCUE_SED_MODE=mbr_only
+  # export MKRESCUE_SED_PROTECTIVE=no
+  # export MKRESCUE_SED_DEBUG=yes
+  #
+  # grub-mkrescue -o output.iso minimal_directory --xorriso=grub-mkrescue-sed.sh
+
+  xorriso -as mkisofs \
+          -o "${iso}" \
+          -r -graft-points -no-pad \
+          --sort-weight 0 / \
+          --sort-weight 1 /endless \
+          -b endless/grub/i386-pc/iso/eltorito.img \
+          -no-emul-boot -boot-load-size 4 -boot-info-table --grub2-boot-info \
+          --grub2-mbr "${DIR_IMAGES_ENDLESS}/grub/i386-pc/iso/boot_hybrid.img" \
+          -eltorito-alt-boot \
+          -e --interval:appended_partition_2:all:: \
+          -no-emul-boot \
+          -append_partition 2 0xef "${DIR_ESP}/efi.img" \
+          -iso-level 3 \
+          -joliet -joliet-long \
+          -volid "$VOLID" \
+          -publisher 'Endless Computers' \
+          "${DIR_IMAGES}"
+
+  # Change partition type from 0x83 to 0x00
+  printf "\x00" | dd of="${iso}" bs=1 count=1 seek=450 conv=notrunc
+
+  # Clean up!
+  rm -fr "${ISO_TMPDIR}"
 
   # Sign ISO
   sign_file "${iso}"

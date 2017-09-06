@@ -449,7 +449,7 @@ EOF
   # happen in parallel with creating the ISO.
   if [ "${EIB_IMAGE_ISO}" == true ]; then
     "${EIB_HELPERSDIR}"/create-iso "${version}" "$(eib_outfile iso)" \
-      "${img}" "${img_asc}" "${boot_zip}" "${boot_zip}.asc"
+      "${img}" "${boot_zip}" "${img_asc}" "${boot_zip}.asc"
   fi
 
   # Remove uncompressed image, if not already deleted by helpers/create-iso
