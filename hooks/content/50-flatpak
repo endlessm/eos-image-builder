@@ -109,7 +109,7 @@ if install_endless_apps_sdk_sdk == 'true':
 app_refs = {'app/{}/{}/{}'.format(app, arch, branch) for app in apps}
 extension_remotes_refs = set()
 for ext in extensions:
-    remote, ext_id, branch = ext.split('|', 2)
+    remote, ext_id, branch = ext.split(',', 2)
     refspec = 'runtime/{}/{}/{}'.format(ext_id, arch, branch)
     extension_remotes_refs.add((remote, refspec))
 
