@@ -73,6 +73,15 @@ cp "${EIB_OSTREE_REPODIR}/tmp/cache/summaries/${EIB_OSTREE_REMOTE}" \
 cp "${EIB_OSTREE_REPODIR}/tmp/cache/summaries/${EIB_OSTREE_REMOTE}.sig" \
    "${REPO_EXTENSIONS}"/eos-summary.sig
 
+# Set the repo add-remotes-config-dir option to false. This prevents
+# ostree remotes from being added in /etc/ostree/remotes.d, which breaks
+# flatpak due to the way it manages remotes. This can probably be
+# removed later when ostree has a coherent way to modify existing
+# remotes and all our ostree users are using it.
+#
+# https://phabricator.endlessm.com/T19077
+ostree --repo="${REPOPATH}" config set core.add-remotes-config-dir false
+
 # There's no current symlink anymore, so query the deployment status.
 # This will be the second parameter on the first line.
 export OSTREE_CURRENT_DEPLOYMENT=$(ostree admin \
