@@ -178,10 +178,13 @@ create_image() {
       esp_loop=${img_loop}p1
       bios_boot_loop=${img_loop}p2
       root_loop=${img_loop}p3
+      ext4_opts="dir_index,^huge_file"
       ESP="${ROOT}"/boot/efi
       mkfs.vfat "${esp_loop}"
       ;;
     *)
+      # On ARM disable 64bit ext4 option
+      ext4_opts="dir_index,^huge_file,^64bit"
       root_loop=${img_loop}p1
       ;;
   esac
@@ -203,7 +206,7 @@ create_image() {
     root_size_kib=$(( $(cat "$readahead_size") * 12 / 10240 ))
   fi
 
-  mke2fs -t ext4 -O dir_index,^huge_file -m1 -L ostree -T default \
+  mke2fs -t ext4 -O ${ext4_opts} -m1 -L ostree -T default \
     ${root_loop} $root_size_kib
   ROOT="${EIB_TMPDIR}"/mnt
   DEPLOY="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
