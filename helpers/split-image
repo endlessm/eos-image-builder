@@ -225,6 +225,14 @@ split_image() {
     part_type="83"
   else
     part_type="0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+    case "${EIB_ARCH}" in
+      i386|amd64)
+        ext4_opts="dir_index,^huge_file"
+        ;;
+      *)
+        ext4_opts="dir_index,^huge_file,^64bit"
+        ;;
+    esac
   fi
 
   # Attr 55 indicates that the partition should be resized later.
@@ -238,7 +246,7 @@ split_image() {
   DISK2_LOOP=$(losetup --show -f "${disk2_img}")
   eib_partx_scan "${DISK2_LOOP}"
   EXTRA_LOOP="${DISK2_LOOP}p1"
-  mke2fs -t ext4 -O dir_index,^huge_file -m1 -L extra "${EXTRA_LOOP}"
+  mke2fs -t ext4 -O ${ext4_opts} -m1 -L extra "${EXTRA_LOOP}"
   export OSTREE_EXTRA="${OSTREE_DEPLOYMENT}${EIB_EXTRA_MOUNT}"
   recreate_dir "${OSTREE_EXTRA}"
   eib_mount -t ext4 "${EXTRA_LOOP}" "${OSTREE_EXTRA}"
