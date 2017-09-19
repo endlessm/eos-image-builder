@@ -138,6 +138,14 @@ AUTORUN_INF
   # Clean up!
   rm -fr "${ISO_TMPDIR}"
 
+  if [ "${EIB_ISO_MAX_SIZE}" ]; then
+    local iso_size=$(stat --printf='%s' "${iso}")
+    if [ "${iso_size}" -gt "${EIB_ISO_MAX_SIZE}" ]; then
+      echo "ERROR: ${iso} is ${iso_size} bytes; limit is ${EIB_ISO_MAX_SIZE} bytes" >&2
+      return 1
+    fi
+  fi
+
   # Sign ISO
   sign_file "${iso}"
 
