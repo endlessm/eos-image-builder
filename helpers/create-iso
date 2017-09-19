@@ -76,13 +76,17 @@ AUTORUN_INF
 
   # Create squashfs containing just $img, under the name endless.img
   ln "$img" "${DIR_IMAGES_ENDLESS}/endless.img"
-  mksquashfs "${DIR_IMAGES_ENDLESS}/endless.img" "${DIR_IMAGES_ENDLESS}/endless.squash" \
+  local squash="${DIR_IMAGES_ENDLESS}/endless.squash"
+  mksquashfs "${DIR_IMAGES_ENDLESS}/endless.img" "${squash}" \
     -comp $squashfs_comp \
     -b 131072
   rm -f "${DIR_IMAGES_ENDLESS}/endless.img"
 
   # Delete raw image to reduce peak disk usage.
   rm -f "$img"
+
+  local squash_asc="${DIR_IMAGES_ENDLESS}/${EIB_OUTVERSION}.squash.asc"
+  sign_file "$squash" "$squash_asc"
 
   # Construct ESP
   unzip -q -d "${DIR_EFI}" "${boot_zip}" "EFI/*"
