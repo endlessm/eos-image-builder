@@ -295,3 +295,26 @@ def latest_manifest_data():
                               path)
     with open(path) as f:
         return json.load(f)
+
+
+def get_config(path=None):
+    """Read and parse the full merged config file
+
+    Returns an ImageConfigParser instance populated with the full merged
+    config file. This can be used by hooks or helpers in preference to
+    scraping the EIB_* environment variables. If path is not provided,
+    it is looked for in the EIB_TMPFULLCONFIG environment variable.
+    """
+    if path is None:
+        path = os.getenv('EIB_TMPFULLCONFIG')
+        if not path:
+            raise ImageBuildError(
+                'Path to config file not set in EIB_TMPFULLCONFIG')
+    if not os.path.exists(path):
+        raise ImageBuildError('No config file found at', path)
+
+    config = ImageConfigParser()
+    if not config.read(path, encoding='utf-8'):
+        raise ImageBuildError('No configuration read from', path)
+
+    return config
