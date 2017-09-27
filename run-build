@@ -57,6 +57,10 @@ class ImageBuildRoot(object):
         aptcache_dir = config['buildroot']['aptcache_dir']
         aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
 
+        # Script to kill chroot processes
+        self.kill_script = os.path.join(config['build']['helpersdir'],
+                                        'kill-chroot-procs')
+
         # Make sure the keyring is created
         eib.create_keyring(config)
 
@@ -166,10 +170,22 @@ class ImageBuildRoot(object):
             raise eib.ImageBuildError('Could not unmount all filesystems '
                                       'under', self.builddir)
 
+    def killall(self):
+        """Kill all processes running in the build directory"""
+        print('Killing all processes in', self.builddir)
+        subprocess.check_call([self.kill_script, self.builddir])
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc, value, tb):
+        # Try to kill any running processes but ignore errors from the
+        # kill script so that unmounting still happens
+        try:
+            self.killall()
+        except subprocess.CalledProcessError:
+            pass
+
         self.umount_all(continue_on_errors=True)
         print('Removing buildroot', self.builddir)
         shutil.rmtree(self.builddir)
