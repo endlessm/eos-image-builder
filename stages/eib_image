@@ -335,6 +335,7 @@ EOF
         cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
       fi
 
+      "${EIB_HELPERSDIR}"/kill-chroot-procs "${DEPLOY}"
       umount "${DEPLOY}"/{boot,dev,img,proc,sys}
       rm -f "${DEPLOY}"/img
 
