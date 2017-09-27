@@ -479,13 +479,20 @@ class ImageBuilder(object):
         if os.path.isdir(self.builddir) or os.path.isdir(self.cachedir):
             # Fully resolve the build path to match what's in the mount
             # info
-            print('Cleaning up mounts in', self.builddir, 'and',
-                  self.cachedir, flush=True)
             real_builddir = os.path.realpath(self.builddir)
             real_cachedir = os.path.realpath(self.cachedir)
 
+            # Try to kill any processes that might be hanging around
+            # from a previous build
+            kill_script = os.path.join(self.helpersdir,
+                                       'kill-chroot-procs')
+            print('Killing processes in', self.builddir)
+            subprocess.call([kill_script, real_builddir])
+
             # Re-read the mount table after every unmount in case there
             # are aliased mounts
+            print('Cleaning up mounts in', self.builddir, 'and',
+                  self.cachedir, flush=True)
             while True:
                 path = None
                 with open('/proc/self/mountinfo') as mountf:
