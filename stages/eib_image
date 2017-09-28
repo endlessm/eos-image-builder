@@ -173,6 +173,9 @@ create_image() {
   img_loop=$(losetup -f --show "${img}")
   eib_partx_scan "${img_loop}"
 
+  ROOT="${EIB_TMPDIR}"/mnt
+  DEPLOY="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
+
   case "${EIB_ARCH}" in
     i386|amd64)
       esp_loop=${img_loop}p1
@@ -208,8 +211,6 @@ create_image() {
 
   mke2fs -t ext4 -O ${ext4_opts} -m1 -L ostree -T default \
     ${root_loop} $root_size_kib
-  ROOT="${EIB_TMPDIR}"/mnt
-  DEPLOY="${ROOT}"/ostree/deploy/${EIB_OSTREE_OS}/deploy/${OSTREE_CURRENT_DEPLOYMENT}
   mkdir -p "${ROOT}"
   eib_mount ${root_loop} "${ROOT}"
 
@@ -334,6 +335,7 @@ EOF
         cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
       fi
 
+      "${EIB_HELPERSDIR}"/kill-chroot-procs "${DEPLOY}"
       umount "${DEPLOY}"/{boot,dev,img,proc,sys}
       rm -f "${DEPLOY}"/img
 
