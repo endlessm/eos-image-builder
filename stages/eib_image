@@ -187,7 +187,7 @@ create_image() {
       ;;
     *)
       # On ARM disable 64bit ext4 option
-      ext4_opts="dir_index,^huge_file,^64bit"
+      ext4_opts="dir_index,^huge_file,^64bit,^has_journal"
       root_loop=${img_loop}p1
       ;;
   esac
