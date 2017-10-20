@@ -47,6 +47,7 @@ apps = os.environ['EIB_FLATPAK_INSTALL_EOS'].split()
 extensions = os.environ['EIB_FLATPAK_INSTALL_EXTENSIONS'].split()
 arch = os.environ['EIB_FLATPAK_RUNTIME_ARCH']
 apps_branch = os.environ['EIB_FLATPAK_APPS_BRANCH']
+runtime_branch = os.environ['EIB_FLATPAK_RUNTIME_BRANCH']
 endless_apps_sdk_remote = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_REMOTE']
 endless_apps_sdk_url = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_SERVER']
 endless_apps_sdk_deploy_url = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_DEPLOY_SERVER']
@@ -94,9 +95,9 @@ for remote, url in ((runtimes_remote, runtimes_url),
 # Put together a list of refs that will be pulled to find out which
 # existing refs can be pruned
 runtime_refs = set()
-_add_runtime_and_locale(runtime_refs, runtime, arch, apps_branch)
+_add_runtime_and_locale(runtime_refs, runtime, arch, runtime_branch)
 if install_sdk == 'true':
-    _add_runtime_and_locale(runtime_refs, sdk, arch, apps_branch)
+    _add_runtime_and_locale(runtime_refs, sdk, arch, runtime_branch)
 
 sdk_refs = set()
 _add_runtime_and_locale(sdk_refs, endless_apps_sdk_runtime, arch,
