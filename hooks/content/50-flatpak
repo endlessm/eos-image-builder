@@ -39,7 +39,7 @@ endless_apps_sdk_runtime = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_RUNTIME']
 endless_apps_sdk_sdk = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_SDK']
 install_endless_apps_sdk_sdk = os.environ['EIB_FLATPAK_INSTALL_ENDLESS_APPS_SDK_SDK']
 endless_apps_sdk_branch = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_BRANCH']
-install_ekn_services = (os.environ['EIB_FLATPAK_INSTALL_EKN_SERVICES'] == 'true')
+install_ekn_services = os.environ['EIB_FLATPAK_INSTALL_EKN_SERVICES']
 
 # Optionally use the production flatpak repos rather than staging.
 if os.environ.get('EIB_USE_PRODUCTION_APPS') == 'true':
@@ -104,8 +104,11 @@ for refspec in app_refs:
     runtime = eib.find_runtime_for_refspec(installation, apps_remote, refspec)
     found_runtimes.setdefault(runtime, []).append(refspec)
 
-if install_ekn_services:
-    refspec = 'app/com.endlessm.EknServices/{}/eos3'.format(arch)
+ekn_services_to_install = eib.get_ekn_services_to_install(install_ekn_services,
+                                                          found_runtimes)
+
+for ekn_services_ver in ekn_services_to_install:
+    refspec = eib.ekn_services_refspec(ekn_services_ver, arch)
     sdk_refs.add(refspec)
 
     runtime = eib.find_runtime_for_refspec(installation,
