@@ -32,6 +32,10 @@ import tempfile
 import time
 import traceback
 
+from gi import require_version
+require_version('Flatpak', '1.0')
+from gi.repository import Flatpak, GLib
+
 CACHEDIR = '/var/cache/eos-image-builder'
 BUILDDIR = '/var/tmp/eos-image-builder'
 SYSCONFDIR = '/etc/eos-image-builder'
@@ -261,3 +265,19 @@ def latest_manifest_data():
                               path)
     with open(path) as f:
         return json.load(f)
+
+
+def find_runtime_for_refspec(installation, remote, refspec):
+    # Fetch the metadata for the app
+    ref = Flatpak.Ref.parse(refspec)
+    buf = retry(installation.fetch_remote_metadata_sync, remote, ref)
+
+    # Load it into a keyfile and get the runtime
+    metadata = GLib.KeyFile.new()
+    metadata.load_from_bytes(buf, GLib.KeyFileFlags.NONE)
+    return metadata.get_string('Application', 'runtime')
+
+
+def add_runtime_and_locale(bag, runtime, arch, branch):
+    bag.add('runtime/{}/{}/{}'.format(runtime, arch, branch))
+    bag.add('runtime/{}.Locale/{}/{}'.format(runtime, arch, branch))
