@@ -1,0 +1,9 @@
+# Adds the custom desktop background to the image
+
+if [ -z "${EIB_IMAGE_BRANDING_DESKTOP_BACKGROUND}" ]; then
+    exit 0
+fi
+
+ASSETS_DIR="${OSTREE_VAR}"/lib/eos-image-defaults/branding/assets
+mkdir -p "${ASSETS_DIR}"
+cp "${EIB_IMAGE_BRANDING_DESKTOP_BACKGROUND}" "${ASSETS_DIR}"/
