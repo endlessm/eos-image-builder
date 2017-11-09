@@ -30,6 +30,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 
 CACHEDIR = '/var/cache/eos-image-builder'
 BUILDDIR = '/var/tmp/eos-image-builder'
@@ -243,6 +244,10 @@ def retry(func, *args, max_retries=3, **kwargs):
                 print('Failed', max_retries, 'retries; giving up',
                       file=sys.stderr)
                 raise
+
+            # Show the traceback so the error isn't hidden
+            traceback.print_exc()
+
             print('Retrying attempt', retry, file=sys.stderr)
             time.sleep(1)
 
