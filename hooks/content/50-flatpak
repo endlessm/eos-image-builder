@@ -191,12 +191,21 @@ sdk_refs = sorted(sdk_refs)
 # Pull the refs
 print('Pulling runtime refs:', *runtime_refs, sep='\n')
 eib.retry(repo.pull, runtimes_remote, runtime_refs,
-          OSTree.RepoPullFlags.MIRROR)
+          OSTree.RepoPullFlags.NONE)
 print('Pulling app refs:', *app_refs, sep='\n')
-eib.retry(repo.pull, apps_remote, app_refs, OSTree.RepoPullFlags.MIRROR)
+eib.retry(repo.pull, apps_remote, app_refs, OSTree.RepoPullFlags.NONE)
 print('Pulling SDK refs:', *sdk_refs, sep='\n')
 eib.retry(repo.pull, endless_apps_sdk_remote, sdk_refs,
-          OSTree.RepoPullFlags.MIRROR)
+          OSTree.RepoPullFlags.NONE)
+
+# Recreate the refs in locally so that the install can pull from here
+_, all_refs = repo.list_refs()
+for remote, refs in ((runtimes_remote, runtime_refs),
+                     (apps_remote, app_refs),
+                     (endless_apps_sdk_remote, sdk_refs)):
+    for ref in refs:
+        rev = all_refs[':'.join([remote, ref])]
+        repo.set_ref_immediate(None, ref, rev)
 
 # Prune all but the latest referenced commits. Note that doing the
 # pruning now after the pull is the best for downloading since we can
