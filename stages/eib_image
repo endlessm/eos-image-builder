@@ -357,8 +357,9 @@ EOF
         #     bootx64.efi  - identical to shim.efi
         #     fallback.efi
         #
-        # However, the installer for Windows expects the following, older
-        # layout in boot.zip:
+        # However, the installer for Windows, eos-write-live-image from
+        # eos-meta, and helpers/create-iso in this repository all expect the
+        # following layout in boot.zip:
         #
         # EFI/
         #   BOOT/
@@ -366,20 +367,28 @@ EOF
         #     grubx64.efi
         #     MokManager.efi
         #
-        # It copies the entire contents of EFI/BOOT to EFI/Endless on the ESP,
-        # and creates a boot entry for EFI/Endless/bootx64.efi. For backwards-
-        # compatibility, we need to replicate this:
+        # For dual-boot installs, we copy the entire contents of EFI/BOOT to
+        # EFI/Endless on the ESP, and creates a boot entry for
+        # EFI/Endless/bootx64.efi. For ISOs and live USBs, we just copy the
+        # whole of EFI from boot.zip to the ESP. So for backwards-compatibility
+        # in the dual-boot case, and simplicity in the ISO/live case, we
+        # arrange for EFI/ to have the right structure:
         mkdir -p "${boot_zip_dir}/EFI/BOOT"
         cp \
           "${DEPLOY}"/boot/efi/EFI/BOOT/bootx64.efi \
+          "${DEPLOY}"/boot/efi/EFI/BOOT/bootia32.efi \
           "${DEPLOY}"/boot/efi/EFI/endless/MokManager.efi \
           "${DEPLOY}"/boot/efi/EFI/endless/grubx64.efi \
           "${boot_zip_dir}/EFI/BOOT"
 
-        # For forwards-compatibility with a future release of the installer, we
-        # capture the new layout (in particular, including fallback.efi):
-        mkdir -p "${boot_zip_dir}/EFI2"
-        cp -r "${DEPLOY}"/boot/efi/EFI/* "${boot_zip_dir}/EFI2"
+        # In case we want to use the additional files in a future release of
+        # the installer, we include just those files in a different directory.
+        # (In the past we created "EFI2" with the full contents of the ESP but
+        # triplicating Shim and duplicating the 64-bit GRUB added 50% to the
+        # boot.zip size, and this directory was never actually used.)
+        mkdir -p "${boot_zip_dir}/EFI3/BOOT" "${boot_zip_dir}/EFI3/endless"
+        cp "${DEPLOY}"/boot/efi/EFI/BOOT/fallback.efi "${boot_zip_dir}/EFI3/BOOT"
+        cp "${DEPLOY}"/boot/efi/EFI/endless/BOOT.CSV "${boot_zip_dir}/EFI3/endless"
 
         # Bundle all GRUB versions up for distribution
         local boot_zip="$(eib_outfile boot.zip)"
