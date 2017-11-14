@@ -206,7 +206,9 @@ create_image() {
       return 1
     fi
 
-    root_size_kib=$(( $(cat "$readahead_size") * 12 / 10240 ))
+    # Sometimes the readahead size is underestimated for large images, so
+    # multiply by 1.3 so the image will fit.
+    root_size_kib=$(( $(cat "$readahead_size") * 13 / 10240 ))
   fi
 
   mke2fs -t ext4 -O ${ext4_opts} -m1 -L ostree -T default \
