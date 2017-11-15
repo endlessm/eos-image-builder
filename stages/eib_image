@@ -110,10 +110,11 @@ run_hooks content "${OSTREE_DEPLOYMENT}"
 create_image() {
   local outfile=$1
 
-  # Create images according to data size, with 1GB free space.
+  # Create images according to data size, with 1.25 GiB extra space
+  # because du has a tendency to underestimate
   local img_size=$(du --block-size=1 -s "${EIB_OSTREE_CHECKOUT}")
   img_size=${img_size%$'\t'*}
-  (( img_size += 1024 * 1024 * 1024 ))
+  (( img_size += 1024 * 1024 * 1280))
   echo "Creating $1 image with size ${img_size}"
 
   local img="${EIB_TMPDIR}/${EIB_OUTVERSION}.img"
