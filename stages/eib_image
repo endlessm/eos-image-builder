@@ -110,11 +110,21 @@ run_hooks content "${OSTREE_DEPLOYMENT}"
 create_image() {
   local outfile=$1
 
-  # Create images according to data size, with 2 GiB extra space
-  # because du has a tendency to underestimate
+  # Create images according to data size with additional free space. The
+  # extra free space is used for 2 reasons:
+  #
+  # 1. The du estimate tends to be low compared to the space actually
+  #    used by the copy.
+  # 2. We want to boot without a totally full disk even though the
+  #    partitions and file systems are expanded on first boot.
+  #
+  # The free space is the minimum of 5% of calculated size or 1GB.
   local img_size=$(du --block-size=1 -s "${EIB_OSTREE_CHECKOUT}")
   img_size=${img_size%$'\t'*}
-  (( img_size += 1024 * 1024 * 2048))
+  local extra_size=$((img_size * 5 / 100))
+  local min_extra_size=$((2 ** 30))
+  (( extra_size < min_extra_size )) && extra_size=${min_extra_size}
+  (( img_size += extra_size ))
   echo "Creating $1 image with size ${img_size}"
 
   local img="${EIB_TMPDIR}/${EIB_OUTVERSION}.img"
@@ -257,6 +267,9 @@ create_image() {
   rsync -aHAX --update --no-inc-recursive "${EIB_OSTREE_CHECKOUT}/" "${ROOT}/"
 
   eib_write_version_xattr "${ROOT}"
+
+  # Report on the free space
+  df --block-size=1 "${ROOT}"
 
   # Make the deployment root mutable and delete the checkout since it's
   # no longer needed after this. Unset checkout derived variables so we
