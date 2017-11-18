@@ -3,6 +3,7 @@
 # Pull flatpak apps, appstream and runtimes to a local repository
 
 import eib
+import eibflatpak
 from gi import require_version
 require_version('Flatpak', '1.0')
 require_version('OSTree', '1.0')
@@ -77,16 +78,19 @@ for remote, url in ((runtimes_remote, runtimes_url),
 # Put together a list of refs that will be pulled to find out which
 # existing refs can be pruned
 runtime_refs = set()
-eib.add_runtime_and_locale(runtime_refs, runtime, arch, runtime_branch)
+eibflatpak.add_runtime_and_locale(runtime_refs, runtime, arch,
+                                  runtime_branch)
 if install_sdk == 'true':
-    eib.add_runtime_and_locale(runtime_refs, sdk, arch, runtime_branch)
+    eibflatpak.add_runtime_and_locale(runtime_refs, sdk, arch,
+                                      runtime_branch)
 
 sdk_refs = set()
-eib.add_runtime_and_locale(sdk_refs, endless_apps_sdk_runtime, arch,
-                        endless_apps_sdk_branch)
+eibflatpak.add_runtime_and_locale(sdk_refs, endless_apps_sdk_runtime,
+                                  arch, endless_apps_sdk_branch)
 if install_endless_apps_sdk_sdk == 'true':
-    eib.add_runtime_and_locale(sdk_refs, install_endless_apps_sdk_sdk, arch,
-                            endless_apps_sdk_branch)
+    eibflatpak.add_runtime_and_locale(sdk_refs,
+                                      install_endless_apps_sdk_sdk, arch,
+                                      endless_apps_sdk_branch)
 
 app_refs = {'app/{}/{}/{}'.format(app, arch, apps_branch) for app in apps}
 extension_remotes_refs = set()
@@ -101,18 +105,20 @@ for ext in extensions:
 installation.drop_caches()
 found_runtimes = {}
 for refspec in app_refs:
-    runtime = eib.find_runtime_for_refspec(installation, apps_remote, refspec)
+    runtime = eibflatpak.find_runtime_for_refspec(installation,
+                                                  apps_remote, refspec)
     found_runtimes.setdefault(runtime, []).append(refspec)
 
-ekn_services_to_install = eib.get_ekn_services_to_install(install_ekn_services,
-                                                          found_runtimes)
+ekn_services_to_install = eibflatpak.get_ekn_services_to_install(
+    install_ekn_services, found_runtimes)
 
 for ekn_services_ver in ekn_services_to_install:
-    refspec = eib.ekn_services_refspec(ekn_services_ver, arch)
+    refspec = eibflatpak.ekn_services_refspec(ekn_services_ver, arch)
     sdk_refs.add(refspec)
 
-    runtime = eib.find_runtime_for_refspec(installation,
-                                           endless_apps_sdk_remote, refspec)
+    runtime = eibflatpak.find_runtime_for_refspec(installation,
+                                                  endless_apps_sdk_remote,
+                                                  refspec)
     found_runtimes.setdefault(runtime, []).append(refspec)
 
 for runtime, app_refspecs in found_runtimes.items():
@@ -122,9 +128,11 @@ for runtime, app_refspecs in found_runtimes.items():
     runtime_id, arch, branch = runtime.split('/')
     if (runtime.startswith(endless_apps_sdk_runtime) or
         runtime.startswith(endless_apps_sdk_sdk)):
-        eib.add_runtime_and_locale(sdk_refs, runtime_id, arch, branch)
+        eibflatpak.add_runtime_and_locale(sdk_refs, runtime_id, arch,
+                                          branch)
     else:
-        eib.add_runtime_and_locale(runtime_refs, runtime_id, arch, branch)
+        eibflatpak.add_runtime_and_locale(runtime_refs, runtime_id,
+                                          arch, branch)
 
 # Add each requested extension to the set of refs to be pulled.
 for remote, refspec in extension_remotes_refs:
