@@ -98,6 +98,15 @@ EIB uses a private key at /etc/eos-image-builder/ssh-key.pem as the
 identity file whenever ssh is used. SSH may be used for git fetching,
 content downloading, or image publishing.
 
+AWS authentication
+------------------
+
+EIB uses a shared AWS credentials file at
+`/etc/eos-image-builder/aws-credentials` to authenticate to AWS services
+such as S3. See the
+[AWS documentation](http://docs.aws.amazon.com/cli/latest/userguide/cli-config-files.html)
+for details on this file.
+
 Email notification
 ------------------
 

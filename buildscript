@@ -28,6 +28,9 @@ export PYTHONPATH="${EIB_SRCDIR}/lib${PYTHONPATH:+:$PYTHONPATH}"
 # Use our helper script for git access over ssh
 export GIT_SSH="${EIB_HELPERSDIR}/git-ssh"
 
+# Tell aws tools to use credentials in sysconfdir
+export AWS_SHARED_CREDENTIALS_FILE="${EIB_SYSCONFDIR}/aws-credentials"
+
 . "${EIB_BASELIB}"
 
 exec > >(tee "${EIB_TMPDIR}"/build.txt)
