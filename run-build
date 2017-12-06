@@ -215,6 +215,7 @@ class ImageBuilder(object):
         ('error', 'hooks'),
         ('flatpak', 'freedesktop_branch'),
         ('flatpak', 'gnome_branch'),
+        ('flatpak', 'kde_branch'),
         ('flatpak', 'install_eos'),
         ('flatpak', 'install_extensions'),
         ('flatpak', 'install_extra'),
