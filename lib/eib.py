@@ -175,8 +175,24 @@ def add_cli_options(argparser):
                            help='platform to build (default: depends on arch)')
     add_argument('-P', '--personalities', default='base',
                  help='personalities to build')
-    argparser.add_argument('--show-config', action='store_true',
-                           help='show configuration and exit')
+
+    info = argparser.add_argument_group(
+        'informational modes',
+        description='These options show information about the image '
+                    'configuration, without actually building it',
+    ).add_mutually_exclusive_group()
+    info.add_argument('--show-config', action='store_true',
+                      help='show configuration and exit')
+    info.add_argument('--show-apps', metavar='BUDGET',
+                      nargs='?', const=2214240000,
+                      help='show apps which will be added to the image, '
+                           'including their approximate compressed size. '
+                           'BUDGET is the approximate compressed size '
+                           'available for apps, measured in bytes; if not '
+                           'specified, the default is the difference between '
+                           'the size of a DVD and the size of a representative '
+                           'base ISO')
+
     argparser.add_argument('-f', '--force', action='store_true',
                            help='run build even when no new assets found')
     argparser.add_argument('-n', '--dry-run', action='store_true',

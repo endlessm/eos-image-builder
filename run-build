@@ -33,7 +33,7 @@ import sys
 
 SRCDIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.join(SRCDIR, 'lib'))
-import eib
+import eib, applist
 
 log = logging.getLogger(os.path.basename(__file__))
 
@@ -260,7 +260,8 @@ class ImageBuilder(object):
             super().__setattr__(attr, value)
 
     def __init__(self, product, branch, arch, platform, personality,
-                 show_config=False, force=False, dry_run=False,
+                 show_config=False, show_apps=False,
+                 force=False, dry_run=False,
                  use_production_apps=False, use_production_ostree=False):
         # Create the config option first to allow the proxying between
         # it and this object's attributes.
@@ -269,6 +270,7 @@ class ImageBuilder(object):
         self.branch = branch
         self.personality = personality
         self.show_config = show_config
+        self.show_apps = show_apps
         self.force = force
         self.dry_run = dry_run
         self.use_production_apps = use_production_apps
@@ -555,6 +557,9 @@ class ImageBuilder(object):
             out.write('# Configuration for %s\n' % self.outversion)
             self._public_config.write(out)
 
+    def _show_apps(self):
+        applist.show_apps(self.config)
+
     def run(self):
         log.info('Configuring image build')
         self.configure()
@@ -563,6 +568,9 @@ class ImageBuilder(object):
         if self.show_config:
             # Just show the configuration without doing anything
             self.config.write(sys.stdout)
+            return
+        elif self.show_apps is not None:
+            applist.show_apps(self.config, self.show_apps, sys.stdout)
             return
 
         if self.use_production_apps:
@@ -613,6 +621,7 @@ def main():
                                platform=args.platform,
                                personality=personality,
                                show_config=args.show_config,
+                               show_apps=args.show_apps,
                                force=args.force,
                                dry_run=args.dry_run,
                                use_production_apps=args.use_production_apps,

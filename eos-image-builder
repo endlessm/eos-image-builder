@@ -72,7 +72,7 @@ eib.add_cli_options(aparser)
 args = aparser.parse_args()
 
 # Shortcut to show the configuration without taking the lock.
-if args.show_config:
+if args.show_config or args.show_apps:
     exit(subprocess.call(['./run-build'] + sys.argv[1:]))
 
 # Open the lock file a+ so it can be RW without truncating, but seek to
