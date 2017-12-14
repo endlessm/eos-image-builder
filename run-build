@@ -25,6 +25,7 @@ import datetime
 import fnmatch
 import glob
 import itertools
+import logging
 import os
 import shutil
 import subprocess
@@ -33,6 +34,9 @@ import sys
 SRCDIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.join(SRCDIR, 'lib'))
 import eib
+
+log = logging.getLogger(os.path.basename(__file__))
+
 
 class ImageBuildRoot(object):
     """Build root for performing actual image build
@@ -68,8 +72,8 @@ class ImageBuildRoot(object):
         if os.path.exists(aptcache_dir):
             aptcache_size = eib.disk_usage(aptcache_dir)
             if aptcache_size >= aptcache_max_size:
-                print('Apt cache directory uses', aptcache_size,
-                      'bytes, removing')
+                log.info('Apt cache directory uses %d bytes, removing',
+                         aptcache_size)
                 shutil.rmtree(aptcache_dir)
 
         # Mount aptcache_dir over the apt archives directory. Create the
@@ -81,7 +85,7 @@ class ImageBuildRoot(object):
         os.makedirs(os.path.join(aptcache_dir, 'partial'), exist_ok=True)
         self.mount(aptcache_dir, '/var/cache/apt/archives')
 
-        print('Creating buildroot in', self.builddir)
+        log.info('Creating buildroot in %s', self.builddir)
         subprocess.check_call(['debootstrap',
                                '--arch=' + arch,
                                '--keyring=' + keyring,
@@ -106,8 +110,8 @@ class ImageBuildRoot(object):
                    os.path.commonprefix((path, parent)) == parent:
                     # No need to mount this path as a parent directory
                     # on the same device will already be mounted
-                    print('Skipping mount of', path, 'since it is a '
-                          'subdirectory of', parent)
+                    log.info('Skipping mount of %s since it is a '
+                             'subdirectory of %s', path, parent)
                     break
             else:
                 # Unique path, add it for mounting
@@ -131,7 +135,7 @@ class ImageBuildRoot(object):
                                       'is not an absolute path')
         mount_path = self.builddir + target
 
-        print('Mounting', path, 'at', mount_path)
+        log.info('Mounting %s at %s', path, mount_path)
         os.makedirs(mount_path, exist_ok=True)
         subprocess.check_call(['mount', '--bind', path, mount_path])
         self.mounts.append(mount_path)
@@ -147,7 +151,7 @@ class ImageBuildRoot(object):
         if target not in self.mounts:
             raise eib.ImageBuildError(target, 'is not mounted in',
                                       self.builddir)
-        print('Unmounting', target)
+        log.info('Unmounting %s', target)
         subprocess.check_call(['umount', target])
         self.mounts.remove(target)
 
@@ -156,7 +160,7 @@ class ImageBuildRoot(object):
         umount_error = False
         for index in reversed(range(len(self.mounts))):
             mnt = self.mounts[index]
-            print('Unmounting', mnt)
+            log.info('Unmounting %s', mnt)
             ret = subprocess.call(['umount', mnt])
             if ret == 0:
                 self.mounts.pop(index)
@@ -172,7 +176,7 @@ class ImageBuildRoot(object):
 
     def killall(self):
         """Kill all processes running in the build directory"""
-        print('Killing all processes in', self.builddir)
+        log.info('Killing all processes in %s', self.builddir)
         subprocess.check_call([self.kill_script, self.builddir])
 
     def __enter__(self):
@@ -187,7 +191,7 @@ class ImageBuildRoot(object):
             pass
 
         self.umount_all(continue_on_errors=True)
-        print('Removing buildroot', self.builddir)
+        log.info('Removing buildroot %s', self.builddir)
         shutil.rmtree(self.builddir)
 
 class ImageBuilder(object):
@@ -380,7 +384,7 @@ class ImageBuilder(object):
 
         # Read the config files
         for path in self.config.read(config_files):
-            print('Loaded configuration file', path)
+            log.info('Loaded configuration file %s', path)
 
         # Copy the configuration to the public instance and merge the
         # options.
@@ -404,7 +408,7 @@ class ImageBuilder(object):
 
         # Read the config files
         for path in self.config.read(config_files):
-            print('Loaded private configuration file', path)
+            log.info('Loaded private configuration file %s', path)
 
         # Merge the key prefixes for the real configuration
         self.merge_config()
@@ -487,13 +491,13 @@ class ImageBuilder(object):
             # from a previous build
             kill_script = os.path.join(self.helpersdir,
                                        'kill-chroot-procs')
-            print('Killing processes in', self.builddir)
+            log.info('Killing processes in %s', self.builddir)
             subprocess.call([kill_script, real_builddir])
 
             # Re-read the mount table after every unmount in case there
             # are aliased mounts
-            print('Cleaning up mounts in', self.builddir, 'and',
-                  self.cachedir, flush=True)
+            log.info('Cleaning up mounts in %s and %s',
+                     self.builddir, self.cachedir)
             while True:
                 path = None
                 with open('/proc/self/mountinfo') as mountf:
@@ -521,12 +525,11 @@ class ImageBuilder(object):
                     # No more paths to unmount
                     break
 
-                print('Unmounting', path, flush=True)
+                log.info('Unmounting %s', path)
                 subprocess.check_call(['umount', path])
 
         # Make ostree checkouts mutable
-        print('Ensuring all ostree checkouts mutable in', ostree_co_dir,
-              flush=True)
+        log.info('Ensuring all ostree checkouts mutable in %s', ostree_co_dir)
         ostree_checkouts = os.path.join(ostree_co_dir,
                                         'ostree/deploy/*/deploy/*')
         for path in glob.iglob(ostree_checkouts):
@@ -535,8 +538,7 @@ class ImageBuilder(object):
                 subprocess.check_call(['chattr', '-i', path])
 
         # Cleanup files from previous build
-        print('Recreating build specific temporary directories',
-              flush=True)
+        log.info('Recreating build specific temporary directories')
         eib.recreate_dir(self.builddir)
         eib.recreate_dir(self.tmpdir)
         eib.recreate_dir(self.manifestdir)
@@ -554,7 +556,7 @@ class ImageBuilder(object):
             self._public_config.write(out)
 
     def run(self):
-        print('Configuring image build', flush=True)
+        log.info('Configuring image build')
         self.configure()
         self.configure_private()
         self.check_config()
@@ -564,23 +566,22 @@ class ImageBuilder(object):
             return
 
         if self.use_production_apps:
-            print('Using production flatpak repo for apps')
+            log.info('Using production flatpak repo for apps')
         if self.use_production_ostree:
-            print('Using production ostree repo')
+            log.info('Using production ostree repo')
 
-        print('Preparing build directory', flush=True)
+        log.info('Preparing build directory')
         self.prep_builddir()
-        print('Exporting configuration to environment', flush=True)
+        log.info('Exporting configuration to environment')
         self.set_environment()
-        print('Output merged configuration file to', self.tmpconfig,
-              flush=True)
+        log.info('Output merged configuration file to %s', self.tmpconfig)
         self.create_tmp_config()
-        print('Creating temporary GPG keyring', self.keyring)
+        log.info('Creating temporary GPG keyring %s', self.keyring)
         eib.create_keyring(self.config)
 
         # Run the buildscript in a buildroot
         with ImageBuildRoot(self.builddir, self.config):
-              print('Running image buildscript')
+              log.info('Running image buildscript')
               chrootscript = os.path.join(self.helpersdir, 'eib-chroot')
               buildscript = os.path.join(self.srcdir, 'buildscript')
               subprocess.check_call([chrootscript, self.builddir,
@@ -589,7 +590,7 @@ class ImageBuilder(object):
         # Unless this is a dry run, the output files have been published
         # and can be deleted.
         if not self.dry_run:
-            print('Cleaning up output in', self.outrootdir, flush=True)
+            log.info('Cleaning up output in %s', self.outrootdir)
             shutil.rmtree(self.outrootdir, ignore_errors=True)
 
 def main():
@@ -600,6 +601,10 @@ def main():
     if args.use_production:
         args.use_production_apps = True
         args.use_production_ostree = True
+
+    log_format = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
+    logging.basicConfig(level=logging.INFO,
+                        format=log_format)
 
     for personality in args.personalities.strip().split():
         builder = ImageBuilder(product=args.product,
