@@ -2,7 +2,7 @@
 
 # Endless image builder: image sizing helper
 #
-# Copyright (C) 2017  Endless Mobile, Inc.
+# Copyright © 2017–2018 Endless Mobile, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,24 +24,16 @@
 # are in the buildroot if the utility is only inside the build.
 import collections
 import logging
-import subprocess
-import textwrap
+
+from gi import require_version
+require_version('Flatpak', '1.0')
+from gi.repository import GLib, Flatpak  # noqa
 
 log = logging.getLogger(__name__)
 
 App = collections.namedtuple('App', (
-    'remote', 'id',
-    'download_size', 'download_size_str',
-    'installed_size', 'installed_size_str',
+    'remote', 'id', 'download_size', 'installed_size',
 ))
-
-
-# Flatpak uses g_format_size() which uses decimal units
-UNITS = {
-    'kB': 1000,
-    'MB': 1000 ** 2,
-    'GB': 1000 ** 3,
-}
 
 
 # https://phabricator.endlessm.com/T18626#436847
@@ -61,31 +53,23 @@ PREFER_REMOVE_APPS = {
 }
 
 
-def to_bytes(value, unit):
-    return int(float(value) * UNITS[unit])
-
-
 def fetch_apps_for_remote(remote, branch, arch='x86_64'):
     log.info('Listing apps on remote %s', remote)
-    output = subprocess.check_output(('flatpak', 'remote-ls', '-d', remote),
-                                     universal_newlines=True)
+    installation = Flatpak.Installation.new_system()
+    remote_refs = installation.list_remote_refs_sync(remote)
     apps = {}
-    for line in output.strip().split('\n'):
-        ref, commit, size, size_unit, download, download_unit = line.split()
-        app_kind, app_id, app_arch, app_branch = ref.split('/')
-        if not all((app_kind == 'app',
-                    app_arch == arch,
-                    app_branch == branch)):
+    for ref in remote_refs:
+        if not all((ref.get_kind() == Flatpak.RefKind.APP,
+                    ref.get_arch() == arch,
+                    ref.get_branch() == branch)):
             continue
 
+        app_id = ref.get_name()
+        sizes = installation.fetch_remote_size_sync(remote, ref, None)
         apps[app_id] = App(remote=remote,
                            id=app_id,
-                           download_size=to_bytes(download, download_unit),
-                           download_size_str='{} {}'.format(download,
-                                                            download_unit),
-                           installed_size=to_bytes(size, size_unit),
-                           installed_size_str='{} {}'.format(size,
-                                                             size_unit))
+                           download_size=sizes.download_size,
+                           installed_size=sizes.installed_size)
 
     return apps
 
@@ -140,7 +124,8 @@ class AppListFormatter(object):
 
         for app in apps:
             verdict = self.verdicts.get(app.id, '')
-            row = (app.remote, app.id, app.download_size_str, verdict)
+            row = (app.remote, app.id, GLib.format_size(app.download_size),
+                   verdict)
             stream.write(self.format_string.format(*row))
 
         stream.write('\n')
@@ -211,16 +196,14 @@ def show_apps(config, budget, stream):
         verdicts[app.id] = 'Maybe'
         excess_after_removals -= app.download_size
 
-    stream.write(textwrap.dedent(
-        '''
-        Estimated size: {total} MB
-        Over budget: {excess} MB
-        Space after proposed removals: {after} MB
-
-        '''
-    ).format(total=total // UNITS['MB'],
-             excess=excess // UNITS['MB'],
-             after=(- excess_after_removals) // UNITS['MB']))
+    stream.write('Estimated size: {}\n'.format(GLib.format_size(total)))
+    if excess > 0:
+        stream.write('Over budget: {}\n'.format(GLib.format_size(excess)))
+        stream.write('Space after proposed removals: {}\n'.format(
+            GLib.format_size(-excess_after_removals)))
+    else:
+        stream.write('Under budget: {}\n'.format(GLib.format_size(-excess)))
+    stream.write('\n')
 
     personality = config['build']['personality']
     AppListFormatter(apps, personality, verdicts).write(stream)
