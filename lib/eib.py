@@ -183,15 +183,13 @@ def add_cli_options(argparser):
     ).add_mutually_exclusive_group()
     info.add_argument('--show-config', action='store_true',
                       help='show configuration and exit')
-    info.add_argument('--show-apps', metavar='BUDGET',
-                      nargs='?', const=2214240000,
+    info.add_argument('--show-apps', metavar='EXCESS',
+                      nargs='?', type=int, const=0,
                       help='show apps which will be added to the image, '
                            'including their approximate compressed size. '
-                           'BUDGET is the approximate compressed size '
-                           'available for apps, measured in bytes; if not '
-                           'specified, the default is the difference between '
-                           'the size of a DVD and the size of a representative '
-                           'base ISO')
+                           'If EXCESS is specified, propose which apps to '
+                           'remove to save approximately EXCESS bytes in the '
+                           'compressed image.')
 
     argparser.add_argument('-f', '--force', action='store_true',
                            help='run build even when no new assets found')

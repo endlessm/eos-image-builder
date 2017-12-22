@@ -110,11 +110,18 @@ class AppListFormatter(object):
         # Rather than using a construction like '{:>{}}'.format('abc', 8), make
         # a static format string we can re-use with different data. The heading
         # and table formatting is valid Phabricator markup
-        widths = (remote_width, id_width, 8, 7)
-        self.format_string = (
-            '| {{:{}}} | {{:{}}} | {{:>{}}} | {{:{}}} |\n'.format(*widths))
+        widths = [remote_width, id_width, 8]
+        header_row = ['Remote', 'App ID', 'Size']
+        format_strings = ['{{:{}}}', '{{:{}}}', '{{:>{}}}']
+        if self.verdicts:
+            header_row.append('Remove?')
+            widths.append(len(header_row[-1]))
+            format_strings.append('{{:{}}}')
+
+        format_string_format = '| ' + ' | '.join(format_strings) + ' |\n'
+        self.format_string = format_string_format.format(*widths)
         self.header = ''.join((
-            self.format_string.format('Remote', 'App ID', 'Size', 'Remove?'),
+            self.format_string.format(*header_row),
             self.format_string.format(*('-' * width for width in widths)),
         ))
 
@@ -123,9 +130,9 @@ class AppListFormatter(object):
         stream.write(self.header)
 
         for app in apps:
-            verdict = self.verdicts.get(app.id, '')
-            row = (app.remote, app.id, GLib.format_size(app.download_size),
-                   verdict)
+            row = [app.remote, app.id, GLib.format_size(app.download_size)]
+            if self.verdicts:
+                row.append(self.verdicts.get(app.id, ''))
             stream.write(self.format_string.format(*row))
 
         stream.write('\n')
@@ -135,12 +142,22 @@ class AppListFormatter(object):
         self._write_table(stream, 'Generic apps', self.generic_apps)
 
 
-def show_apps(config, budget, stream):
-    '''Lists apps that will be installed for this image, and their approximate
-    compressed size. (We use the compressed download size according to `flatpak
-    remote-ls -d` as an approximation for how the uncompressed app will affect
-    the compressed size of the SquashFS.) We also suggest which apps to remove
-    to bring the image within its size budget.'''
+def show_apps(config, excess, stream):
+    '''Lists apps that will be installed for this image, with their installed
+    (uncompressed) and download (compressed) sizes.
+
+    If excess > 0, we also suggest which apps to remove to save that amount of
+    space in the compressed image.  We use the compressed download size
+    according to Flatpak as an approximation for how the uncompressed app will
+    affect the compressed size in the image.
+
+    Args:
+        config (ConfigParser): the image config
+        excess (int): bytes that need to be saved to fit within the size, or 0
+                      if there's no size limit and you just want the list of
+                      apps
+        stream (file): stream to which to write the lists
+    '''
     # TODO: take into account the runtimes which will end up in the image,
     # whether because they are explicitly installed in the image config, or
     # as a dependency of the selected apps.
@@ -158,51 +175,54 @@ def show_apps(config, budget, stream):
     # Sort in descending download size order, then by app ID
     apps.sort(key=lambda app: (- app.download_size, app.id))
     total = sum(app.download_size for app in apps)
-    excess = total - budget
 
     excess_after_removals = excess
-    verdicts = {app_id: 'No' for app_id in MUST_KEEP_APPS}
+    verdicts = {}
 
-    # Any app which is larger than the budget must certainly be removed
-    for app in apps:
-        if app.download_size > budget:
-            verdicts[app.id] = 'Yes'
+    if excess > 0:
+        for app_id in MUST_KEEP_APPS:
+            verdicts[app_id] = 'No'
+
+        # Remove any app which we're happy to sacrifice
+        for app in apps:
+            if excess_after_removals <= 0:
+                break
+
+            if app.id in verdicts:
+                continue
+
+            if (
+                app.id in PREFER_REMOVE_APPS or
+                any(app.id.startswith(prefix) for prefix in PREFER_REMOVE_NS)
+            ):
+                verdicts[app.id] = 'Yes'
+                excess_after_removals -= app.download_size
+
+        # Propose removing the largest n apps until we're under budget.
+        # TODO: prefer to remove generic apps?
+        # TODO: some non-greedy algorithm that prefers to remove smaller apps
+        # to minimize free excess_after_removals
+        for app in apps:
+            if excess_after_removals <= 0:
+                break
+
+            if app.id in verdicts:
+                continue
+
+            verdicts[app.id] = 'Maybe'
             excess_after_removals -= app.download_size
 
-    # Remove any app which we're happy to sacrifice
-    for app in apps:
-        if excess_after_removals <= 0:
-            break
-
-        if app.id in verdicts:
-            continue
-
-        if (
-            app.id in PREFER_REMOVE_APPS or
-            any(app.id.startswith(prefix) for prefix in PREFER_REMOVE_NS)
-        ):
-            verdicts[app.id] = 'Yes'
-            excess_after_removals -= app.download_size
-
-    # Propose removing the largest n apps until we're under budget.
-    # TODO: prefer to remove generic apps?
-    for app in apps:
-        if excess_after_removals <= 0:
-            break
-
-        if app.id in verdicts:
-            continue
-
-        verdicts[app.id] = 'Maybe'
-        excess_after_removals -= app.download_size
-
-    stream.write('Estimated size: {}\n'.format(GLib.format_size(total)))
+    stream.write('\n')
+    stream.write('Estimated compressed size of apps: {}\n'.format(
+        GLib.format_size(total)))
     if excess > 0:
         stream.write('Over budget: {}\n'.format(GLib.format_size(excess)))
-        stream.write('Space after proposed removals: {}\n'.format(
-            GLib.format_size(-excess_after_removals)))
-    else:
-        stream.write('Under budget: {}\n'.format(GLib.format_size(-excess)))
+        if excess_after_removals > 0:
+            stream.write('Over budget after proposed removals: {}\n'.format(
+                GLib.format_size(excess_after_removals)))
+        else:
+            stream.write('Free space after proposed removals: {}\n'.format(
+                GLib.format_size(-excess_after_removals)))
     stream.write('\n')
 
     personality = config['build']['personality']
