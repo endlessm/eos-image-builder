@@ -385,7 +385,7 @@ class ImageBuilder(object):
         ])
 
         # Read the config files
-        for path in self.config.read(config_files):
+        for path in self.config.read(config_files, encoding='utf-8'):
             log.info('Loaded configuration file %s', path)
 
         # Copy the configuration to the public instance and merge the
@@ -409,7 +409,7 @@ class ImageBuilder(object):
         ]
 
         # Read the config files
-        for path in self.config.read(config_files):
+        for path in self.config.read(config_files, encoding='utf-8'):
             log.info('Loaded private configuration file %s', path)
 
         # Merge the key prefixes for the real configuration
@@ -439,7 +439,7 @@ class ImageBuilder(object):
         """Check loaded configuration against schema for validity."""
         schema_file = os.path.join(self.configdir, 'schema.ini')
         schema = eib.ImageConfigParser()
-        schema.read(schema_file)
+        schema.read(schema_file, encoding='utf-8')
 
         for option, value in schema.items(schema.defaultsect):
             self.check_value(schema.defaultsect, option, value)
