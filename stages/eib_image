@@ -339,10 +339,6 @@ EOF
 
         # Capture second-stage config and modules
         cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
-        # We use /boot/grub/grubenv from inside the image file, not the one on
-        # the Windows drive (and not at all on live media). To avoid confusion,
-        # leave it out entirely.
-        rm -f "${boot_zip_dir}/grub/grubenv"
       fi
 
       "${EIB_HELPERSDIR}"/kill-chroot-procs "${DEPLOY}"
