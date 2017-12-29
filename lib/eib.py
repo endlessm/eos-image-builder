@@ -32,6 +32,7 @@ import json
 import logging
 import os
 import shutil
+import signal
 import subprocess
 import tempfile
 import time
@@ -50,6 +51,17 @@ SUPPORTED_ARCHES = [
 
 # Exit code indicating new build needed rather than error
 CHECK_EXIT_BUILD_NEEDED = 90
+
+# Python normally catches SIGINT and converts it to the
+# KeyboardInterrupt exception. Unfortunately, if some code is blocking
+# the main thread (e.g, OSTree.Repo.pull), the exception can't be
+# delivered and the image builder won't stop on ^C.
+#
+# Set the signal handler back to the default (Term) so the image builder
+# dies. It's not intended to be run interactively where
+# KeyboardInterrupt would be useful, and any code that needs this
+# behavior can restore python's default signal handler.
+DEFAULT_SIGINT_HANDLER = signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
 class ImageBuildError(Exception):
