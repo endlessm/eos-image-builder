@@ -1,6 +1,7 @@
 # Populate cache of gnome-software screenshots and thumbnails
 
 EXTRA_APPSTREAM_DIR=${OSTREE_VAR}/cache/app-info/xmls/
+EXTRA_APPSTREAM_FILE=org.gnome.Software-eos-extra.xml
 
 clone_dir=${EIB_CONTENTDIR}/gnome-software-data
 pushd $clone_dir
@@ -12,6 +13,6 @@ pushd $clone_dir
 
   # Include the eos-extra AppStream file
   mkdir -p ${EXTRA_APPSTREAM_DIR}
-  cp app-info/eos-extra.xml ${EXTRA_APPSTREAM_DIR}
-  gzip ${EXTRA_APPSTREAM_DIR}/eos-extra.xml
+  cp app-info/eos-extra.xml ${EXTRA_APPSTREAM_DIR}/${EXTRA_APPSTREAM_FILE}
+  gzip ${EXTRA_APPSTREAM_DIR}/${EXTRA_APPSTREAM_FILE}
 popd
