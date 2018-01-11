@@ -36,10 +36,13 @@ App = collections.namedtuple('App', (
 ))
 
 
-# https://phabricator.endlessm.com/T18626#436847
 MUST_KEEP_APPS = {
+    # https://phabricator.endlessm.com/T18626#436847
     'net.gcompris.Gcompris',
     'net.sourceforge.Supertuxkart',
+
+    # “encyclopedia is the most important app” – Nick/Matt
+    'com.endlessm.encyclopedia.id',
 }
 PREFER_REMOVE_NS = {
     'org.kde.',
