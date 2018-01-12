@@ -7,8 +7,8 @@ shopt -s extglob
 set -E
 
 # Show current script and time when xtrace (set -x) enabled. Will look
-# like "+ run-build 10:13:40: some command".
-export PS4='+ ${BASH_SOURCE[0]##*/} \t: '
+# like "+ 10:13:40 run-build: some command".
+export PS4='+ \t ${BASH_SOURCE[0]##*/}: '
 
 # Exit code indicating new build needed rather than error
 EIB_CHECK_EXIT_BUILD_NEEDED=90

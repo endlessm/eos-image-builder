@@ -214,7 +214,8 @@ def add_cli_options(argparser):
 
 
 def setup_logging():
-    log_format = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
+    log_format = '+ %(asctime)s %(levelname)s %(name)s: %(message)s'
+    date_format = '%H:%M:%S'
 
     # The log level is controlled by an environment variable rather than a
     # function parameter so it can be inherited by hooks.
@@ -223,8 +224,7 @@ def setup_logging():
     else:
         level = logging.INFO
 
-    logging.basicConfig(level=level,
-                        format=log_format)
+    logging.basicConfig(level=level, format=log_format, datefmt=date_format)
 
 
 def create_keyring(config):
