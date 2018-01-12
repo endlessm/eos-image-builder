@@ -33,10 +33,8 @@ import logging
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
-import traceback
 
 CACHEDIR = '/var/cache/eos-image-builder'
 BUILDDIR = '/var/tmp/eos-image-builder'
@@ -270,6 +268,9 @@ def disk_usage(path):
 
 def retry(func, *args, max_retries=3, **kwargs):
     """Retry a function in case of intermittent errors"""
+    # A no-op if the hook has already called this
+    setup_logging()
+
     retry = 0
     while True:
         try:
@@ -277,14 +278,11 @@ def retry(func, *args, max_retries=3, **kwargs):
         except:
             retry += 1
             if retry > max_retries:
-                print('Failed', max_retries, 'retries; giving up',
-                      file=sys.stderr)
+                logging.error('Failed %d retries; giving up', max_retries)
                 raise
 
             # Show the traceback so the error isn't hidden
-            traceback.print_exc()
-
-            print('Retrying attempt', retry, file=sys.stderr)
+            logging.warning('Retrying attempt %d', retry, exc_info=True)
             time.sleep(1)
 
 
