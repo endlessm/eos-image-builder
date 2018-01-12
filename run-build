@@ -607,6 +607,9 @@ def main():
         args.use_production_apps = True
         args.use_production_ostree = True
 
+    if args.debug:
+        os.environ['EIB_DEBUG'] = '1'
+
     eib.setup_logging()
 
     for personality in args.personalities.strip().split():

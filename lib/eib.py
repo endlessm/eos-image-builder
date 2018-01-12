@@ -196,6 +196,8 @@ def add_cli_options(argparser):
                            help='run build even when no new assets found')
     argparser.add_argument('-n', '--dry-run', action='store_true',
                            help="don't publish images")
+    argparser.add_argument('--debug', action='store_true',
+                           help="enable slightly more verbose logging")
     argparser.add_argument('--use-production', action='store_true',
                            help="use production ostree/flatpak repos rather than staging (deprecated)")
     argparser.add_argument('--use-production-apps', action='store_true',
@@ -215,7 +217,15 @@ def add_cli_options(argparser):
 
 def setup_logging():
     log_format = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
-    logging.basicConfig(level=logging.INFO,
+
+    # The log level is controlled by an environment variable rather than a
+    # function parameter so it can be inherited by hooks.
+    if os.environ.get('EIB_DEBUG', '') == '1':
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+
+    logging.basicConfig(level=level,
                         format=log_format)
 
 
