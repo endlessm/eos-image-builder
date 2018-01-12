@@ -99,8 +99,19 @@ class AppListFormatter(object):
         self.generic_apps = []
         self.verdicts = verdicts
 
-        remote_width = 0
-        id_width = 0
+        # Rather than using a construction like '{:>{}}'.format('abc', 8), make
+        # a static format string we can re-use with different data. The heading
+        # and table formatting is valid Phabricator markup
+        header_row = ['Remote', 'App ID', 'Installed Size', 'Download Size']
+        format_strings = ['{{:{}}}', '{{:{}}}', '{{:>{}}}', '{{:>{}}}']
+        if self.verdicts:
+            header_row.append('Remove?')
+            format_strings.append('{{:{}}}')
+
+        widths = [len(h) for h in header_row]
+        # Calculate width for first two columns; the others are no wider than
+        # their header. While we're at it, partition the apps.
+        remote_width, id_width = widths[:2]
         for app in apps:
             remote_width = max(remote_width, len(app.remote))
             id_width = max(id_width, len(app.id))
@@ -109,17 +120,7 @@ class AppListFormatter(object):
                 self.locale_apps.append(app)
             else:
                 self.generic_apps.append(app)
-
-        # Rather than using a construction like '{:>{}}'.format('abc', 8), make
-        # a static format string we can re-use with different data. The heading
-        # and table formatting is valid Phabricator markup
-        widths = [remote_width, id_width, 8]
-        header_row = ['Remote', 'App ID', 'Size']
-        format_strings = ['{{:{}}}', '{{:{}}}', '{{:>{}}}']
-        if self.verdicts:
-            header_row.append('Remove?')
-            widths.append(len(header_row[-1]))
-            format_strings.append('{{:{}}}')
+        widths[:2] = [remote_width, id_width]
 
         format_string_format = '| ' + ' | '.join(format_strings) + ' |\n'
         self.format_string = format_string_format.format(*widths)
@@ -133,7 +134,12 @@ class AppListFormatter(object):
         stream.write(self.header)
 
         for app in apps:
-            row = [app.remote, app.id, GLib.format_size(app.download_size)]
+            row = [
+                app.remote,
+                app.id,
+                GLib.format_size(app.installed_size),
+                GLib.format_size(app.download_size),
+            ]
             if self.verdicts:
                 row.append(self.verdicts.get(app.id, ''))
             stream.write(self.format_string.format(*row))
