@@ -557,9 +557,6 @@ class ImageBuilder(object):
             out.write('# Configuration for %s\n' % self.outversion)
             self._public_config.write(out)
 
-    def _show_apps(self):
-        applist.show_apps(self.config)
-
     def run(self):
         log.info('Configuring image build')
         self.configure()
