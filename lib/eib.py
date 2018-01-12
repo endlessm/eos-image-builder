@@ -29,6 +29,7 @@ from collections import Counter, OrderedDict
 import fnmatch
 import glob
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -210,6 +211,12 @@ def add_cli_options(argparser):
                       'exiting')
     add_argument('branch', nargs='?', default='master',
                  help='branch to build')
+
+
+def setup_logging():
+    log_format = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
+    logging.basicConfig(level=logging.INFO,
+                        format=log_format)
 
 
 def create_keyring(config):
