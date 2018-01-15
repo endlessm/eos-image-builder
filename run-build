@@ -210,7 +210,7 @@ class ImageBuilder(object):
 
     # Config options that will be merged together from multiple
     # $prefix_add_* and $prefix_del_* options. This is a list of
-    # (section, prefix) tuples.
+    # (section, prefix) tuples. The section can be a glob pattern.
     CONFIG_MERGE_PREFIXES = [
         ('buildroot', 'mounts'),
         ('buildroot', 'packages'),
