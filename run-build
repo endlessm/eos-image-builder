@@ -27,6 +27,7 @@ import glob
 import itertools
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -459,7 +460,12 @@ class ImageBuilder(object):
             config.merge_option_prefix(section, prefix)
 
     def setenv(self, section, option, value):
-        """Export config values as variable in EIB namespace"""
+        """Export config values as variable in EIB namespace
+
+        The variable name will be EIB_<SECTION>_<OPTION> with the
+        section and option names uppercased. Shell-incompatible
+        characters are converted to underscores.
+        """
         # Convert boolean's to true/false to be handled easily in shell
         if value in ['True', 'False']:
             value = value.lower()
@@ -467,6 +473,12 @@ class ImageBuilder(object):
         if section:
             var += section.upper() + '_'
         var += option.upper()
+
+        # Per POSIX, environment variable names compatible with shells
+        # only contain upper case letters, digits and underscores.
+        # Convert anything else to an underscore.
+        var = re.sub(r'[^A-Z0-9_]', '_', var)
+
         os.environ[var] = value
 
     def set_environment(self):
