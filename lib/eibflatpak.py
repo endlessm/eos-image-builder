@@ -145,7 +145,8 @@ class FlatpakRemote(object):
 
     def __init__(self, manager, name, url=None, deploy_url=None,
                  repo_file=None, apps=None, runtimes=None,
-                 title=None, default_branch=None, **extra_options):
+                 nosplit_apps=None, nosplit_runtimes=None, title=None,
+                 default_branch=None, **extra_options):
         # Copy some manager attributes
         self.installation = manager.installation
         self.arch = manager.arch
@@ -157,6 +158,9 @@ class FlatpakRemote(object):
         self.repo_file = repo_file
         self.apps = apps.split() if apps else []
         self.runtimes = runtimes.split() if runtimes else []
+        self.nosplit_apps = nosplit_apps.split() if nosplit_apps else []
+        self.nosplit_runtimes = \
+            nosplit_runtimes.split() if nosplit_runtimes else []
         self.title = title
         self.default_branch = default_branch
 
@@ -568,11 +572,12 @@ class FlatpakManager(object):
 
         return match
 
-    def resolve_refs(self):
+    def resolve_refs(self, split=False):
         """Resolve all refs needed for installation
 
         Add the apps and runtimes required for each remote and resolve
-        all runtime and extension dependencies.
+        all runtime and extension dependencies. If split is True, the
+        nosplit apps and runtimes will not be included.
         """
         # Dict of FlatpakInstallRefs needed for installation keyed by
         # the ref string.
@@ -580,7 +585,15 @@ class FlatpakManager(object):
 
         # Get required apps and runtimes
         for remote in self.remotes.values():
-            for app in remote.apps:
+            if split:
+                wanted_apps = set(remote.apps) - set(remote.nosplit_apps)
+                wanted_runtimes = \
+                    set(remote.runtimes) - set(remote.nosplit_runtimes)
+            else:
+                wanted_apps = remote.apps
+                wanted_runtimes = remote.runtimes
+
+            for app in wanted_apps:
                 full_ref = remote.match(app, Flatpak.RefKind.APP)
                 if full_ref is None:
                     raise FlatpakError('Could not find app', app, 'in',
@@ -590,7 +603,7 @@ class FlatpakManager(object):
                 self.install_refs[full_ref.ref] = FlatpakInstallRef(
                     full_ref)
 
-            for runtime in remote.runtimes:
+            for runtime in wanted_runtimes:
                 full_ref = remote.match(runtime, Flatpak.RefKind.RUNTIME)
                 if full_ref is None:
                     raise FlatpakError('Could not find runtime',
