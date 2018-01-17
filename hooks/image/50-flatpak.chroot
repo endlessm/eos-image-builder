@@ -1,0 +1,67 @@
+#!/usr/bin/python3 -u
+
+# Configure the image's flatpak remotes and install flatpaks using
+# eibflatpak.FlatpakManager.
+
+import eib
+import eibflatpak
+from gi import require_version
+require_version('Flatpak', '1.0')
+require_version('OSTree', '1.0')
+from gi.repository import Flatpak, Gio, OSTree
+import logging
+import os
+import sys
+import time
+import subprocess
+
+logger = logging.getLogger(os.path.basename(__file__))
+eib.setup_logging()
+config = eib.get_config()
+
+if not config.getboolean('flatpak', 'enable', fallback=True):
+    sys.exit(0)
+
+# Enable debug logging for all flatpak operations
+os.environ['G_MESSAGES_DEBUG'] = 'flatpak'
+
+# Make sure we set the correct XDG_DATA_DIRS when installing, or the
+# triggers won't work properly. Normally these are always set when
+# running in a session, but may not on Jenkins. See also
+# /etc/profile.d/flatpak.sh.
+data_dirs = ':'.join(['/var/lib/flatpak/exports/share/',
+                      '/var/endless-extra/flatpak/exports/share/',
+                      '/usr/share/'])
+os.environ['XDG_DATA_DIRS'] = data_dirs
+
+# Settings and paths. Need to use environment variables for paths to
+# respect chroot mount locations.
+content_repo = os.path.join(os.environ['EIB_CONTENTDIR'],
+                            'flatpak/repo')
+installation_path = '/var/lib/flatpak/repo'
+
+# Open the flatpak installation and pass it to the manager
+logger.info('Opening flatpak installation %s', installation_path)
+installation_file = Gio.File.new_for_path(installation_path)
+installation = Flatpak.Installation.new_for_path(installation_file,
+                                                 user=False)
+manager = eibflatpak.FlatpakManager(installation, config=config)
+manager.add_remotes()
+manager.enumerate_remotes()
+manager.resolve_refs()
+
+# Pull the install refs using the content repo as a cache without making
+# refs in case the resolved refs aren't the same as the installation
+# uses
+manager.pull(commit_only=True, cache_repo_path=content_repo)
+
+# Install everything
+manager.install()
+
+# Finalize the remote URLs now that everything has been installed
+manager.deploy_remotes()
+
+# Prune the installation to drop unused refs and objects
+logger.info('Cleaning up installation %s', installation_path)
+installation.cleanup_local_refs_sync()
+installation.prune_local_repo()
