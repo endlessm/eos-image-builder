@@ -46,14 +46,14 @@ compression = gz
 # and the full multi-gigabyte app set is not needed.
 apps =
   com.endlessm.photos
-  org.gnome.Gnote
+  com.endlessm.resume
 
 # Alternatively, a set of apps can be added or deleted from the existing
 # configuration by using the _add_/_del_ merged settings. The above
 # install option would need to be commented out for these to take
 # effect.
 #apps_add_local = org.my.App
-#apps_del_local = org.gnome.Gnote
+#apps_del_local = com.endlessm.resume
 
 # Testing for apps to be removed when creating the split disk. As with
 # the install option, this overrides all settings but could use the
