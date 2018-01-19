@@ -37,59 +37,6 @@ from urllib.request import urlopen
 logger = logging.getLogger(__name__)
 
 
-def find_runtime_for_refspec(installation, remote, refspec):
-    # Fetch the metadata for the app
-    ref = Flatpak.Ref.parse(refspec)
-    buf = eib.retry(installation.fetch_remote_metadata_sync, remote, ref)
-
-    # Load it into a keyfile and get the runtime
-    metadata = GLib.KeyFile.new()
-    metadata.load_from_bytes(buf, GLib.KeyFileFlags.NONE)
-    return metadata.get_string('Application', 'runtime')
-
-
-def add_runtime_and_locale(bag, runtime, arch, branch):
-    bag.add('runtime/{}/{}/{}'.format(runtime, arch, branch))
-    bag.add('runtime/{}.Locale/{}/{}'.format(runtime, arch, branch))
-
-
-def _get_ekn_services_ver(runtime_id, branch):
-    if runtime_id == 'com.endlessm.Platform' and branch in ('eos3.0', 'eos3.1'):
-        return '1'
-    if runtime_id == 'com.endlessm.apps.Platform':
-        if branch == '1':
-            return '1'
-        return '2'
-    return None
-
-
-def get_ekn_services_to_install(requested, found_runtimes):
-    if requested == 'auto':
-        ekn_services_to_install = set()
-        for runtime in found_runtimes:
-            runtime_id, arch, branch = runtime.split('/')
-            ekn_services_ver = _get_ekn_services_ver(runtime_id, branch)
-            if ekn_services_ver is not None:
-                ekn_services_to_install.add(ekn_services_ver)
-        return ekn_services_to_install
-
-    # Explicitly requested versions
-    return set(requested.split(','))
-
-
-def ekn_services_app_id(version):
-    if version == '1':
-        return 'com.endlessm.EknServices'
-    return 'com.endlessm.EknServices{}'.format(version)
-
-
-def ekn_services_refspec(version, arch):
-    app_id = ekn_services_app_id(version)
-    if version == '1':
-        return 'app/{}/{}/eos3'.format(app_id, arch)
-    return 'app/{}/{}/stable'.format(app_id, arch)
-
-
 class FlatpakError(eib.ImageBuildError):
     """Errors from flatpak installation processes"""
     pass
