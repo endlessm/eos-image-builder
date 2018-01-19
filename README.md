@@ -113,7 +113,8 @@ Email notification
 When a build completes successfully, EIB will send an email indicating
 where the published build can be downloaded. Settings for where to send
 the email are managed in the `email` section of the image builder
-configuration. See `config/defaults.ini` for details.
+configuration. See [config/defaults.ini](config/defaults.ini) for
+details.
 
 Configuration
 =============
@@ -200,17 +201,23 @@ wants.
 
 The current merged options are:
 
-* `cache:hooks`
+* `buildroot:mounts`
+* `buildroot:packages`
+* `check:hooks`
 * `content:hooks`
+* `error:hooks`
+* `flatpak:locales`
+* `flatpak-remote-*:apps`
+* `flatpak-remote-*:runtimes`
+* `flatpak-remote-*:nosplit_apps`
+* `flatpak-remote-*:nosplit_runtimes`
 * `image:hooks`
+* `image:icon_grid`
 * `image:settings`
 * `image:settings_locks`
-* `split:hooks`
-* `apps:install`
-* `apps:extra`
-* `apps:nosplit`
+* `manifest:hooks`
 * `publish:hooks`
-* `error:hooks`
+* `split:hooks`
 
 See the `defaults.ini` file for a description of these options.
 
@@ -335,6 +342,10 @@ directories are made available to both the `image` and `split` chroot
 hooks. This includes other directories and files derived from the cache
 directory such as `${EIB_CONTENTDIR}` and `${EIB_OUTDIR}` or source
 directory such as `${EIB_DATADIR}` or `${EIB_HELPERSDIR}`.
+
+Installation of Flatpaks is handled in the image stage. This uses
+configuration in `flatpak-remote-*` sections. See the comments in
+[default configuration file](config/defaults.ini) for details.
 
 manifest customization
 ----------------------
