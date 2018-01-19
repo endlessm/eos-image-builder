@@ -555,6 +555,68 @@ class FlatpakManager(object):
 
         return match
 
+    @staticmethod
+    def _get_ekn_services_ref(full_ref):
+        """Get required EknServices ref
+
+        Endless knowledge apps need a matching EknServices app from the
+        eos-sdk remote to support features in applications using that
+        runtime. Currently required cases depending on the runtime used:
+
+        com.endlessm.Platform//eos3.1 - EknServices//eos3
+        com.endlessm.apps.Platform//1 - EknServices//eos3
+        com.endlessm.apps.Platform//{2,3} - EknServices2//stable
+
+        Note that any knowledge apps using
+        com.endlessm.Platform//eos3.{0,2} would also require
+        EknServices//eos3, but it's not believed there are any more
+        knowledge apps using those runtimes.
+        """
+        # Only runtimes need to be checked
+        if full_ref.kind != Flatpak.RefKind.RUNTIME:
+            return None
+
+        if ((full_ref.name == 'com.endlessm.Platform' and
+             full_ref.branch == 'eos3.1') or
+            (full_ref.name == 'com.endlessm.apps.Platform' and
+             full_ref.branch == '1')):
+            return ('app/com.endlessm.EknServices/{}/eos3'
+                    .format(full_ref.arch))
+        elif (full_ref.name == 'com.endlessm.apps.Platform' and
+              full_ref.branch in ('2', '3')):
+            return ('app/com.endlessm.EknServices2/{}/stable'
+                    .format(full_ref.arch))
+        else:
+            return None
+
+    def _add_ekn_services(self, full_ref):
+        """Find a required EknServices ref and add to the install set
+
+        If the ref needs an EknServices app, look for the appropriate one
+        in the eos-sdk remote.
+        """
+        ekn_services_ref = self._get_ekn_services_ref(full_ref)
+        if not ekn_services_ref:
+            logger.debug('No EknServices required for %s', full_ref.ref)
+            return
+        if ekn_services_ref in self.install_refs:
+            logger.debug('%s already in installed set', ekn_services_ref)
+            return
+
+        logger.debug('Searching for %s needed by %s', ekn_services_ref,
+                     full_ref.ref)
+        sdk_remote = self.remotes.get('eos-sdk')
+        if not sdk_remote:
+            raise FlatpakError('No eos-sdk remote for needed ref',
+                               ekn_services_ref)
+        ekn_services = sdk_remote.refs.get(ekn_services_ref)
+        if not ekn_services:
+            raise FlatpakError('Could not find', ekn_services_ref,
+                               'for', full_ref.ref)
+        logger.info('Adding %s for %s', ekn_services_ref, full_ref.ref)
+        self.install_refs[ekn_services_ref] = FlatpakInstallRef(
+            ekn_services)
+
     def _match_related(self, full_ref, related_ref):
         """Find a FlatpakFullRef's related ref
 
@@ -635,6 +697,9 @@ class FlatpakManager(object):
                                 runtime.remote.name)
                     self.install_refs[runtime.ref] = FlatpakInstallRef(
                         runtime)
+
+                # Hack - add EknServices from eos-sdk if needed
+                self._add_ekn_services(full_ref)
 
                 for related in full_ref.related:
                     if not related.should_download():
