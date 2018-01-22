@@ -29,13 +29,12 @@ from collections import Counter, OrderedDict
 import fnmatch
 import glob
 import json
+import logging
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
-import traceback
 
 CACHEDIR = '/var/cache/eos-image-builder'
 BUILDDIR = '/var/tmp/eos-image-builder'
@@ -183,20 +182,20 @@ def add_cli_options(argparser):
     ).add_mutually_exclusive_group()
     info.add_argument('--show-config', action='store_true',
                       help='show configuration and exit')
-    info.add_argument('--show-apps', metavar='BUDGET',
-                      nargs='?', const=2214240000,
+    info.add_argument('--show-apps', metavar='EXCESS',
+                      nargs='?', type=int, const=0,
                       help='show apps which will be added to the image, '
                            'including their approximate compressed size. '
-                           'BUDGET is the approximate compressed size '
-                           'available for apps, measured in bytes; if not '
-                           'specified, the default is the difference between '
-                           'the size of a DVD and the size of a representative '
-                           'base ISO')
+                           'If EXCESS is specified, propose which apps to '
+                           'remove to save approximately EXCESS bytes in the '
+                           'compressed image.')
 
     argparser.add_argument('-f', '--force', action='store_true',
                            help='run build even when no new assets found')
     argparser.add_argument('-n', '--dry-run', action='store_true',
                            help="don't publish images")
+    argparser.add_argument('--debug', action='store_true',
+                           help="enable slightly more verbose logging")
     argparser.add_argument('--use-production', action='store_true',
                            help="use production ostree/flatpak repos rather than staging (deprecated)")
     argparser.add_argument('--use-production-apps', action='store_true',
@@ -212,6 +211,20 @@ def add_cli_options(argparser):
                       'exiting')
     add_argument('branch', nargs='?', default='master',
                  help='branch to build')
+
+
+def setup_logging():
+    log_format = '+ %(asctime)s %(levelname)s %(name)s: %(message)s'
+    date_format = '%H:%M:%S'
+
+    # The log level is controlled by an environment variable rather than a
+    # function parameter so it can be inherited by hooks.
+    if os.environ.get('EIB_DEBUG', '') == '1':
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+
+    logging.basicConfig(level=level, format=log_format, datefmt=date_format)
 
 
 def create_keyring(config):
@@ -255,6 +268,9 @@ def disk_usage(path):
 
 def retry(func, *args, max_retries=3, **kwargs):
     """Retry a function in case of intermittent errors"""
+    # A no-op if the hook has already called this
+    setup_logging()
+
     retry = 0
     while True:
         try:
@@ -262,14 +278,11 @@ def retry(func, *args, max_retries=3, **kwargs):
         except:
             retry += 1
             if retry > max_retries:
-                print('Failed', max_retries, 'retries; giving up',
-                      file=sys.stderr)
+                logging.error('Failed %d retries; giving up', max_retries)
                 raise
 
             # Show the traceback so the error isn't hidden
-            traceback.print_exc()
-
-            print('Retrying attempt', retry, file=sys.stderr)
+            logging.warning('Retrying attempt %d', retry, exc_info=True)
             time.sleep(1)
 
 
