@@ -4,5 +4,10 @@ TGT=${OSTREE_VAR}/lib/eos-image-defaults/icon-grid
 mkdir -p ${TGT}
 
 for file in ${EIB_IMAGE_ICON_GRID}; do
-    cp ${file} ${TGT}
+    if json-glib-validate ${file}; then
+        cp ${file} ${TGT}
+    else
+        echo "Invalid JSON file: ${file}"
+        exit 1
+    fi
 done
