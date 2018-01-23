@@ -33,7 +33,7 @@ import sys
 
 SRCDIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.join(SRCDIR, 'lib'))
-import eib, applist
+import eib
 
 log = logging.getLogger(os.path.basename(__file__))
 
@@ -567,6 +567,9 @@ class ImageBuilder(object):
             self.config.write(sys.stdout)
             return
         elif self.show_apps is not None:
+            # Can't import applist module unconditionally since build
+            # host likely doesn't have flatpak GIR module
+            import applist
             applist.show_apps(self.config, self.show_apps, sys.stdout)
             return
 
