@@ -24,10 +24,11 @@
 # are in the buildroot if the utility is only inside the build.
 import eibflatpak
 import logging
+import os
 
 from gi import require_version
 require_version('Flatpak', '1.0')
-from gi.repository import GLib, Flatpak  # noqa
+from gi.repository import Gio, GLib, Flatpak  # noqa
 
 log = logging.getLogger(__name__)
 
@@ -134,14 +135,18 @@ def show_apps(config, excess, stream):
                       apps
         stream (file): stream to which to write the lists
     '''
-    installation = Flatpak.Installation.new_system()
+    # Use a temporary repo in the image builder tmpdir where it will be
+    # cleaned up later
+    tmpdir = config['build']['tmpdir']
+    installation_path = os.path.join(tmpdir, 'applist')
+    os.makedirs(installation_path, exist_ok=True)
+    installation_file = Gio.File.new_for_path(installation_path)
+    installation = Flatpak.Installation.new_for_path(
+        installation_file, user=False)
 
     # Enumerate remotes and resolve all refs needed for installation
-    #
-    # FIXME: Should add remotes from configuration, but should probably
-    # only be done on a temporary installation
     manager = eibflatpak.FlatpakManager(installation, config)
-    # manager.add_remotes()
+    manager.add_remotes()
     manager.enumerate_remotes()
     manager.resolve_refs()
 
