@@ -22,7 +22,7 @@
 # any resources used here (python modules, executed programs) must be
 # available there. Use a separate module and make sure the components
 # are in the buildroot if the utility is only inside the build.
-import collections
+import eibflatpak
 import logging
 
 from gi import require_version
@@ -30,10 +30,6 @@ require_version('Flatpak', '1.0')
 from gi.repository import GLib, Flatpak  # noqa
 
 log = logging.getLogger(__name__)
-
-App = collections.namedtuple('App', (
-    'remote', 'id', 'download_size', 'installed_size',
-))
 
 
 MUST_KEEP_APPS = {
@@ -56,47 +52,15 @@ PREFER_REMOVE_APPS = {
 }
 
 
-def fetch_apps_for_remote(remote, branch, arch='x86_64'):
-    log.info('Listing apps on remote %s', remote)
-    installation = Flatpak.Installation.new_system()
-    remote_refs = installation.list_remote_refs_sync(remote)
-    apps = {}
-    for ref in remote_refs:
-        if not all((ref.get_kind() == Flatpak.RefKind.APP,
-                    ref.get_arch() == arch,
-                    ref.get_branch() == branch)):
-            continue
-
-        app_id = ref.get_name()
-        sizes = installation.fetch_remote_size_sync(remote, ref, None)
-        apps[app_id] = App(remote=remote,
-                           id=app_id,
-                           download_size=sizes.download_size,
-                           installed_size=sizes.installed_size)
-
-    return apps
-
-
-def get_apps_for_remote(remote, branch, app_ids):
-    apps = []
-
-    app_ids = app_ids.split()
-    if app_ids:
-        remote_apps = fetch_apps_for_remote(remote, branch)
-        for app_id in app_ids:
-            apps.append(remote_apps[app_id])
-
-    return apps
-
-
 class AppListFormatter(object):
-    def __init__(self, apps, personality, verdicts):
+    def __init__(self, refs, personality, verdicts):
         locales = {
             personality,
             personality.split('_')[0],  # pt_BR -> pt
         }
         self.locale_apps = []
         self.generic_apps = []
+        self.runtimes = []
         self.verdicts = verdicts
 
         # Rather than using a construction like '{:>{}}'.format('abc', 8), make
@@ -112,14 +76,16 @@ class AppListFormatter(object):
         # Calculate width for first two columns; the others are no wider than
         # their header. While we're at it, partition the apps.
         remote_width, id_width = widths[:2]
-        for app in apps:
-            remote_width = max(remote_width, len(app.remote))
-            id_width = max(id_width, len(app.id))
+        for ref in refs:
+            remote_width = max(remote_width, len(ref.remote.name))
+            id_width = max(id_width, len(ref.name))
 
-            if app.id.split('.')[-1] in locales:
-                self.locale_apps.append(app)
+            if ref.kind == Flatpak.RefKind.RUNTIME:
+                self.runtimes.append(ref)
+            elif ref.name.split('.')[-1] in locales:
+                self.locale_apps.append(ref)
             else:
-                self.generic_apps.append(app)
+                self.generic_apps.append(ref)
         widths[:2] = [remote_width, id_width]
 
         format_string_format = '| ' + ' | '.join(format_strings) + ' |\n'
@@ -129,19 +95,19 @@ class AppListFormatter(object):
             self.format_string.format(*('-' * width for width in widths)),
         ))
 
-    def _write_table(self, stream, title, apps):
+    def _write_table(self, stream, title, refs):
         stream.write('== {} ==\n\n'.format(title))
         stream.write(self.header)
 
-        for app in apps:
+        for ref in refs:
             row = [
-                app.remote,
-                app.id,
-                GLib.format_size(app.installed_size),
-                GLib.format_size(app.download_size),
+                ref.remote.name,
+                ref.name,
+                GLib.format_size(ref.installed_size),
+                GLib.format_size(ref.download_size),
             ]
             if self.verdicts:
-                row.append(self.verdicts.get(app.id, ''))
+                row.append(self.verdicts.get(ref.name, ''))
             stream.write(self.format_string.format(*row))
 
         stream.write('\n')
@@ -149,6 +115,7 @@ class AppListFormatter(object):
     def write(self, stream):
         self._write_table(stream, 'Locale-specific apps', self.locale_apps)
         self._write_table(stream, 'Generic apps', self.generic_apps)
+        self._write_table(stream, 'Runtimes', self.runtimes)
 
 
 def show_apps(config, excess, stream):
@@ -167,59 +134,61 @@ def show_apps(config, excess, stream):
                       apps
         stream (file): stream to which to write the lists
     '''
-    # TODO: take into account the runtimes which will end up in the image,
-    # whether because they are explicitly installed in the image config, or
-    # as a dependency of the selected apps.
-    apps = []
+    installation = Flatpak.Installation.new_system()
 
-    c = config['flatpak']
+    # Enumerate remotes and resolve all refs needed for installation
+    #
+    # FIXME: Should add remotes from configuration, but should probably
+    # only be done on a temporary installation
+    manager = eibflatpak.FlatpakManager(installation, config)
+    # manager.add_remotes()
+    manager.enumerate_remotes()
+    manager.resolve_refs()
 
-    apps.extend(get_apps_for_remote(c['flathub_remote'],
-                                    'stable',
-                                    c['install_flathub']))
-    apps.extend(get_apps_for_remote(c['apps_remote'],
-                                    c['apps_branch'],
-                                    c['install_eos']))
-
-    # Sort in descending download size order, then by app ID
-    apps.sort(key=lambda app: (- app.download_size, app.id))
-    total = sum(app.download_size for app in apps)
+    # Make a simple list of FlatpakFullRefs sorted by descending
+    # download size order, then by app name
+    refs = sorted(
+        [install_ref.full_ref for install_ref in
+         manager.install_refs.values()],
+        key=lambda ref: (- ref.download_size, ref.name)
+    )
+    total = sum(ref.download_size for ref in refs)
 
     excess_after_removals = excess
     verdicts = {}
 
     if excess > 0:
-        for app_id in MUST_KEEP_APPS:
-            verdicts[app_id] = 'No'
+        for name in MUST_KEEP_APPS:
+            verdicts[name] = 'No'
 
         # Remove any app which we're happy to sacrifice
-        for app in apps:
+        for ref in refs:
             if excess_after_removals <= 0:
                 break
 
-            if app.id in verdicts:
+            if ref.name in verdicts:
                 continue
 
             if (
-                app.id in PREFER_REMOVE_APPS or
-                any(app.id.startswith(prefix) for prefix in PREFER_REMOVE_NS)
+                ref.name in PREFER_REMOVE_APPS or
+                any(ref.name.startswith(prefix) for prefix in PREFER_REMOVE_NS)
             ):
-                verdicts[app.id] = 'Yes'
-                excess_after_removals -= app.download_size
+                verdicts[ref.name] = 'Yes'
+                excess_after_removals -= ref.download_size
 
         # Propose removing the largest n apps until we're under budget.
         # TODO: prefer to remove generic apps?
         # TODO: some non-greedy algorithm that prefers to remove smaller apps
         # to minimize free excess_after_removals
-        for app in apps:
+        for ref in ref:
             if excess_after_removals <= 0:
                 break
 
-            if app.id in verdicts:
+            if ref.name in verdicts:
                 continue
 
-            verdicts[app.id] = 'Maybe'
-            excess_after_removals -= app.download_size
+            verdicts[ref.name] = 'Maybe'
+            excess_after_removals -= ref.download_size
 
     stream.write('\n')
     stream.write('Estimated compressed size of apps: {}\n'.format(
@@ -235,4 +204,4 @@ def show_apps(config, excess, stream):
     stream.write('\n')
 
     personality = config['build']['personality']
-    AppListFormatter(apps, personality, verdicts).write(stream)
+    AppListFormatter(refs, personality, verdicts).write(stream)
