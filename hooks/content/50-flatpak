@@ -1,6 +1,7 @@
 #!/usr/bin/python3 -u
 
-# Pull flatpak apps, appstream and runtimes to a local repository
+# Pull flatpak apps, appstream and runtimes to a local repository using
+# eibflatpak.FlatpakManager.
 
 import eib
 import eibflatpak
@@ -8,57 +9,30 @@ from gi import require_version
 require_version('Flatpak', '1.0')
 require_version('OSTree', '1.0')
 from gi.repository import Flatpak, Gio, OSTree
+import logging
 import os
 import sys
 import subprocess
 
-if os.environ.get('EIB_FLATPAK_ENABLE') != 'true':
-    exit(0)
+logger = logging.getLogger(os.path.basename(__file__))
+eib.setup_logging()
+config = eib.get_config()
+
+if not config.getboolean('flatpak', 'enable', fallback=True):
+    sys.exit(0)
 
 # Enable debug logging for all flatpak operations
 os.environ['G_MESSAGES_DEBUG'] = 'flatpak'
 
-# Pull settings out of environment variables
-runtimes_remote = os.environ['EIB_FLATPAK_RUNTIMES_REMOTE']
-runtimes_url = os.environ['EIB_FLATPAK_RUNTIMES_SERVER']
-runtimes_deploy_url = os.environ['EIB_FLATPAK_RUNTIMES_DEPLOY_SERVER']
-runtime = os.environ['EIB_FLATPAK_RUNTIME']
-sdk = os.environ['EIB_FLATPAK_SDK']
-install_sdk = os.environ['EIB_FLATPAK_INSTALL_SDK']
-apps_remote = os.environ['EIB_FLATPAK_APPS_REMOTE']
-apps_url = os.environ['EIB_FLATPAK_APPS_SERVER']
-apps_deploy_url = os.environ['EIB_FLATPAK_APPS_DEPLOY_SERVER']
-apps = os.environ['EIB_FLATPAK_INSTALL_EOS'].split()
-extensions = os.environ['EIB_FLATPAK_INSTALL_EXTENSIONS'].split()
-arch = os.environ['EIB_FLATPAK_RUNTIME_ARCH']
-apps_branch = os.environ['EIB_FLATPAK_APPS_BRANCH']
-runtime_branch = os.environ['EIB_FLATPAK_RUNTIME_BRANCH']
-endless_apps_sdk_remote = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_REMOTE']
-endless_apps_sdk_url = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_SERVER']
-endless_apps_sdk_deploy_url = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_DEPLOY_SERVER']
-endless_apps_sdk_runtime = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_RUNTIME']
-endless_apps_sdk_sdk = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_SDK']
-install_endless_apps_sdk_sdk = os.environ['EIB_FLATPAK_INSTALL_ENDLESS_APPS_SDK_SDK']
-endless_apps_sdk_branch = os.environ['EIB_FLATPAK_ENDLESS_APPS_SDK_BRANCH']
-install_ekn_services = os.environ['EIB_FLATPAK_INSTALL_EKN_SERVICES']
-
-# Optionally use the production flatpak repos rather than staging.
-if os.environ.get('EIB_USE_PRODUCTION_APPS') == 'true':
-    runtimes_url = runtimes_deploy_url
-    apps_url = apps_deploy_url
-
-# Create an ostree repository. archive-z2 is used to save disk space on
-# the builder since the objects won't be able to be hardlinked when
-# pulling into the deployment repo.
-repo_path = os.path.join(os.environ['EIB_CONTENTDIR'], 'flatpak/repo')
+# Create the ostree repository before opening the installation so an
+# archive-z2 repo can be used. That saves disk space on the builder
+# since the objects won't be able to be checked out anywhere.
+repo_path = os.path.join(config['build']['contentdir'], 'flatpak/repo')
 repo_file = Gio.File.new_for_path(repo_path)
 repo = OSTree.Repo.new(repo_file)
-print('Opening flatpak content repo at', repo_path)
-try:
-    repo.open()
-except:
-    os.makedirs(repo_path, exist_ok=True)
-    repo.create(OSTree.RepoMode.ARCHIVE_Z2)
+print('Creating flatpak content repo at', repo_path)
+os.makedirs(repo_path, exist_ok=True)
+repo.create(OSTree.RepoMode.ARCHIVE_Z2)
 
 # Open the parent directory as a flatpak installation so the API can be
 # used for repo operations
@@ -66,144 +40,14 @@ installation_file = repo_file.get_parent()
 installation = Flatpak.Installation.new_for_path(installation_file,
                                                  user=False)
 
-# Add runtimes and apps remotes
-for remote, url in ((runtimes_remote, runtimes_url),
-                    (apps_remote, apps_url),
-                    (endless_apps_sdk_remote, endless_apps_sdk_url)):
-    print('Adding remote', remote, url)
-    repo.remote_change(None, OSTree.RepoRemoteChange.DELETE_IF_EXISTS,
-                       remote, url)
-    repo.remote_change(None, OSTree.RepoRemoteChange.ADD, remote, url)
-
-# Put together a list of refs that will be pulled to find out which
-# existing refs can be pruned
-runtime_refs = set()
-eibflatpak.add_runtime_and_locale(runtime_refs, runtime, arch,
-                                  runtime_branch)
-if install_sdk == 'true':
-    eibflatpak.add_runtime_and_locale(runtime_refs, sdk, arch,
-                                      runtime_branch)
-
-sdk_refs = set()
-eibflatpak.add_runtime_and_locale(sdk_refs, endless_apps_sdk_runtime,
-                                  arch, endless_apps_sdk_branch)
-if install_endless_apps_sdk_sdk == 'true':
-    eibflatpak.add_runtime_and_locale(sdk_refs,
-                                      install_endless_apps_sdk_sdk, arch,
-                                      endless_apps_sdk_branch)
-
-app_refs = {'app/{}/{}/{}'.format(app, arch, apps_branch) for app in apps}
-extension_remotes_refs = set()
-for ext in extensions:
-    remote, ext_id, branch = ext.split(',', 2)
-    refspec = 'runtime/{}/{}/{}'.format(ext_id, arch, branch)
-    extension_remotes_refs.add((remote, refspec))
-
-# For each app, make sure that the necessary runtime will be installed.
-# Drop the installation caches so the above repo changes are seen by
-# flatpak.
-installation.drop_caches()
-found_runtimes = {}
-for refspec in app_refs:
-    runtime = eibflatpak.find_runtime_for_refspec(installation,
-                                                  apps_remote, refspec)
-    found_runtimes.setdefault(runtime, []).append(refspec)
-
-ekn_services_to_install = eibflatpak.get_ekn_services_to_install(
-    install_ekn_services, found_runtimes)
-
-for ekn_services_ver in ekn_services_to_install:
-    refspec = eibflatpak.ekn_services_refspec(ekn_services_ver, arch)
-    sdk_refs.add(refspec)
-
-    runtime = eibflatpak.find_runtime_for_refspec(installation,
-                                                  endless_apps_sdk_remote,
-                                                  refspec)
-    found_runtimes.setdefault(runtime, []).append(refspec)
-
-for runtime, app_refspecs in found_runtimes.items():
-    print("Adding runtime", runtime, "for the following apps:")
-    print(*app_refspecs, sep='\n')
-
-    runtime_id, arch, branch = runtime.split('/')
-    if (runtime.startswith(endless_apps_sdk_runtime) or
-        runtime.startswith(endless_apps_sdk_sdk)):
-        eibflatpak.add_runtime_and_locale(sdk_refs, runtime_id, arch,
-                                          branch)
-    else:
-        eibflatpak.add_runtime_and_locale(runtime_refs, runtime_id,
-                                          arch, branch)
-
-# Add each requested extension to the set of refs to be pulled.
-for remote, refspec in extension_remotes_refs:
-    if remote == endless_apps_sdk_remote:
-        sdk_refs.add(refspec)
-    elif remote == runtimes_remote:
-        runtime_refs.add(refspec)
-    else:
-        pass  # external extension
-
-# Check that all the wanted runtimes are available on the remote. If
-# they're not there, warn and assume they'll be added from another
-# mechanism.
-_, available_runtimes_info = repo.remote_list_refs(runtimes_remote)
-available_runtimes = set(available_runtimes_info.keys())
-if not runtime_refs.issubset(available_runtimes):
-    for ref in runtime_refs - available_runtimes:
-        print('Warning: skipping', ref, 'not available from',
-              runtimes_remote)
-    runtime_refs.intersection_update(available_runtimes)
-
-_, available_sdk_runtimes_info = \
-    repo.remote_list_refs(endless_apps_sdk_remote)
-available_sdk_runtimes = set(available_sdk_runtimes_info.keys())
-if not sdk_refs.issubset(available_sdk_runtimes):
-    for ref in sdk_refs - available_sdk_runtimes:
-        print('Error: skipping Endless Apps SDK', ref, 'not available from',
-              endless_apps_sdk_remote)
-    sys.exit(1)
-
-# Find all the existing refs and delete unneeded ones
-_, existing_refs_info = repo.list_refs()
-existing_refs = set(existing_refs_info.keys())
-needed_refs = runtime_refs.union(app_refs, sdk_refs)
-for refspec in existing_refs - needed_refs:
-    print('Removing unneeded ref', refspec)
-    _, remote, ref = OSTree.parse_refspec(refspec)
-    repo.set_ref_immediate(remote, ref, None)
-
-# Convert the refs sets to sorted lists for nicer output below
-runtime_refs = sorted(runtime_refs)
-app_refs = sorted(app_refs)
-sdk_refs = sorted(sdk_refs)
-
-# Pull the refs
-print('Pulling runtime refs:', *runtime_refs, sep='\n')
-eib.retry(repo.pull, runtimes_remote, runtime_refs,
-          OSTree.RepoPullFlags.NONE)
-print('Pulling app refs:', *app_refs, sep='\n')
-eib.retry(repo.pull, apps_remote, app_refs, OSTree.RepoPullFlags.NONE)
-print('Pulling SDK refs:', *sdk_refs, sep='\n')
-eib.retry(repo.pull, endless_apps_sdk_remote, sdk_refs,
-          OSTree.RepoPullFlags.NONE)
-
-# Recreate the refs in locally so that the install can pull from here
-_, all_refs = repo.list_refs()
-for remote, refs in ((runtimes_remote, runtime_refs),
-                     (apps_remote, app_refs),
-                     (endless_apps_sdk_remote, sdk_refs)):
-    for ref in refs:
-        rev = all_refs[':'.join([remote, ref])]
-        repo.set_ref_immediate(None, ref, rev)
+manager = eibflatpak.FlatpakManager(installation, config=config)
+manager.add_remotes()
+manager.enumerate_remotes()
+manager.resolve_refs()
+manager.pull()
 
 # Prune all but the latest referenced commits. Note that doing the
 # pruning now after the pull is the best for downloading since we can
 # use all existing objects at the expense of disk space on the builder.
 print('Pruning repo')
 repo.prune(OSTree.RepoPruneFlags.REFS_ONLY, 0)
-
-# Create the summary file. Use flatpak build-update-repo so the summary
-# file gets generated with all the app metadata to be used for the
-# actual installation.
-print('Regenerating summary')
-subprocess.check_call(['flatpak', 'build-update-repo', repo_path])

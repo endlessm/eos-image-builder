@@ -32,6 +32,7 @@ import json
 import logging
 import os
 import shutil
+import signal
 import subprocess
 import tempfile
 import time
@@ -50,6 +51,17 @@ SUPPORTED_ARCHES = [
 
 # Exit code indicating new build needed rather than error
 CHECK_EXIT_BUILD_NEEDED = 90
+
+# Python normally catches SIGINT and converts it to the
+# KeyboardInterrupt exception. Unfortunately, if some code is blocking
+# the main thread (e.g, OSTree.Repo.pull), the exception can't be
+# delivered and the image builder won't stop on ^C.
+#
+# Set the signal handler back to the default (Term) so the image builder
+# dies. It's not intended to be run interactively where
+# KeyboardInterrupt would be useful, and any code that needs this
+# behavior can restore python's default signal handler.
+DEFAULT_SIGINT_HANDLER = signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
 class ImageBuildError(Exception):
@@ -108,30 +120,34 @@ class ImageConfigParser(configparser.ConfigParser):
         """Merge multiple options named like <prefix>_add_* and
         <prefix>_del_*. The original options will be deleted.
         If an option named <prefix> already exists, it is not changed.
+
+        The section can be a glob pattern to merge options in similarly
+        named sections.
         """
-        sect = self[section]
-        add_opts = fnmatch.filter(sect.keys(), prefix + '_add_*')
-        del_opts = fnmatch.filter(sect.keys(), prefix + '_del_*')
+        for sect_name in fnmatch.filter(self.sections(), section):
+            sect = self[sect_name]
+            add_opts = fnmatch.filter(sect.keys(), prefix + '_add_*')
+            del_opts = fnmatch.filter(sect.keys(), prefix + '_del_*')
 
-        # If the prefix doesn't exist, merge together the add and del
-        # options and set it.
-        if prefix not in sect:
-            add_vals = Counter()
-            for opt in add_opts:
-                add_vals.update(sect[opt].split())
-            del_vals = Counter()
-            for opt in del_opts:
-                del_vals.update(sect[opt].split())
+            # If the prefix doesn't exist, merge together the add and
+            # del options and set it.
+            if prefix not in sect:
+                add_vals = Counter()
+                for opt in add_opts:
+                    add_vals.update(sect[opt].split())
+                del_vals = Counter()
+                for opt in del_opts:
+                    del_vals.update(sect[opt].split())
 
-            # Set the prefix to the difference of the counters. Merge
-            # the values together with newlines like they were in the
-            # original configuration.
-            vals = add_vals - del_vals
-            sect[prefix] = '\n'.join(sorted(vals.keys()))
+                # Set the prefix to the difference of the counters.
+                # Merge the values together with newlines like they were
+                # in the original configuration.
+                vals = add_vals - del_vals
+                sect[prefix] = '\n'.join(sorted(vals.keys()))
 
-        # Remove the add/del options to cleanup the section
-        for opt in add_opts + del_opts:
-            del sect[opt]
+            # Remove the add/del options to cleanup the section
+            for opt in add_opts + del_opts:
+                del sect[opt]
 
     def copy(self):
         """Create a new instance from this one"""
@@ -295,3 +311,26 @@ def latest_manifest_data():
                               path)
     with open(path) as f:
         return json.load(f)
+
+
+def get_config(path=None):
+    """Read and parse the full merged config file
+
+    Returns an ImageConfigParser instance populated with the full merged
+    config file. This can be used by hooks or helpers in preference to
+    scraping the EIB_* environment variables. If path is not provided,
+    it is looked for in the EIB_TMPFULLCONFIG environment variable.
+    """
+    if path is None:
+        path = os.getenv('EIB_TMPFULLCONFIG')
+        if not path:
+            raise ImageBuildError(
+                'Path to config file not set in EIB_TMPFULLCONFIG')
+    if not os.path.exists(path):
+        raise ImageBuildError('No config file found at', path)
+
+    config = ImageConfigParser()
+    if not config.read(path, encoding='utf-8'):
+        raise ImageBuildError('No configuration read from', path)
+
+    return config

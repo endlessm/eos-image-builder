@@ -11,7 +11,7 @@ env_vars=()
 # Variables with well-known fixed values.
 env_vars+=( PATH=/bin:/sbin:/usr/bin:/usr/sbin )
 env_vars+=( SHELL=/bin/bash )
-env_vars+=( LANG=C )
+env_vars+=( LANG=C.UTF-8 )
 
 # Variables inherited from the current environment.
 env_vars+=( SHLVL="${SHLVL}" )  # Makes shell debug output nest properly.

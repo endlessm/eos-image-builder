@@ -39,25 +39,26 @@ hooks_del_local = 50-gnome-software-cache
 # file is, but you'd probably like it to build quickly.
 compression = gz
 
-[flatpak]
+[flatpak-remote-eos-apps]
 # Completely override the set of installed EOS apps for testing. This will
 # take precedence over all other image variant configuration. This can
 # be useful if the exact app set is known or if the build is for testing
 # and the full multi-gigabyte app set is not needed.
-install_eos = com.endlessm.photos
-              org.gnome.Gnote
+apps =
+  com.endlessm.photos
+  com.endlessm.resume
 
 # Alternatively, a set of apps can be added or deleted from the existing
 # configuration by using the _add_/_del_ merged settings. The above
 # install option would need to be commented out for these to take
 # effect.
-#install_eos_add_local = org.my.App
-#install_eos_del_local = org.gnome.Gnote
+#apps_add_local = org.my.App
+#apps_del_local = com.endlessm.resume
 
 # Testing for apps to be removed when creating the split disk. As with
 # the install option, this overrides all settings but could use the
 # _add_/_del_ merged options.
-nosplit = com.endlessm.photos
+nosplit_apps = com.endlessm.photos
 
 [content]
 # The gnome-software-data git repo is not publicly accessible, so an SSH

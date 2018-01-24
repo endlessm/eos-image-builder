@@ -27,6 +27,7 @@ import glob
 import itertools
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -201,8 +202,8 @@ class ImageBuilder(object):
                     'srcdir', 'datadir', 'helpersdir', 'cachedir',
                     'tmpdir', 'contentdir', 'outrootdir', 'outdir',
                     'configdir', 'sysconfdir', 'build_version',
-                    'outversion', 'tmpconfig', 'baselib',
-                    'deb_host_gnu_cpu', 'deb_host_multiarch',
+                    'outversion', 'tmpconfig', 'tmpfullconfig',
+                    'baselib', 'deb_host_gnu_cpu', 'deb_host_multiarch',
                     'ssh_options', 'keysdir', 'keyring', 'manifestdir',
                     'use_production_apps', 'use_production_ostree']
     BOOLEAN_ATTRS = ['force', 'dry_run', 'use_production_apps',
@@ -210,22 +211,18 @@ class ImageBuilder(object):
 
     # Config options that will be merged together from multiple
     # $prefix_add_* and $prefix_del_* options. This is a list of
-    # (section, prefix) tuples.
+    # (section, prefix) tuples. The section can be a glob pattern.
     CONFIG_MERGE_PREFIXES = [
         ('buildroot', 'mounts'),
         ('buildroot', 'packages'),
         ('check', 'hooks'),
         ('content', 'hooks'),
         ('error', 'hooks'),
-        ('flatpak', 'freedesktop_branch'),
-        ('flatpak', 'gnome_branch'),
-        ('flatpak', 'kde_branch'),
-        ('flatpak', 'install_eos'),
-        ('flatpak', 'install_extensions'),
-        ('flatpak', 'install_extra'),
-        ('flatpak', 'install_flathub'),
         ('flatpak', 'locales'),
-        ('flatpak', 'nosplit'),
+        ('flatpak-remote-*', 'apps'),
+        ('flatpak-remote-*', 'runtimes'),
+        ('flatpak-remote-*', 'nosplit_apps'),
+        ('flatpak-remote-*', 'nosplit_runtimes'),
         ('image', 'hooks'),
         ('image', 'icon_grid'),
         ('image', 'settings'),
@@ -327,6 +324,7 @@ class ImageBuilder(object):
         self.build_version = datetime.datetime.utcnow().strftime('%y%m%d-%H%M%S')
         self.outversion = '${product}-${branch}-${arch}-${platform}.${build_version}.${personality}'
         self.tmpconfig = '${tmpdir}/config.ini'
+        self.tmpfullconfig = '${tmpdir}/fullconfig.ini'
         self.baselib = '${srcdir}/lib/eib.sh'
         self.ssh_options = \
             '-i ${sysconfdir}/ssh-key.pem -o StrictHostKeyChecking=no'
@@ -458,7 +456,12 @@ class ImageBuilder(object):
             config.merge_option_prefix(section, prefix)
 
     def setenv(self, section, option, value):
-        """Export config values as variable in EIB namespace"""
+        """Export config values as variable in EIB namespace
+
+        The variable name will be EIB_<SECTION>_<OPTION> with the
+        section and option names uppercased. Shell-incompatible
+        characters are converted to underscores.
+        """
         # Convert boolean's to true/false to be handled easily in shell
         if value in ['True', 'False']:
             value = value.lower()
@@ -466,6 +469,12 @@ class ImageBuilder(object):
         if section:
             var += section.upper() + '_'
         var += option.upper()
+
+        # Per POSIX, environment variable names compatible with shells
+        # only contain upper case letters, digits and underscores.
+        # Convert anything else to an underscore.
+        var = re.sub(r'[^A-Z0-9_]', '_', var)
+
         os.environ[var] = value
 
     def set_environment(self):
@@ -557,6 +566,14 @@ class ImageBuilder(object):
             out.write('# Configuration for %s\n' % self.outversion)
             self._public_config.write(out)
 
+    def create_tmp_full_config(self):
+        """Take the merged full configuration and output it to a single file in
+        the tmp directory.
+        """
+        with open(self.tmpfullconfig, 'w') as out:
+            out.write('# Full configuration for %s\n' % self.outversion)
+            self.config.write(out)
+
     def run(self):
         log.info('Configuring image build')
         self.configure()
@@ -584,6 +601,9 @@ class ImageBuilder(object):
         self.set_environment()
         log.info('Output merged configuration file to %s', self.tmpconfig)
         self.create_tmp_config()
+        log.info('Output full merged configuration file to %s',
+                 self.tmpfullconfig)
+        self.create_tmp_full_config()
         log.info('Creating temporary GPG keyring %s', self.keyring)
         eib.create_keyring(self.config)
 

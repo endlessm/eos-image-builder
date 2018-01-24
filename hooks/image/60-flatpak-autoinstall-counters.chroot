@@ -1,0 +1,13 @@
+# Run the flatpak auto-installer that usually runs on system upgrades in
+# "stamp" mode. This will inspect
+# /usr/share/eos-application-tools/flatpak-autoinstall.d/* and determine
+# the most recent stamp revision to apply in
+# /var/lib/eos-application-tools/flatpak-autoinstall.d/*, but won't actually
+# install any packages. The second invocation with --mode check will ensure that
+# the expected flatpaks have either been installed or removed, so that the
+# autoinstall list doesn't get out of sync with the flatpaks that have
+# actually been installed on the system.
+
+/usr/lib/${EIB_DEB_HOST_MULTIARCH}/eos-updater-flatpak-installer --mode stamp
+/usr/lib/${EIB_DEB_HOST_MULTIARCH}/eos-updater-flatpak-installer --mode check
+
