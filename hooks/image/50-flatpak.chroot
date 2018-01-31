@@ -44,7 +44,7 @@ if hook_group == 'split':
                                      'flatpak')
     split_refs = True
 else:
-    installation_path = '/var/lib/flatpak/repo'
+    installation_path = '/var/lib/flatpak'
     split_refs = False
 
 # Open the flatpak installation and pass it to the manager
