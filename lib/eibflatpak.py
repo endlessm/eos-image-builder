@@ -223,11 +223,11 @@ class FlatpakRemote(object):
 
         # Fetch the deployed remote's appstream and metadata
         logger.info('Updating appstream data for remote %s',
-                    remote.name)
-        eib.retry(self.installation.update_appstream_sync, remote.name,
+                    self.name)
+        eib.retry(self.installation.update_appstream_sync, self.name,
                   self.arch)
-        logger.info('Updating metadata for remote %s', remote.name)
-        eib.retry(self.installation.update_remote_sync, remote.name)
+        logger.info('Updating metadata for remote %s', self.name)
+        eib.retry(self.installation.update_remote_sync, self.name)
 
         # Reset any configuration defined metadata
         self.reset_metadata()
