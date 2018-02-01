@@ -92,8 +92,8 @@ class FlatpakRemote(object):
 
     def __init__(self, manager, name, url=None, deploy_url=None,
                  repo_file=None, apps=None, runtimes=None,
-                 nosplit_apps=None, nosplit_runtimes=None, title=None,
-                 default_branch=None, **extra_options):
+                 nosplit_apps=None, nosplit_runtimes=None, exclude=None,
+                 title=None, default_branch=None, **extra_options):
         # Copy some manager attributes
         self.installation = manager.installation
         self.arch = manager.arch
@@ -108,6 +108,7 @@ class FlatpakRemote(object):
         self.nosplit_apps = nosplit_apps.split() if nosplit_apps else []
         self.nosplit_runtimes = \
             nosplit_runtimes.split() if nosplit_runtimes else []
+        self.exclude = set(exclude.split()) if exclude else set()
         self.title = title
         self.default_branch = default_branch
 
@@ -301,6 +302,14 @@ class FlatpakRemote(object):
                                             runtime=runtime,
                                             sdk=sdk,
                                             related=related)
+
+    def check_excluded(self, name):
+        logger.debug('Checking ID %s in %s against exclude list', name, self.name)
+        if name in self.exclude:
+            logger.debug('ID %s matched excludes: %s', name, self.exclude)
+            return True
+
+        return False
 
     def match(self, ref, kind):
         """Find matches for a flatpak ref"""
@@ -607,6 +616,9 @@ class FlatpakManager(object):
                 if full_ref is None:
                     raise FlatpakError('Could not find app', app, 'in',
                                        remote.name)
+                if remote.check_excluded(full_ref.name):
+                    raise FlatpakError('Explicitly added app', app, 'in',
+                                       remote.name, 'is on excluded list.')
                 logger.info('Adding app %s from %s', full_ref.ref,
                             remote.name)
                 self.install_refs[full_ref.ref] = FlatpakInstallRef(
@@ -617,6 +629,9 @@ class FlatpakManager(object):
                 if full_ref is None:
                     raise FlatpakError('Could not find runtime',
                                        runtime, 'in', remote.name)
+                if remote.check_excluded(full_ref.name):
+                    raise FlatpakError('Explicitly added runtime', runtime, 'in',
+                                       remote.name, 'is on excluded list.')
                 logger.info('Adding runtime %s from %s', full_ref.ref,
                             remote.name)
                 self.install_refs[full_ref.ref] = FlatpakInstallRef(
@@ -639,6 +654,11 @@ class FlatpakManager(object):
                         raise FlatpakError('Could not find runtime',
                                            full_ref.runtime, 'for ref',
                                            full_ref.ref)
+                    if runtime.remote.check_excluded(runtime.name):
+                        raise FlatpakError('Runtime', runtime.ref, 'for ref',
+                                           full_ref.ref, 'from',
+                                           runtime.remote.name,
+                                           'is on excluded list.')
                     logger.info('Adding %s runtime %s from %s',
                                 full_ref.ref, runtime.ref,
                                 runtime.remote.name)
@@ -663,6 +683,10 @@ class FlatpakManager(object):
                             logger.info(
                                 'Could not find related ref %s for %s',
                                 related_ref, full_ref.ref)
+                            continue
+                        if match.remote.check_excluded(match.name):
+                            logger.info('Excluding', full_ref.ref, 'related ref',
+                                        related_ref, 'from', match.remote.name)
                             continue
                         logger.info('Adding %s related ref %s from %s',
                                     full_ref.ref, related_ref,
