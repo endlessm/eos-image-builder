@@ -441,8 +441,13 @@ EOF
   # Restore the immutable attribute on the deployment root lost via cp
   chattr +i "${DEPLOY}"
 
-  # Cleanup mounts and devices
+  # Cleanup mounts
   eib_umount_all
+
+  # Check the image for errors
+  e2fsck -f -p "${root_loop}"
+
+  # Cleanup devices
   cleanup_devices
 
   # Sign uncompressed image (used when installing from a live image)
