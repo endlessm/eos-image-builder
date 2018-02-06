@@ -27,20 +27,11 @@ ostree --repo="${EIB_OSTREE_REPODIR}" remote delete --if-exists \
 ostree --repo="${EIB_OSTREE_REPODIR}" remote add \
   --set=gpg-verify-summary=true \
   ${EIB_OSTREE_REMOTE} ${BUILD_OSTREE_URL} ${EIB_OSTREE_BRANCH}
-if [ -n "${EIB_OSTREE_OVERRIDE_BRANCH}" ]; then
-  eib_retry ostree --repo="${EIB_OSTREE_REPODIR}" pull \
-    ${EIB_OSTREE_REMOTE} ${EIB_OSTREE_OVERRIDE_BRANCH}
-else
-  eib_retry ostree --repo="${EIB_OSTREE_REPODIR}" pull \
-    ${EIB_OSTREE_REMOTE} ${EIB_OSTREE_BRANCH}
-fi
+eib_retry ostree --repo="${EIB_OSTREE_REPODIR}" pull \
+  ${EIB_OSTREE_REMOTE} ${EIB_OSTREE_BRANCH}
 
 # Recreate the ref locally so that the deploy can pull from it
-if [ -n "${EIB_OSTREE_OVERRIDE_BRANCH}" ]; then
-  ostree --repo="${EIB_OSTREE_REPODIR}" refs --delete ${EIB_OSTREE_OVERRIDE_BRANCH}
-else
-  ostree --repo="${EIB_OSTREE_REPODIR}" refs --delete ${EIB_OSTREE_BRANCH}
-fi
+ostree --repo="${EIB_OSTREE_REPODIR}" refs --delete ${EIB_OSTREE_BRANCH}
 ostree --repo="${EIB_OSTREE_REPODIR}" refs --create=${EIB_OSTREE_BRANCH} \
   ${EIB_OSTREE_REMOTE}:${EIB_OSTREE_BRANCH}
 
