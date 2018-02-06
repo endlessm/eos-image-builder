@@ -174,6 +174,7 @@ class FlatpakRemote(object):
         logger.info('Adding flatpak remote %s', self.name)
         remote = Flatpak.Remote.new(self.name)
         remote.set_url(self.url)
+        remote.set_gpg_verify(True)
         if self.title:
             remote.set_title(self.title)
         if self.default_branch:
