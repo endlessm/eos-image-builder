@@ -686,8 +686,8 @@ class FlatpakManager(object):
                                 related_ref, full_ref.ref)
                             continue
                         if match.remote.check_excluded(match.name):
-                            logger.info('Excluding', full_ref.ref, 'related ref',
-                                        related_ref, 'from', match.remote.name)
+                            logger.info('Excluding %s related ref %s from %s',
+                                        full_ref.ref, related_ref, match.remote.name)
                             continue
                         logger.info('Adding %s related ref %s from %s',
                                     full_ref.ref, related_ref,
