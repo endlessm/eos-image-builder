@@ -205,7 +205,7 @@ def show_apps(config, excess, stream):
         # TODO: prefer to remove generic apps?
         # TODO: some non-greedy algorithm that prefers to remove smaller apps
         # to minimize free excess_after_removals
-        for ref in ref:
+        for ref in refs:
             if excess_after_removals <= 0:
                 break
 
