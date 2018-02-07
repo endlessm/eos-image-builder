@@ -79,7 +79,7 @@ class AppListFormatter(object):
         remote_width, id_width = widths[:2]
         for ref in refs:
             remote_width = max(remote_width, len(ref.remote.name))
-            id_width = max(id_width, len(ref.name))
+            id_width = max(id_width, len(self._describe_ref(ref)))
 
             if ref.kind == Flatpak.RefKind.RUNTIME:
                 self.runtimes.append(ref)
@@ -87,6 +87,7 @@ class AppListFormatter(object):
                 self.locale_apps.append(ref)
             else:
                 self.generic_apps.append(ref)
+
         widths[:2] = [remote_width, id_width]
 
         format_string_format = '| ' + ' | '.join(format_strings) + ' |\n'
@@ -96,14 +97,32 @@ class AppListFormatter(object):
             self.format_string.format(*('-' * width for width in widths)),
         ))
 
-    def _write_table(self, stream, title, refs):
+    @staticmethod
+    def _describe_ref(ref):
+        '''Returns a "unique-enough" identifier for 'ref'.
+
+        We do not include multiple branches of the same app in our images,
+        but we routinely include multiple branches of the same runtime, so need
+        to include the branch to distinguish them.
+        '''
+        if ref.kind == Flatpak.RefKind.RUNTIME:
+            # TODO: .Locale extensions for apps are also runtimes, but we don't
+            # need to show the branch for them. If we had a reverse-lookup to
+            # find r such that ref is in r.related_refs, we could check whether
+            # the parent ref (if it exists) is also a runtime, and only add the
+            # suffix in that case.
+            return '//'.join((ref.name, ref.branch))
+        else:
+            return ref.name
+
+    def _write_table(self, stream, title, refs, display_branch=False):
         stream.write('== {} ==\n\n'.format(title))
         stream.write(self.header)
 
         for ref in refs:
             row = [
                 ref.remote.name,
-                ref.name,
+                self._describe_ref(ref),
                 GLib.format_size(ref.installed_size),
                 GLib.format_size(ref.download_size),
             ]
@@ -116,7 +135,8 @@ class AppListFormatter(object):
     def write(self, stream):
         self._write_table(stream, 'Locale-specific apps', self.locale_apps)
         self._write_table(stream, 'Generic apps', self.generic_apps)
-        self._write_table(stream, 'Runtimes', self.runtimes)
+        self._write_table(stream, 'Runtimes', self.runtimes,
+                          display_branch=True)
 
 
 def show_apps(config, excess, stream):
