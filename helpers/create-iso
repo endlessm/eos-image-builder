@@ -145,8 +145,8 @@ AUTORUN_INF
   if [ "${EIB_ISO_MAX_SIZE}" ]; then
     local iso_size=$(stat --printf='%s' "${iso}")
     if [ "${iso_size}" -gt "${EIB_ISO_MAX_SIZE}" ]; then
-      local excess=$(( "${EIB_ISO_MAX_SIZE}" - "${iso_size}" ))
-      echo "ERROR: ${iso} is ${iso_size} bytes, " \
+      local excess=$(( "${iso_size}" - "${EIB_ISO_MAX_SIZE}" ))
+      echo "ERROR: ${iso} is ${iso_size} bytes," \
         "${excess} bytes above limit of ${EIB_ISO_MAX_SIZE} bytes" >&2
       return 1
     fi
