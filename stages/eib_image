@@ -446,6 +446,7 @@ EOF
 
   # Check the image for errors
   e2fsck -f -p "${root_loop}"
+  udevadm settle
 
   # Cleanup devices
   cleanup_devices
