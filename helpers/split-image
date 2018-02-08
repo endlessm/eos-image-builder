@@ -310,6 +310,7 @@ split_image() {
   # Check the image for errors
   e2fsck -f -p "${ROOT_LOOP}"
   e2fsck -f -p "${EXTRA_LOOP}"
+  udevadm settle
 
   # Delete loop devices and cleanup variables for the next iteration.
   cleanup_devices
