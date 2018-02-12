@@ -146,6 +146,10 @@ class FlatpakRemote(object):
                         self.deploy_url, self.name)
             self.url = self.deploy_url
 
+        # If the deploy URL isn't set, use the pull URL
+        if not self.deploy_url:
+            self.deploy_url = self.url
+
         # Calculated values
         self.refs = {}
 
@@ -212,16 +216,15 @@ class FlatpakRemote(object):
     def deploy(self):
         """Prepare remote for deployment
 
-        Adjust the remote if the deploy URL differs from the pull URL.
+        Sync the appstream and metadata from the remote. If the deploy
+        URL differs from the pull URL, it's adjusted here, too.
         """
-        if self.deploy_url is None or self.deploy_url == self.url:
-            return
-
-        logger.info('Setting %s URL to %s for deployment', self.name,
-                    self.deploy_url)
-        remote = self.installation.get_remote_by_name(self.name)
-        remote.set_url(self.deploy_url)
-        self.installation.modify_remote(remote)
+        if self.deploy_url != self.url:
+            logger.info('Setting %s URL to %s for deployment', self.name,
+                        self.deploy_url)
+            remote = self.installation.get_remote_by_name(self.name)
+            remote.set_url(self.deploy_url)
+            self.installation.modify_remote(remote)
 
         # Fetch the deployed remote's appstream and metadata
         logger.info('Updating appstream data for remote %s',
