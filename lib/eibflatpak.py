@@ -384,6 +384,7 @@ class FlatpakManager(object):
 
     def __init__(self, installation, config=None):
         self.installation = installation
+        self.installation_path = self.installation.get_path().get_path()
 
         self.config = config
         if self.config is None:
@@ -594,6 +595,20 @@ class FlatpakManager(object):
 
         return match
 
+    def _log_installation_free_space(self):
+        """Write a log entry with the available installation space
+
+        Use os.statvfs to get the free and blocks at the installation's
+        path and then print a log message with the information.
+        """
+        stats = os.statvfs(self.installation_path)
+        free = stats.f_bsize * stats.f_bfree
+        total = stats.f_bsize * stats.f_blocks
+        percent = (100.0 * stats.f_bfree) / stats.f_blocks
+        logger.info('%s free space: %s / %s (%.1f%%)',
+                    self.installation_path, GLib.format_size(free),
+                    GLib.format_size(total), percent)
+
     def resolve_refs(self, split=False):
         """Resolve all refs needed for installation
 
@@ -782,6 +797,7 @@ class FlatpakManager(object):
                         'disable-static-deltas': GLib.Variant('b', True)
                     })
                 options_var = GLib.Variant('a{sv}', options)
+                self._log_installation_free_space()
                 eib.retry(self._do_pull, repo, remote, options_var)
 
             repo.commit_transaction()
@@ -818,6 +834,7 @@ class FlatpakManager(object):
             full_ref = install_ref.full_ref
             logger.info('Installing %s from %s', full_ref.ref,
                         full_ref.remote.name)
+            self._log_installation_free_space()
             eib.retry(self.installation.install_full,
                       flags=Flatpak.InstallFlags.NONE,
                       remote_name=full_ref.remote.name,
