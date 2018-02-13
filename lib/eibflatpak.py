@@ -746,64 +746,43 @@ class FlatpakManager(object):
         # Open the OSTree repo directly
         repo = self.get_repo()
 
-        # Organize the refs by remote and by full and or subpaths
-        remote_refs = {}
-        for install_ref in self.install_refs.values():
-            remote = install_ref.full_ref.remote.name
-            if remote not in remote_refs:
-                remote_refs[remote] = {
-                    'full': [],
-                    'subpath': []
-                }
-            if install_ref.subpaths:
-                remote_refs[remote]['subpath'].append(install_ref)
-            else:
-                remote_refs[remote]['full'].append(install_ref)
-
+        # Figure out common pull options
         localcache_repos = (cache_repo_path,) if cache_repo_path else ()
+        common_pull_options = {
+            'depth': GLib.Variant('i', 0),
+            'localcache-repos': GLib.Variant('as', localcache_repos),
+            'inherit-transaction': GLib.Variant('b', True),
+        }
 
         repo.prepare_transaction()
         try:
-            common_pull_options = {
-                'depth': GLib.Variant('i', 0),
-                'localcache-repos': GLib.Variant('as', localcache_repos),
-                'inherit-transaction': GLib.Variant('b', True),
-            }
+            # Pull refs one at a time
+            for ref, install_ref in sorted(self.install_refs.items()):
+                remote = install_ref.full_ref.remote.name
 
-            for remote, refs in remote_refs.items():
-                # Pull full refs, specifying checksum for commit only
-                full_refs = []
-                for install_ref in refs['full']:
-                    if commit_only:
-                        full_refs.append(install_ref.full_ref.commit)
-                    else:
-                        full_refs.append(install_ref.full_ref.ref)
+                # Pull checksum for commit only
+                if commit_only:
+                    ref_to_pull = install_ref.full_ref.commit
+                    logger.info('Pulling %s ref %s (commit %s)', remote,
+                                ref, ref_to_pull)
+                else:
+                    ref_to_pull = install_ref.full_ref.ref
+                    logger.info('Pulling %s ref %s', remote, ref_to_pull)
 
-                logger.info('Pulling %s refs %s', remote,
-                            ' '.join(full_refs))
                 options = common_pull_options.copy()
-                options['refs'] = GLib.Variant('as', full_refs)
-                options_var = GLib.Variant('a{sv}', options)
-                eib.retry(self._do_pull, repo, remote, options_var)
-
-                for install_ref in refs['subpath']:
-                    if commit_only:
-                        ref_to_pull = install_ref.full_ref.commit
-                    else:
-                        ref_to_pull = install_ref.full_ref.ref
+                options['refs'] = GLib.Variant('as', (ref_to_pull,))
+                if install_ref.subpaths:
                     subdirs = self._subpaths_to_subdirs(
                         install_ref.subpaths)
-                    logger.info('Pulling %s ref %s subdirs %s',
-                                remote, ref_to_pull, ' '.join(subdirs))
-                    options = common_pull_options.copy()
+                    logger.info('Pulling %s ref %s subdirs %s', remote,
+                                ref, ' '.join(subdirs))
                     options.update({
-                        'refs': GLib.Variant('as', (ref_to_pull,)),
                         'subdirs': GLib.Variant('as', subdirs),
                         # Ensure no deltas are used for subdir pull
                         'disable-static-deltas': GLib.Variant('b', True)
                     })
-                    options_var = GLib.Variant('a{sv}', options)
-                    eib.retry(self._do_pull, repo, remote, options_var)
+                options_var = GLib.Variant('a{sv}', options)
+                eib.retry(self._do_pull, repo, remote, options_var)
 
             repo.commit_transaction()
         except:
