@@ -20,7 +20,7 @@
 
 import base64
 import codecs
-from collections import deque, namedtuple, OrderedDict
+from collections import namedtuple, OrderedDict
 from configparser import ConfigParser
 import eib
 import fnmatch
@@ -805,12 +805,14 @@ class FlatpakManager(object):
         # simply installs refs with no runtime dependencies first and
         # assumes flatpak won't error for any issues with extensions
         # being installed before the ref they extend.
-        refs_to_install = deque()
-        for install_ref in self.install_refs.values():
+        refs_with_runtime = []
+        refs_without_runtime = []
+        for _, install_ref in sorted(self.install_refs.items()):
             if install_ref.full_ref.runtime:
-                refs_to_install.append(install_ref)
+                refs_with_runtime.append(install_ref)
             else:
-                refs_to_install.appendleft(install_ref)
+                refs_without_runtime.append(install_ref)
+        refs_to_install = refs_without_runtime + refs_with_runtime
 
         for install_ref in refs_to_install:
             full_ref = install_ref.full_ref
