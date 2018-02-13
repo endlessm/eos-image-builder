@@ -802,7 +802,7 @@ class FlatpakManager(object):
 
             repo.commit_transaction()
         except:
-            logger.info('Pull failed, aborting transaction')
+            logger.error('Pull failed, aborting transaction')
             repo.abort_transaction()
             raise
 
