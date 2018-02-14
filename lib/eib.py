@@ -37,6 +37,8 @@ import subprocess
 import tempfile
 import time
 
+logger = logging.getLogger(__name__)
+
 CACHEDIR = '/var/cache/eos-image-builder'
 BUILDDIR = '/var/tmp/eos-image-builder'
 SYSCONFDIR = '/etc/eos-image-builder'
@@ -294,11 +296,11 @@ def retry(func, *args, max_retries=3, **kwargs):
         except:
             retry += 1
             if retry > max_retries:
-                logging.error('Failed %d retries; giving up', max_retries)
+                logger.error('Failed %d retries; giving up', max_retries)
                 raise
 
             # Show the traceback so the error isn't hidden
-            logging.warning('Retrying attempt %d', retry, exc_info=True)
+            logger.warning('Retrying attempt %d', retry, exc_info=True)
             time.sleep(1)
 
 

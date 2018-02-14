@@ -20,7 +20,7 @@
 
 import base64
 import codecs
-from collections import deque, namedtuple, OrderedDict
+from collections import namedtuple, OrderedDict
 from configparser import ConfigParser
 import eib
 import fnmatch
@@ -384,6 +384,7 @@ class FlatpakManager(object):
 
     def __init__(self, installation, config=None):
         self.installation = installation
+        self.installation_path = self.installation.get_path().get_path()
 
         self.config = config
         if self.config is None:
@@ -594,6 +595,20 @@ class FlatpakManager(object):
 
         return match
 
+    def _log_installation_free_space(self):
+        """Write a log entry with the available installation space
+
+        Use os.statvfs to get the free and blocks at the installation's
+        path and then print a log message with the information.
+        """
+        stats = os.statvfs(self.installation_path)
+        free = stats.f_bsize * stats.f_bfree
+        total = stats.f_bsize * stats.f_blocks
+        percent = (100.0 * stats.f_bfree) / stats.f_blocks
+        logger.info('%s free space: %s / %s (%.1f%%)',
+                    self.installation_path, GLib.format_size(free),
+                    GLib.format_size(total), percent)
+
     def resolve_refs(self, split=False):
         """Resolve all refs needed for installation
 
@@ -746,68 +761,48 @@ class FlatpakManager(object):
         # Open the OSTree repo directly
         repo = self.get_repo()
 
-        # Organize the refs by remote and by full and or subpaths
-        remote_refs = {}
-        for install_ref in self.install_refs.values():
-            remote = install_ref.full_ref.remote.name
-            if remote not in remote_refs:
-                remote_refs[remote] = {
-                    'full': [],
-                    'subpath': []
-                }
-            if install_ref.subpaths:
-                remote_refs[remote]['subpath'].append(install_ref)
-            else:
-                remote_refs[remote]['full'].append(install_ref)
-
+        # Figure out common pull options
         localcache_repos = (cache_repo_path,) if cache_repo_path else ()
+        common_pull_options = {
+            'depth': GLib.Variant('i', 0),
+            'localcache-repos': GLib.Variant('as', localcache_repos),
+            'inherit-transaction': GLib.Variant('b', True),
+        }
 
         repo.prepare_transaction()
         try:
-            common_pull_options = {
-                'depth': GLib.Variant('i', 0),
-                'localcache-repos': GLib.Variant('as', localcache_repos),
-                'inherit-transaction': GLib.Variant('b', True),
-            }
+            # Pull refs one at a time
+            for ref, install_ref in sorted(self.install_refs.items()):
+                remote = install_ref.full_ref.remote.name
 
-            for remote, refs in remote_refs.items():
-                # Pull full refs, specifying checksum for commit only
-                full_refs = []
-                for install_ref in refs['full']:
-                    if commit_only:
-                        full_refs.append(install_ref.full_ref.commit)
-                    else:
-                        full_refs.append(install_ref.full_ref.ref)
+                # Pull checksum for commit only
+                if commit_only:
+                    ref_to_pull = install_ref.full_ref.commit
+                    logger.info('Pulling %s ref %s (commit %s)', remote,
+                                ref, ref_to_pull)
+                else:
+                    ref_to_pull = install_ref.full_ref.ref
+                    logger.info('Pulling %s ref %s', remote, ref_to_pull)
 
-                logger.info('Pulling %s refs %s', remote,
-                            ' '.join(full_refs))
                 options = common_pull_options.copy()
-                options['refs'] = GLib.Variant('as', full_refs)
-                options_var = GLib.Variant('a{sv}', options)
-                eib.retry(self._do_pull, repo, remote, options_var)
-
-                for install_ref in refs['subpath']:
-                    if commit_only:
-                        ref_to_pull = install_ref.full_ref.commit
-                    else:
-                        ref_to_pull = install_ref.full_ref.ref
+                options['refs'] = GLib.Variant('as', (ref_to_pull,))
+                if install_ref.subpaths:
                     subdirs = self._subpaths_to_subdirs(
                         install_ref.subpaths)
-                    logger.info('Pulling %s ref %s subdirs %s',
-                                remote, ref_to_pull, ' '.join(subdirs))
-                    options = common_pull_options.copy()
+                    logger.info('Pulling %s ref %s subdirs %s', remote,
+                                ref, ' '.join(subdirs))
                     options.update({
-                        'refs': GLib.Variant('as', (ref_to_pull,)),
                         'subdirs': GLib.Variant('as', subdirs),
                         # Ensure no deltas are used for subdir pull
                         'disable-static-deltas': GLib.Variant('b', True)
                     })
-                    options_var = GLib.Variant('a{sv}', options)
-                    eib.retry(self._do_pull, repo, remote, options_var)
+                options_var = GLib.Variant('a{sv}', options)
+                self._log_installation_free_space()
+                eib.retry(self._do_pull, repo, remote, options_var)
 
             repo.commit_transaction()
         except:
-            logger.info('Pull failed, aborting transaction')
+            logger.error('Pull failed, aborting transaction')
             repo.abort_transaction()
             raise
 
@@ -826,17 +821,20 @@ class FlatpakManager(object):
         # simply installs refs with no runtime dependencies first and
         # assumes flatpak won't error for any issues with extensions
         # being installed before the ref they extend.
-        refs_to_install = deque()
-        for install_ref in self.install_refs.values():
+        refs_with_runtime = []
+        refs_without_runtime = []
+        for _, install_ref in sorted(self.install_refs.items()):
             if install_ref.full_ref.runtime:
-                refs_to_install.append(install_ref)
+                refs_with_runtime.append(install_ref)
             else:
-                refs_to_install.appendleft(install_ref)
+                refs_without_runtime.append(install_ref)
+        refs_to_install = refs_without_runtime + refs_with_runtime
 
         for install_ref in refs_to_install:
             full_ref = install_ref.full_ref
             logger.info('Installing %s from %s', full_ref.ref,
                         full_ref.remote.name)
+            self._log_installation_free_space()
             eib.retry(self.installation.install_full,
                       flags=Flatpak.InstallFlags.NONE,
                       remote_name=full_ref.remote.name,
