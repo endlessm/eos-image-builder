@@ -1,0 +1,25 @@
+# makes the system only consider updates from servers on the local network
+# or from prepared volumes with updates
+
+mkdir -p /usr/local/share/eos-updater
+cat >/usr/local/share/eos-updater/eos-updater.conf <<EOF
+# Override defaults from /usr/share/eos-updater/eos-updater.conf.
+[Download]
+Order=volume;lan;
+
+EOF
+
+cat >/usr/local/share/eos-updater/eos-autoupdater.conf <<EOF
+# Override defaults from /usr/share/eos-updater/eos-autoupdater.conf.
+[Automatic Updates]
+
+# Last update step to perform automatically before requiring user interaction:
+#  0 - none
+#  1 - poll for updates
+#  2 - fetch updates
+#  3 - apply updates
+LastAutomaticStep=3
+IntervalDays=14
+RandomizedDelayDays=7
+UpdateOnMobile=false
+EOF
