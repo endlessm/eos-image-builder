@@ -1,0 +1,27 @@
+#!/usr/bin/python3 -u
+
+# Wrapper for the eibostree.fetch_remote_collection_id function.
+
+from argparse import ArgumentParser
+import eib
+from eibostree import fetch_remote_collection_id
+import gi
+gi.require_version('OSTree', '1.0')
+from gi.repository import Gio, OSTree
+import os
+import sys
+
+aparser = ArgumentParser(description='Fetch OSTree remote collection ID')
+aparser.add_argument('repo', help='path to OSTree repo')
+aparser.add_argument('remote', help='remote to query')
+args = aparser.parse_args()
+
+eib.setup_logging()
+
+repo_file = Gio.File.new_for_path(args.repo)
+repo = OSTree.Repo.new(repo_file)
+repo.open()
+
+collection_id = fetch_remote_collection_id(repo, args.remote)
+if collection_id is not None:
+    print(collection_id)
