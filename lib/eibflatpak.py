@@ -23,6 +23,7 @@ import codecs
 from collections import namedtuple, OrderedDict
 from configparser import ConfigParser
 import eib
+from eibostree import fetch_remote_collection_id
 import fnmatch
 from gi import require_version
 require_version('Flatpak', '1.0')
@@ -95,9 +96,11 @@ class FlatpakRemote(object):
                  nosplit_apps=None, nosplit_runtimes=None, exclude=None,
                  title=None, default_branch=None, **extra_options):
         # Copy some manager attributes
+        self.manager = manager
         self.installation = manager.installation
         self.arch = manager.arch
         self.use_production = manager.use_production
+        self.enable_collection_ids = manager.enable_collection_ids
 
         self.name = name
         self.url = url
@@ -213,6 +216,18 @@ class FlatpakRemote(object):
                 logger.info('Using %s as default branch for remote %s',
                             self.default_branch, self.name)
 
+    def _set_collection_id(self, collection_id):
+        """Set the remote collection-id config setting
+
+        Define the collection-id in the remote configuration group to
+        enable P2P updates in the booted system.
+        """
+        logger.info('Setting flatpak remote %s collection-id to "%s"',
+                    self.name, collection_id)
+        remote = self.installation.get_remote_by_name(self.name)
+        remote.set_collection_id(collection_id)
+        self.installation.modify_remote(remote)
+
     def deploy(self):
         """Prepare remote for deployment
 
@@ -233,6 +248,14 @@ class FlatpakRemote(object):
                   self.arch)
         logger.info('Updating metadata for remote %s', self.name)
         eib.retry(self.installation.update_remote_sync, self.name)
+
+        # Set the flatpak remote collection ID if it's enabled and the
+        # remote has a collection ID
+        if self.enable_collection_ids:
+            repo = self.manager.get_repo()
+            collection_id = fetch_remote_collection_id(repo, self.name)
+            if collection_id is not None:
+                self._set_collection_id(collection_id)
 
         # Reset any configuration defined metadata
         self.reset_metadata()
@@ -408,6 +431,10 @@ class FlatpakManager(object):
         # See if production flatpaks should be used
         self.use_production = self.config.getboolean(
             'build', 'use_production_apps', fallback=False)
+
+        # See if collection IDs should be set
+        self.enable_collection_ids = self.config.getboolean(
+            'flatpak', 'enable_collection_ids', fallback=False)
 
         self.remotes = OrderedDict()
         for sect in self.config.sections():
