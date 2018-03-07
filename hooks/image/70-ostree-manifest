@@ -34,6 +34,11 @@ def ostree_get_version():
 
                 return value
 
+def get_remote_collection_id(repo, remote):
+    """Get the collection ID for the OS remote"""
+    _, collection_id = repo.get_remote_option(remote, 'collection-id')
+    return collection_id
+
 repo_path = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
                          'ostree/repo')
 repo_file = Gio.File.new_for_path(repo_path)
@@ -59,6 +64,10 @@ _, commit = repo.resolve_rev('%s:%s' %(remote, ref), allow_noent=False)
 date = commit_date_string(repo, commit)
 data['ostree']['commit'] = commit
 data['ostree']['date'] = date
+
+# Get the collection ID. Will be None/null if not set.
+collection_id = get_remote_collection_id(repo, remote)
+data['ostree']['collection-id'] = collection_id
 
 # Now write out the json to a fragment
 manifestdir = os.environ['EIB_MANIFESTDIR']
