@@ -338,7 +338,7 @@ EOF
         rk3288)
           local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/chromebook_jerry
           dd conv=notrunc if="${UBOOT_PATH}"/u-boot.kpart of=${boot_loop} bs=1M
-          cp "${DEPLOY}/usr/lib/u-boot/chromebook_jerry/boot.scr" "${DEPLOY}/boot/boot.scr"
+          cp "${UBOOT_PATH}/boot.scr" "${ROOT}/boot/boot.scr"
           ;;
         *)
           echo "Unrecognized armhf platform ${EIB_ARCH}" >&2
