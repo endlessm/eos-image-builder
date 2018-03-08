@@ -90,6 +90,7 @@ remotes = system.list_remotes()
 for remote in remotes:
     name = remote.get_name()
     url = remote.get_url()
+    collection_id = remote.get_collection_id()
 
     # Skip disabled remotes
     if remote.get_disabled():
@@ -104,7 +105,10 @@ for remote in remotes:
         section = 'remotes'
     else:
         section = 'split-remotes'
-    data['flatpak'][section][name] = url
+    data['flatpak'][section][name] = {
+        'url': url,
+        'collection-id': collection_id,
+    }
 
 runtimes = system.list_installed_refs_by_kind(Flatpak.RefKind.RUNTIME)
 for runtime in runtimes:

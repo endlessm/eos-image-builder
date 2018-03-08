@@ -72,6 +72,20 @@ ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" deploy \
 # https://phabricator.endlessm.com/T19077
 ostree --repo="${REPOPATH}" config set core.add-remotes-config-dir false
 
+# Set the OS remote collection ID if it's enabled and the remote has a
+# collection ID
+if [ "${EIB_OSTREE_ENABLE_COLLECTION_IDS}" = true ]; then
+  collection_id=$("${EIB_HELPERSDIR}"/fetch-remote-collection-id \
+                  "${REPOPATH}" "${EIB_OSTREE_REMOTE}")
+  if [ -n "$collection_id" ]; then
+    # Set the value directly in the configuration since ostree doesn't
+    # have a good method to modify a remote
+    ostree --repo="${REPOPATH}" config set \
+           "remote \"${EIB_OSTREE_REMOTE}\".collection-id" \
+           "${collection_id}"
+  fi
+fi
+
 # There's no current symlink anymore, so query the deployment status.
 # This will be the second parameter on the first line.
 export OSTREE_CURRENT_DEPLOYMENT=$(ostree admin \
