@@ -83,6 +83,12 @@ if [ "${EIB_OSTREE_ENABLE_COLLECTION_IDS}" = true ]; then
     ostree --repo="${REPOPATH}" config set \
            "remote \"${EIB_OSTREE_REMOTE}\".collection-id" \
            "${collection_id}"
+
+    # Ostree uses signed per-repo and per-commit metadata rather than
+    # summary signatures when collection IDs are used
+    ostree --repo="${REPOPATH}" config set \
+           "remote \"${EIB_OSTREE_REMOTE}\".gpg-verify-summary" \
+           "false"
   fi
 fi
 
