@@ -519,14 +519,6 @@ EOF
   cp "${EIB_TMPDIR}"/packages.txt "$(eib_outfile packages.txt)"
   cp "${EIB_TMPDIR}"/config.ini "$(eib_outfile config.ini)"
 
-  # Create split image for 2 disk systems if required.
-  if [ "${EIB_IMAGE_SPLIT}" = true ]; then
-    "${EIB_HELPERSDIR}"/split-image "${img}"
-  fi
-
-  # Await sign_file subprocesses
-  wait
-
   # Create ISO if required. This requires the uncompressed image, its
   # signature, and the signature for boot.zip. In theory we could `wait` only
   # for those two signatures and allow compressing the image and signing it to
@@ -536,7 +528,17 @@ EOF
       "${img}" "${boot_zip}" "${img_asc}" "${boot_zip}.asc"
   fi
 
-  # Remove uncompressed image, if not already deleted by helpers/create-iso
+  # Create split image for 2 disk systems if required.
+  # This must happen after creating the ISO, since the splitting
+  # operation edits the original image in place.
+  if [ "${EIB_IMAGE_SPLIT}" = true ]; then
+    "${EIB_HELPERSDIR}"/split-image "${img}"
+  fi
+
+  # Await sign_file subprocesses
+  wait
+
+  # Remove uncompressed image
   rm -f "${img}"
 
   # Finish image manifest info
