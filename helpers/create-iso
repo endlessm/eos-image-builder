@@ -82,8 +82,9 @@ AUTORUN_INF
     -b 131072
   rm -f "${DIR_IMAGES_ENDLESS}/endless.img"
 
-  # Delete raw image to reduce peak disk usage.
-  rm -f "$img"
+  # At this point, the raw image is no longer needed for the ISO creation,
+  # but we need to keep it for now in case we are going to proceed to
+  # generate split images.
 
   local squash_asc="${DIR_IMAGES_ENDLESS}/${EIB_OUTVERSION}.squash.asc"
   sign_file "$squash" "$squash_asc"
