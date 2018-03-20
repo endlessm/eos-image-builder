@@ -100,7 +100,7 @@ class FlatpakRemote(object):
         self.installation = manager.installation
         self.arch = manager.arch
         self.use_production = manager.use_production
-        self.enable_collection_ids = manager.enable_collection_ids
+        self.enable_p2p_updates = manager.enable_p2p_updates
 
         self.name = name
         self.url = url
@@ -251,7 +251,7 @@ class FlatpakRemote(object):
 
         # Set the flatpak remote collection ID if it's enabled and the
         # remote has a collection ID
-        if self.enable_collection_ids:
+        if self.enable_p2p_updates:
             repo = self.manager.get_repo()
             collection_id = fetch_remote_collection_id(repo, self.name)
             if collection_id is not None:
@@ -433,8 +433,8 @@ class FlatpakManager(object):
             'build', 'use_production_apps', fallback=False)
 
         # See if collection IDs should be set
-        self.enable_collection_ids = self.config.getboolean(
-            'flatpak', 'enable_collection_ids', fallback=False)
+        self.enable_p2p_updates = self.config.getboolean(
+            'flatpak', 'enable_p2p_updates', fallback=False)
 
         self.remotes = OrderedDict()
         for sect in self.config.sections():
