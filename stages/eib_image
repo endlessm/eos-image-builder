@@ -41,9 +41,9 @@ BOOT=${EIB_OSTREE_CHECKOUT}/boot
 ostree admin init-fs "${EIB_OSTREE_CHECKOUT}"
 ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" os-init ${EIB_OSTREE_OS}
 ostree --repo="${REPOPATH}" remote add ${EIB_OSTREE_REMOTE} \
-  ${EIB_OSTREE_URL} ${EIB_OSTREE_BRANCH_DEPLOY}
+  ${EIB_OSTREE_URL} ${EIB_OSTREE_REF_DEPLOY}
 ostree --repo="${REPOPATH}" pull-local --disable-fsync \
-  --remote=${EIB_OSTREE_REMOTE} ${EIB_OSTREE_REPODIR} ${EIB_OSTREE_BRANCH_DEPLOY}
+  --remote=${EIB_OSTREE_REMOTE} ${EIB_OSTREE_REPODIR} ${EIB_OSTREE_REF_DEPLOY}
 
 # Basic bootloader setup
 if [[ "${EIB_ARCH}" == "armhf" ]]; then
@@ -61,7 +61,7 @@ kargs=(--karg=rw --karg=splash \
     --karg=plymouth.ignore-serial-consoles --karg=quiet --karg=loglevel=2)
 ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" deploy \
   --os=${EIB_OSTREE_OS} "${kargs[@]}" \
-  ${EIB_OSTREE_REMOTE}:${EIB_OSTREE_BRANCH_DEPLOY}
+  ${EIB_OSTREE_REMOTE}:${EIB_OSTREE_REF_DEPLOY}
 
 # Set the repo add-remotes-config-dir option to false. This prevents
 # ostree remotes from being added in /etc/ostree/remotes.d, which breaks
@@ -100,9 +100,9 @@ export OSTREE_DEPLOYMENT="${EIB_OSTREE_CHECKOUT}"/ostree/deploy/${EIB_OSTREE_OS}
 export OSTREE_VAR="${EIB_OSTREE_CHECKOUT}"/ostree/deploy/${EIB_OSTREE_OS}/var
 
 treeinfo="${EIB_TMPDIR}"/ostree.txt
-echo "Branch ${EIB_OSTREE_BRANCH}" > ${treeinfo}
+echo "Branch ${EIB_OSTREE_REF}" > ${treeinfo}
 ostree --repo="${EIB_OSTREE_CHECKOUT}"/ostree/repo show \
-  ${EIB_OSTREE_BRANCH_DEPLOY} >> ${treeinfo}
+  ${EIB_OSTREE_REF_DEPLOY} >> ${treeinfo}
 
 # Output package list using the dpkg database from the deployment's /var
 dpkgdir="${OSTREE_DEPLOYMENT}"/var/lib/dpkg
