@@ -48,7 +48,7 @@ repo.open()
 
 # Build the json data
 remote = os.environ['EIB_OSTREE_REMOTE']
-ref = os.environ['EIB_OSTREE_BRANCH_DEPLOY']
+ref = os.environ['EIB_OSTREE_REF_DEPLOY']
 data = {
     'ostree': {
         'remote': remote,
