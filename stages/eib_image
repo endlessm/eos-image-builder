@@ -359,6 +359,25 @@ EOF
           local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/chromebook_jerry
           dd conv=notrunc if="${UBOOT_PATH}"/u-boot.kpart of=${boot_loop} bs=1M
           cp "${UBOOT_PATH}/boot.scr" "${ROOT}/boot/boot.scr"
+
+          # zip SPI image
+          local uboot_spi_zip="$(eib_outfile uboot-spi.zip)"
+          zip "${uboot_spi_zip}" "${DEPLOY}"/usr/lib/u-boot/chromebook_jerry/u-boot.SPI
+          sign_file "${uboot_spi_zip}" &
+
+          # Generate manifest information
+          local uboot_spi_zip_name=$(basename "${uboot_spi_zip}")
+          local uboot_spi_zip_size=$(stat -c "%s" "${uboot_spi_zip}")
+          local uboot_spi_zip_signature="${uboot_spi_zip_name}.asc"
+          cat >> "${img_manifest}" <<EOF
+    "uboot-spi": {
+      "file": "${uboot_spi_zip_name}",
+      "compressed_size": ${uboot_spi_zip_size},
+      "compression_type": "zip",
+      "signature": "${uboot_spi_zip_signature}"
+    },
+EOF
+
           ;;
         *)
           echo "Unrecognized armhf platform ${EIB_ARCH}" >&2
