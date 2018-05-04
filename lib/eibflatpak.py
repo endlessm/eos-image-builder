@@ -31,6 +31,7 @@ require_version('OSTree', '1.0')
 from gi.repository import Flatpak, GLib, OSTree
 import logging
 import os
+import sys
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
@@ -303,8 +304,15 @@ class FlatpakRemote(object):
             metadata_bytes = eib.retry(
                 self.installation.fetch_remote_metadata_sync, self.name,
                 remote_ref)
+            metadata_str = metadata_bytes.get_data().decode('utf-8')
             metadata = ConfigParser()
-            metadata.read_string(metadata_bytes.get_data().decode('utf-8'))
+            try:
+                metadata.read_string(metadata_str)
+            except:
+                print('Could not read {} {} metadata:\n{}'
+                      .format(self.name, ref, metadata_str),
+                      file=sys.stderr)
+                raise
             runtime = metadata.get('Application', 'runtime',
                                    fallback=None)
             sdk = metadata.get('Application', 'sdk', fallback=None)
