@@ -31,6 +31,7 @@ require_version('OSTree', '1.0')
 from gi.repository import Flatpak, GLib, OSTree
 import logging
 import os
+import sys
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
@@ -300,11 +301,23 @@ class FlatpakRemote(object):
             # Try to get the runtime and sdk from the flatpak metadata.
             # We could use GKeyFile as the INI parser, but ConfigParser
             # is more pleasant from python.
+            #
+            # We disable strict parsing so that it doesn't error on
+            # duplicate sections or options, which flatpak-builder
+            # apparently generates sometimes
+            # (https://phabricator.endlessm.com/T22435).
             metadata_bytes = eib.retry(
                 self.installation.fetch_remote_metadata_sync, self.name,
                 remote_ref)
-            metadata = ConfigParser()
-            metadata.read_string(metadata_bytes.get_data().decode('utf-8'))
+            metadata_str = metadata_bytes.get_data().decode('utf-8')
+            metadata = ConfigParser(strict=False)
+            try:
+                metadata.read_string(metadata_str)
+            except:
+                print('Could not read {} {} metadata:\n{}'
+                      .format(self.name, ref, metadata_str),
+                      file=sys.stderr)
+                raise
             runtime = metadata.get('Application', 'runtime',
                                    fallback=None)
             sdk = metadata.get('Application', 'sdk', fallback=None)
