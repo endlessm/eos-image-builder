@@ -301,11 +301,16 @@ class FlatpakRemote(object):
             # Try to get the runtime and sdk from the flatpak metadata.
             # We could use GKeyFile as the INI parser, but ConfigParser
             # is more pleasant from python.
+            #
+            # We disable strict parsing so that it doesn't error on
+            # duplicate sections or options, which flatpak-builder
+            # apparently generates sometimes
+            # (https://phabricator.endlessm.com/T22435).
             metadata_bytes = eib.retry(
                 self.installation.fetch_remote_metadata_sync, self.name,
                 remote_ref)
             metadata_str = metadata_bytes.get_data().decode('utf-8')
-            metadata = ConfigParser()
+            metadata = ConfigParser(strict=False)
             try:
                 metadata.read_string(metadata_str)
             except:
