@@ -143,77 +143,82 @@ create_image() {
   rm -f "${img}"
   truncate -s ${img_size} "${img}"
 
-  case "${EIB_PLATFORM}" in
-    rk3288)
-      # Setup as described in the u-boot documentation at doc/README.chromium
-      cgpt create "${img}"
-      cgpt add -b 34 -s 32768 -P 1 -S 1 -t kernel "${img}"
-      local rootfs_size=$(cgpt show "$img" | awk '/Sec GPT table/ { print $1 }')
-      (( rootfs_size -= 32802 ))
-      cgpt add  -b 32802 -s "${rootfs_size}" -t rootfs "${img}"
-      cgpt boot -p "${img}"
- 
-      # Set resize marker
-      if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
-        local rootfs_attrs="GUID:55"
-      fi
+  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ]; then
+    # Setup as described in the u-boot documentation at doc/README.chromium
+    cgpt create "${img}"
+    cgpt add -b 34 -s 32768 -P 1 -S 1 -t kernel "${img}"
+    local rootfs_size=$(cgpt show "$img" | awk '/Sec GPT table/ { print $1 }')
+    (( rootfs_size -= 32802 ))
+    cgpt add  -b 32802 -s "${rootfs_size}" -t rootfs "${img}"
+    cgpt boot -p "${img}"
 
+    # Set resize marker
+    if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
+      local rootfs_attrs="GUID:55"
+    fi
+
+    # Mark the partition where /boot is as LegacyBIOSBootable as required by
+    # the distro booting protocol (see doc/README.distro)
+    sfdisk --part-attrs "${img}" 2 "${rootfs_attrs} LegacyBIOSBootable"
+  else
+   (
+     # Empty space up to 1mb (for GPT, and for uboot on ARM)
+     echo -n "start=2048, "
+
+     case "${EIB_ARCH}" in
+       i386|amd64)
+         # EFI system partition
+         echo "size=62MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+         # GRUB BIOS BOOT partition
+         echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
+         ;;
+     esac
+
+     if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
+       part_type="83"
+     else
+       # Partition Type GUIDs
+       # https://www.freedesktop.org/wiki/Specifications/DiscoverablePartitionsSpec/
+       case "${EIB_ARCH}" in
+         i386|amd64)
+           # Root Partition (x86-64)
+           part_type="4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
+           ;;
+         armhf)
+           # Root Partition (32-bit ARM)
+           part_type="69DAD710-2CE4-4E3C-B16C-21A1D49ABED3"
+           ;;
+         *)
+           echo "Unrecognized architecture ${EIB_ARCH}" >&2
+           return 1
+           ;;
+       esac
+     fi
+
+     if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
+       # Remaining space is root fs, with special the special 55 attr as a
+       # marker indicating the partition should be resized later
+       # attrs=... is unused for DOS partition table so it's safe to leave it here
+       rootfs_attrs="GUID:55"
+     fi
+
+     if [[ "${EIB_PLATFORM}" == "rk3288" ]]; then
       # Mark the partition where /boot is as LegacyBIOSBootable as required by
-      # the distro booting protocol (see doc/README.distro)
-      sfdisk --part-attrs "${img}" 2 "${rootfs_attrs} LegacyBIOSBootable"
-      ;;
-    *)
-      (
-        # Empty space up to 1mb (for GPT, and for uboot on ARM)
-        echo -n "start=2048, "
+      # the distro booting protocol (see U-Boot doc/README.distro)
+       rootfs_attrs="$rootfs_attrs LegacyBIOSBootable"
+     fi
 
-        case "${EIB_ARCH}" in
-          i386|amd64)
-            # EFI system partition
-            echo "size=62MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
-            # GRUB BIOS BOOT partition
-            echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
-            ;;
-        esac
+     # We need to escape attrs= otherwise sfdisk complains when passing an empty string
+     echo "type=${part_type}, attrs=\"${rootfs_attrs}\""
 
-        if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
-          part_type="83"
-        else
-          # Partition Type GUIDs
-          # https://www.freedesktop.org/wiki/Specifications/DiscoverablePartitionsSpec/
-          case "${EIB_ARCH}" in
-            i386|amd64)
-              # Root Partition (x86-64)
-              part_type="4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
-              ;;
-            armhf)
-              # Root Partition (32-bit ARM)
-              part_type="69DAD710-2CE4-4E3C-B16C-21A1D49ABED3"
-              ;;
-            *)
-              echo "Unrecognized architecture ${EIB_ARCH}" >&2
-              return 1
-              ;;
-          esac
-        fi
+   ) | sfdisk --force --label "${EIB_IMAGE_PARTITION_TABLE}" "${img}"
 
-        if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
-          # Remaining space is root fs, with special the special 55 attr as a
-          # marker indicating the partition should be resized later
-          # attrs=... is unused for DOS partition table so it's safe to leave it here
-          echo "type=${part_type}, attrs=GUID:55"
-        else
-          echo "type=${part_type}"
-        fi
-      ) | sfdisk --force --label "${EIB_IMAGE_PARTITION_TABLE}" "${img}"
-
-      if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ] && [ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]; then
-        # With the latest 'sfdisk' we are not allowed anymore to create a 0B partition
-        # Bypass this limitation directly hacking into the MBR to set the marker
-        printf "\xdd" | dd of=${img} bs=1 count=1 seek=498 conv=notrunc
-      fi
-      ;;
-  esac
+   if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ] && [ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]; then
+     # With the latest 'sfdisk' we are not allowed anymore to create a 0B partition
+     # Bypass this limitation directly hacking into the MBR to set the marker
+     printf "\xdd" | dd of=${img} bs=1 count=1 seek=498 conv=notrunc
+   fi
+  fi
 
   img_loop=$(losetup -f --show "${img}")
   eib_partx_scan "${img_loop}"
@@ -233,15 +238,12 @@ create_image() {
     *)
       # On ARM disable 64bit ext4 option
       ext4_opts="dir_index,^huge_file,^64bit"
-      case "${EIB_PLATFORM}" in
-        rk3288)
-          boot_loop=${img_loop}p1
-          root_loop=${img_loop}p2
-          ;;
-        *)
-          root_loop=${img_loop}p1
-          ;;
-      esac
+      if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ]; then
+        boot_loop=${img_loop}p1
+        root_loop=${img_loop}p2
+      else
+        root_loop=${img_loop}p1
+      fi
       ;;
   esac
 
@@ -356,20 +358,21 @@ EOF
           dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin.padded of=${img} bs=512 skip=1 seek=1
           ;;
         rk3288)
-          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/chromebook_jerry
-          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.kpart of=${boot_loop} bs=1M
           cp "${UBOOT_PATH}/boot.scr" "${ROOT}/boot/boot.scr"
+          if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ]; then
+            local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/chromebook_jerry
+            dd conv=notrunc if="${UBOOT_PATH}"/u-boot.kpart of=${boot_loop} bs=1M
+	  else
+            # zip SPI image
+            local uboot_spi_zip="$(eib_outfile uboot-spi.zip)"
+            zip "${uboot_spi_zip}" "${DEPLOY}"/usr/lib/u-boot/chromebook_jerry/u-boot.SPI
+            sign_file "${uboot_spi_zip}" &
 
-          # zip SPI image
-          local uboot_spi_zip="$(eib_outfile uboot-spi.zip)"
-          zip "${uboot_spi_zip}" "${DEPLOY}"/usr/lib/u-boot/chromebook_jerry/u-boot.SPI
-          sign_file "${uboot_spi_zip}" &
-
-          # Generate manifest information
-          local uboot_spi_zip_name=$(basename "${uboot_spi_zip}")
-          local uboot_spi_zip_size=$(stat -c "%s" "${uboot_spi_zip}")
-          local uboot_spi_zip_signature="${uboot_spi_zip_name}.asc"
-          cat >> "${img_manifest}" <<EOF
+            # Generate manifest information
+            local uboot_spi_zip_name=$(basename "${uboot_spi_zip}")
+            local uboot_spi_zip_size=$(stat -c "%s" "${uboot_spi_zip}")
+            local uboot_spi_zip_signature="${uboot_spi_zip_name}.asc"
+            cat >> "${img_manifest}" <<EOF
     "uboot-spi": {
       "file": "${uboot_spi_zip_name}",
       "compressed_size": ${uboot_spi_zip_size},
@@ -377,7 +380,7 @@ EOF
       "signature": "${uboot_spi_zip_signature}"
     },
 EOF
-
+          fi
           ;;
         *)
           echo "Unrecognized armhf platform ${EIB_ARCH}" >&2
