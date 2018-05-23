@@ -358,9 +358,9 @@ EOF
           dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin.padded of=${img} bs=512 skip=1 seek=1
           ;;
         rk3288)
+          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/chromebook_jerry
           cp "${UBOOT_PATH}/boot.scr" "${ROOT}/boot/boot.scr"
           if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ]; then
-            local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/chromebook_jerry
             dd conv=notrunc if="${UBOOT_PATH}"/u-boot.kpart of=${boot_loop} bs=1M
 	  else
             # zip SPI image
