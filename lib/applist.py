@@ -177,6 +177,7 @@ def show_apps(config, excess, stream):
          manager.install_refs.values()],
         key=lambda ref: (- ref.download_size, ref.name)
     )
+    total_installed = sum(ref.installed_size for ref in refs)
     total = sum(ref.download_size for ref in refs)
 
     excess_after_removals = excess
@@ -216,6 +217,8 @@ def show_apps(config, excess, stream):
             excess_after_removals -= ref.download_size
 
     stream.write('\n')
+    stream.write('Estimated installed size of apps: {}\n'.format(
+        GLib.format_size(total_installed)))
     stream.write('Estimated compressed size of apps: {}\n'.format(
         GLib.format_size(total)))
     if excess > 0:
