@@ -239,6 +239,28 @@ appropriate image variant. This will print the merged configuration in
 INI format. The merged configuration is also saved during the build into
 the output directory.
 
+Seeing the apps and runtimes
+----------------------------
+
+Sometimes you may want to see which apps and runtimes will be included in an
+image, without actually building the image. To do this, run
+`./eos-image-builder --show-apps` with other `--product` type options for
+selecting the appropriate image variant. This will print tables of apps and
+runtimes, along with compressed and uncompressed size estimates for each.
+
+```
+# ./eos-image-builder --show-apps --product eosdvd --personalities pt_BR eos3.4
+```
+
+If you are trying to reduce the compressed image size by, say, 300 MB, you can
+pass the number of bytes to --show-apps, and see crude suggestions for which
+apps to remove. (Hint: for images with a size limit, like eosdvd, the number to
+use is in the image build log.)
+
+```
+# ./eos-image-builder --show-apps 300000000 --product eosdvd --personalities pt_BR eos3.4
+```
+
 Execution
 =========
 
