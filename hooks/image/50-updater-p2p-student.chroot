@@ -21,5 +21,4 @@ cat >/usr/local/share/eos-updater/eos-autoupdater.conf <<EOF
 LastAutomaticStep=3
 IntervalDays=14
 RandomizedDelayDays=7
-UpdateOnMobile=false
 EOF
