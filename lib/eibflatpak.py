@@ -233,6 +233,12 @@ class FlatpakRemote(object):
         # Set the flatpak remote collection ID if it's enabled and the
         # remote has a collection ID
         if self.enable_p2p_updates:
+            # Temporarily(?) disable P2P for eos-runtimes (which are legacy). See:
+            # https://phabricator.endlessm.com/T22756#602959
+            # https://github.com/flatpak/flatpak/issues/1832
+            if self.name == 'eos-runtimes':
+                continue
+
             repo = self.manager.get_repo()
             collection_id = fetch_remote_collection_id(repo, self.name)
             if collection_id is not None:
