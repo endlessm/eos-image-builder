@@ -337,3 +337,44 @@ def get_config(path=None):
         raise ImageBuildError('No configuration read from', path)
 
     return config
+
+
+def signal_root_processes(root, sig):
+    """Send signal sig to all processes in root path
+
+    Walks the list of processes and check if /proc/$pid/root is within
+    root. If so, it's sent signal.
+    """
+    for pid in os.listdir('/proc'):
+        if not pid.isdigit():
+            continue
+
+        # Try to get the proc's root, but ignore errors if the process
+        # went away
+        try:
+            pid_root = os.readlink(os.path.join('/proc', pid, 'root'))
+        except FileNotFoundError:
+            continue
+
+        # Check if the pid's root is the chroot or a subdirectory (a
+        # process that did a subsequent chroot)
+        if pid_root == root or pid_root.startswith(root + '/'):
+            # Try to read the exe file, but in some cases (kernel
+            # thread), it may not exist
+            try:
+                pid_exe = os.readlink(os.path.join('/proc', pid, 'exe'))
+            except:
+                pid_exe = ''
+
+            # Kill it
+            logger.info('Killing pid %s %s with signal %s', pid, pid_exe,
+                        sig)
+            os.kill(int(pid), sig)
+
+
+def kill_root_processes(root):
+    """Kill all processes running under root path"""
+    # Kill once with SIGTERM, then with SIGKILL
+    signal_root_processes(root, signal.SIGTERM)
+    time.sleep(1)
+    signal_root_processes(root, signal.SIGKILL)
