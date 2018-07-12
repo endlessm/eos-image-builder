@@ -31,6 +31,7 @@ import glob
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -378,6 +379,55 @@ def kill_root_processes(root):
     signal_root_processes(root, signal.SIGTERM)
     time.sleep(1)
     signal_root_processes(root, signal.SIGKILL)
+
+
+def loop_has_partitions(loop):
+    """Get a list of partitions for the loop device"""
+    loop_part_pattern = os.path.join('/sys/block', loop, loop + 'p*')
+    loop_part_regex = re.compile(r'/{}p\d+$'.format(loop))
+    loop_parts = [path for path in glob.iglob(loop_part_pattern)
+                  if loop_part_regex.search(path)]
+    return len(loop_parts) > 0
+
+
+def delete_root_loops(root):
+    """Delete all loop devices with backing files in root path
+
+    Look for any active loop devices that have a backing file within
+    root and delete them. If the loop device has any active partitions,
+    they'll be removed first.
+    """
+    root_loops = []
+    # The contents of backing_file end in a newline and can have a
+    # trailing " (deleted)" if the backing file was deleted. Both will
+    # be stripped assuming we don't have an actual file ending with
+    # (deleted).
+    backing_file_regex = re.compile(r'( \(deleted\))?\n?$')
+    loop_regex = re.compile(r'/loop\d+$')
+    all_loop_paths = [path for path in glob.iglob('/sys/block/loop*')
+                      if loop_regex.search(path)]
+    for loop_path in all_loop_paths:
+        backing_path = os.path.join(loop_path, 'loop/backing_file')
+        if not os.path.exists(backing_path):
+            continue
+        with open(backing_path) as f:
+            backing_file = backing_file_regex.sub('', f.read())
+        if backing_file.startswith(root + '/'):
+            loop_name = os.path.basename(loop_path)
+            root_loops.append(loop_name)
+
+    for loop in root_loops:
+        loop_dev = os.path.join('/dev', loop)
+
+        if loop_has_partitions(loop):
+            logger.info('Deleting loop partitions for %s', loop_dev)
+            subprocess.check_call(('partx', '-d', loop_dev))
+
+            # Try to block until the partition devices are removed
+            subprocess.check_call(('udevadm', 'settle'))
+
+        logger.info('Deleting loop %s', loop_dev)
+        retry(subprocess.check_call, ('losetup', '-d', loop_dev))
 
 
 def unmount_root_filesystems(root):
