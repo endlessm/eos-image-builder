@@ -378,3 +378,42 @@ def kill_root_processes(root):
     signal_root_processes(root, signal.SIGTERM)
     time.sleep(1)
     signal_root_processes(root, signal.SIGKILL)
+
+
+def unmount_root_filesystems(root):
+    """Unmount all filesystems in root path
+
+    Finds all filesystems mounted within root (but not root itself) and
+    unmounts them.
+    """
+    # Re-read the mount table after every unmount in case there
+    # are aliased mounts
+    while True:
+        path = None
+        with open('/proc/self/mountinfo') as mountf:
+            mounts = mountf.readlines()
+
+        # Operate on the mounts backwards to unmount submounts first
+        for line in reversed(mounts):
+            mountdir = line.split()[4]
+            # Search for mounts that begin with $dir/. The trailing / is
+            # added for 2 reasons.
+            #
+            # 1. It makes sure that $dir itself is not matched. If
+            # someone has mounted the build directory itself, that was
+            # probably done intentionally and wasn't done by the
+            # builder.
+            #
+            # 2. It ensures that only paths below $dir are matched and
+            # not $dir-backup or anything else that begins with the same
+            # characters.
+            if mountdir.startswith(root + '/'):
+                path = mountdir
+                break
+
+        if path is None:
+            # No more paths to unmount
+            break
+
+        logger.info('Unmounting %s', path)
+        subprocess.check_call(['umount', path])
