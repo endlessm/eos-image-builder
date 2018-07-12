@@ -485,24 +485,12 @@ class ImageBuilder(object):
         """Cleanup the scratch space and prep for a new build"""
         ostree_co_dir = self.config['ostree']['checkout']
 
-        # If the scratch space exists, unmount any filesystems in it and
-        # make all paths mutable.
-        if os.path.isdir(self.builddir) or os.path.isdir(self.cachedir):
-            # Fully resolve the build path to match what's in the mount
-            # info
-            real_builddir = os.path.realpath(self.builddir)
-            real_cachedir = os.path.realpath(self.cachedir)
-
-            # Try to kill any processes that might be hanging around
-            # from a previous build
-            log.info('Killing processes in %s', self.builddir)
-            eib.kill_root_processes(real_builddir)
-
-            # Unmount all filesystems from a previous build
-            log.info('Cleaning up mounts in %s and %s',
-                     self.builddir, self.cachedir)
-            eib.unmount_root_filesystems(real_builddir)
-            eib.unmount_root_filesystems(real_cachedir)
+        # If the scratch space exists, cleanup any resources from a
+        # previous build.
+        for path in (self.builddir, self.cachedir):
+            if os.path.isdir(path):
+                log.info('Cleaning up %s', path)
+                eib.cleanup_root(os.path.realpath(path))
 
         # Make ostree checkouts mutable
         log.info('Ensuring all ostree checkouts mutable in %s', ostree_co_dir)
