@@ -62,10 +62,6 @@ class ImageBuildRoot(object):
         aptcache_dir = config['buildroot']['aptcache_dir']
         aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
 
-        # Script to kill chroot processes
-        self.kill_script = os.path.join(config['build']['helpersdir'],
-                                        'kill-chroot-procs')
-
         # Make sure the keyring is created
         eib.create_keyring(config)
 
@@ -178,18 +174,18 @@ class ImageBuildRoot(object):
     def killall(self):
         """Kill all processes running in the build directory"""
         log.info('Killing all processes in %s', self.builddir)
-        subprocess.check_call([self.kill_script, self.builddir])
+        eib.kill_root_processes(self.builddir)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc, value, tb):
-        # Try to kill any running processes but ignore errors from the
-        # kill script so that unmounting still happens
+        # Try to kill any running processes but ignore errors so that
+        # unmounting still happens
         try:
             self.killall()
-        except subprocess.CalledProcessError:
-            pass
+        except:
+            log.exception('Failed to kill running processes')
 
         self.umount_all(continue_on_errors=True)
         log.info('Removing buildroot %s', self.builddir)
@@ -499,10 +495,8 @@ class ImageBuilder(object):
 
             # Try to kill any processes that might be hanging around
             # from a previous build
-            kill_script = os.path.join(self.helpersdir,
-                                       'kill-chroot-procs')
             log.info('Killing processes in %s', self.builddir)
-            subprocess.call([kill_script, real_builddir])
+            eib.kill_root_processes(real_builddir)
 
             # Re-read the mount table after every unmount in case there
             # are aliased mounts
