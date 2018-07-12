@@ -477,3 +477,16 @@ def unmount_root_filesystems(root):
 
     # Finally, delete any loops backed by the root itself
     delete_root_loops(root)
+
+
+def cleanup_root(root):
+    """Cleanup root for deletion
+
+    Cleans up processes, mounts and loops for the given root path. After
+    this the root should be able to be deleted.
+    """
+    logger.info('Killing processes in %s', root)
+    kill_root_processes(root)
+
+    logger.info('Unmounting filesystems in %s', root)
+    unmount_root_filesystems(root)
