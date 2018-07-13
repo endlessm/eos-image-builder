@@ -388,7 +388,7 @@ def kill_root_processes(root):
     if len(signal_root_processes(root, signal.SIGTERM)) > 0:
         time.sleep(1)
     if len(signal_root_processes(root, signal.SIGKILL)) > 0:
-        time.speep(1)
+        time.sleep(1)
 
 
 def loop_has_partitions(loop):
