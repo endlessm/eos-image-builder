@@ -465,5 +465,15 @@ def unmount_root_filesystems(root):
             # No more paths to unmount
             break
 
+        # Before unmounting this filesystem, delete any loop devices
+        # with backing files in it. Since the unmounting is happening in
+        # reverse, we can hopefully assume that any mounts of the loop
+        # would have happened at a later mount under the top root path
+        # and therefore have already been unmounted.
+        delete_root_loops(path)
+
         logger.info('Unmounting %s', path)
         subprocess.check_call(['umount', path])
+
+    # Finally, delete any loops backed by the root itself
+    delete_root_loops(root)
