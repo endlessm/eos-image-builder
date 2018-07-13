@@ -373,7 +373,10 @@ def signal_root_processes(root, sig):
             # Kill it
             logger.info('Killing pid %s %s with signal %s', pid, pid_exe,
                         sig)
-            os.kill(int(pid), sig)
+            try:
+                os.kill(int(pid), sig)
+            except ProcessLookupError:
+                logger.debug('Process %s already exited', pid)
 
     return killed_procs
 
