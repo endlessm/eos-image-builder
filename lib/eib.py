@@ -346,6 +346,7 @@ def signal_root_processes(root, sig):
     Walks the list of processes and check if /proc/$pid/root is within
     root. If so, it's sent signal.
     """
+    killed_procs = []
     for pid in os.listdir('/proc'):
         if not pid.isdigit():
             continue
@@ -360,6 +361,8 @@ def signal_root_processes(root, sig):
         # Check if the pid's root is the chroot or a subdirectory (a
         # process that did a subsequent chroot)
         if pid_root == root or pid_root.startswith(root + '/'):
+            killed_procs.append(pid)
+
             # Try to read the exe file, but in some cases (kernel
             # thread), it may not exist
             try:
@@ -372,13 +375,17 @@ def signal_root_processes(root, sig):
                         sig)
             os.kill(int(pid), sig)
 
+    return killed_procs
+
 
 def kill_root_processes(root):
     """Kill all processes running under root path"""
-    # Kill once with SIGTERM, then with SIGKILL
-    signal_root_processes(root, signal.SIGTERM)
-    time.sleep(1)
-    signal_root_processes(root, signal.SIGKILL)
+    # Kill once with SIGTERM, then with SIGKILL. If any processes were
+    # killed, sleep for a second to allow them to cleanup resources.
+    if len(signal_root_processes(root, signal.SIGTERM)) > 0:
+        time.sleep(1)
+    if len(signal_root_processes(root, signal.SIGKILL)) > 0:
+        time.speep(1)
 
 
 def loop_has_partitions(loop):
