@@ -2,36 +2,9 @@
 
 # Kill all the processes running in the specified chroot directory
 
+import eib
 import os
-import signal
 import sys
-import time
-
-def kill_procs(root, sig):
-    for pid in os.listdir('/proc'):
-        if not pid.isnumeric():
-            continue
-
-        # Try to get the proc's root, but ignore errors if the process
-        # went away
-        try:
-            pid_root = os.readlink(os.path.join('/proc', pid, 'root'))
-        except FileNotFoundError:
-            continue
-
-        # Check if the pid's root is the chroot or a subdirectory (a
-        # process that did a subsequent chroot)
-        if pid_root == root or pid_root.startswith(root + '/'):
-            # Try to read the exe file, but in some cases (kernel
-            # thread), it may not exist
-            try:
-                pid_exe = os.readlink(os.path.join('/proc', pid, 'exe'))
-            except:
-                pid_exe = ''
-
-            # Kill it
-            print('Killing pid', pid, pid_exe, 'with signal', sig)
-            os.kill(int(pid), sig)
 
 if len(sys.argv) < 2:
     print("No root path supplied", file=sys.stderr)
@@ -42,7 +15,5 @@ if root == '/':
     print('Root cannot be /', file=sys.stderr)
     exit(1)
 
-# Kill once with SIGTERM, then with SIGKILL
-kill_procs(root, signal.SIGTERM)
-time.sleep(1)
-kill_procs(root, signal.SIGKILL)
+eib.setup_logging()
+eib.kill_root_processes(root)

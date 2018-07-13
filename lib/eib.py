@@ -31,6 +31,7 @@ import glob
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -337,3 +338,165 @@ def get_config(path=None):
         raise ImageBuildError('No configuration read from', path)
 
     return config
+
+
+def signal_root_processes(root, sig):
+    """Send signal sig to all processes in root path
+
+    Walks the list of processes and check if /proc/$pid/root is within
+    root. If so, it's sent signal.
+    """
+    killed_procs = []
+    for pid in os.listdir('/proc'):
+        if not pid.isdigit():
+            continue
+
+        # Try to get the proc's root, but ignore errors if the process
+        # went away
+        try:
+            pid_root = os.readlink(os.path.join('/proc', pid, 'root'))
+        except FileNotFoundError:
+            continue
+
+        # Check if the pid's root is the chroot or a subdirectory (a
+        # process that did a subsequent chroot)
+        if pid_root == root or pid_root.startswith(root + '/'):
+            killed_procs.append(pid)
+
+            # Try to read the exe file, but in some cases (kernel
+            # thread), it may not exist
+            try:
+                pid_exe = os.readlink(os.path.join('/proc', pid, 'exe'))
+            except:
+                pid_exe = ''
+
+            # Kill it
+            logger.info('Killing pid %s %s with signal %s', pid, pid_exe,
+                        sig)
+            try:
+                os.kill(int(pid), sig)
+            except ProcessLookupError:
+                logger.debug('Process %s already exited', pid)
+
+    return killed_procs
+
+
+def kill_root_processes(root):
+    """Kill all processes running under root path"""
+    # Kill once with SIGTERM, then with SIGKILL. If any processes were
+    # killed, sleep for a second to allow them to cleanup resources.
+    if len(signal_root_processes(root, signal.SIGTERM)) > 0:
+        time.sleep(1)
+    if len(signal_root_processes(root, signal.SIGKILL)) > 0:
+        time.speep(1)
+
+
+def loop_has_partitions(loop):
+    """Get a list of partitions for the loop device"""
+    loop_part_pattern = os.path.join('/sys/block', loop, loop + 'p*')
+    loop_part_regex = re.compile(r'/{}p\d+$'.format(loop))
+    loop_parts = [path for path in glob.iglob(loop_part_pattern)
+                  if loop_part_regex.search(path)]
+    return len(loop_parts) > 0
+
+
+def delete_root_loops(root):
+    """Delete all loop devices with backing files in root path
+
+    Look for any active loop devices that have a backing file within
+    root and delete them. If the loop device has any active partitions,
+    they'll be removed first.
+    """
+    root_loops = []
+    # The contents of backing_file end in a newline and can have a
+    # trailing " (deleted)" if the backing file was deleted. Both will
+    # be stripped assuming we don't have an actual file ending with
+    # (deleted).
+    backing_file_regex = re.compile(r'( \(deleted\))?\n?$')
+    loop_regex = re.compile(r'/loop\d+$')
+    all_loop_paths = [path for path in glob.iglob('/sys/block/loop*')
+                      if loop_regex.search(path)]
+    for loop_path in all_loop_paths:
+        backing_path = os.path.join(loop_path, 'loop/backing_file')
+        if not os.path.exists(backing_path):
+            continue
+        with open(backing_path) as f:
+            backing_file = backing_file_regex.sub('', f.read())
+        if backing_file.startswith(root + '/'):
+            loop_name = os.path.basename(loop_path)
+            root_loops.append(loop_name)
+
+    for loop in root_loops:
+        loop_dev = os.path.join('/dev', loop)
+
+        if loop_has_partitions(loop):
+            logger.info('Deleting loop partitions for %s', loop_dev)
+            subprocess.check_call(('partx', '-d', loop_dev))
+
+            # Try to block until the partition devices are removed
+            subprocess.check_call(('udevadm', 'settle'))
+
+        logger.info('Deleting loop %s', loop_dev)
+        retry(subprocess.check_call, ('losetup', '-d', loop_dev))
+
+
+def unmount_root_filesystems(root):
+    """Unmount all filesystems in root path
+
+    Finds all filesystems mounted within root (but not root itself) and
+    unmounts them.
+    """
+    # Re-read the mount table after every unmount in case there
+    # are aliased mounts
+    while True:
+        path = None
+        with open('/proc/self/mountinfo') as mountf:
+            mounts = mountf.readlines()
+
+        # Operate on the mounts backwards to unmount submounts first
+        for line in reversed(mounts):
+            mountdir = line.split()[4]
+            # Search for mounts that begin with $dir/. The trailing / is
+            # added for 2 reasons.
+            #
+            # 1. It makes sure that $dir itself is not matched. If
+            # someone has mounted the build directory itself, that was
+            # probably done intentionally and wasn't done by the
+            # builder.
+            #
+            # 2. It ensures that only paths below $dir are matched and
+            # not $dir-backup or anything else that begins with the same
+            # characters.
+            if mountdir.startswith(root + '/'):
+                path = mountdir
+                break
+
+        if path is None:
+            # No more paths to unmount
+            break
+
+        # Before unmounting this filesystem, delete any loop devices
+        # with backing files in it. Since the unmounting is happening in
+        # reverse, we can hopefully assume that any mounts of the loop
+        # would have happened at a later mount under the top root path
+        # and therefore have already been unmounted.
+        delete_root_loops(path)
+
+        logger.info('Unmounting %s', path)
+        subprocess.check_call(['umount', path])
+
+    # Finally, delete any loops backed by the root itself
+    delete_root_loops(root)
+
+
+def cleanup_root(root):
+    """Cleanup root for deletion
+
+    Cleans up processes, mounts and loops for the given root path. After
+    this the root should be able to be deleted.
+    """
+    logger.info('Killing processes in %s', root)
+    kill_root_processes(root)
+
+    logger.info('Unmounting filesystems in %s', root)
+    unmount_root_filesystems(root)

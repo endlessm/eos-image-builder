@@ -62,10 +62,6 @@ class ImageBuildRoot(object):
         aptcache_dir = config['buildroot']['aptcache_dir']
         aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
 
-        # Script to kill chroot processes
-        self.kill_script = os.path.join(config['build']['helpersdir'],
-                                        'kill-chroot-procs')
-
         # Make sure the keyring is created
         eib.create_keyring(config)
 
@@ -178,18 +174,18 @@ class ImageBuildRoot(object):
     def killall(self):
         """Kill all processes running in the build directory"""
         log.info('Killing all processes in %s', self.builddir)
-        subprocess.check_call([self.kill_script, self.builddir])
+        eib.kill_root_processes(self.builddir)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc, value, tb):
-        # Try to kill any running processes but ignore errors from the
-        # kill script so that unmounting still happens
+        # Try to kill any running processes but ignore errors so that
+        # unmounting still happens
         try:
             self.killall()
-        except subprocess.CalledProcessError:
-            pass
+        except:
+            log.exception('Failed to kill running processes')
 
         self.umount_all(continue_on_errors=True)
         log.info('Removing buildroot %s', self.builddir)
@@ -489,54 +485,12 @@ class ImageBuilder(object):
         """Cleanup the scratch space and prep for a new build"""
         ostree_co_dir = self.config['ostree']['checkout']
 
-        # If the scratch space exists, unmount any filesystems in it and
-        # make all paths mutable.
-        if os.path.isdir(self.builddir) or os.path.isdir(self.cachedir):
-            # Fully resolve the build path to match what's in the mount
-            # info
-            real_builddir = os.path.realpath(self.builddir)
-            real_cachedir = os.path.realpath(self.cachedir)
-
-            # Try to kill any processes that might be hanging around
-            # from a previous build
-            kill_script = os.path.join(self.helpersdir,
-                                       'kill-chroot-procs')
-            log.info('Killing processes in %s', self.builddir)
-            subprocess.call([kill_script, real_builddir])
-
-            # Re-read the mount table after every unmount in case there
-            # are aliased mounts
-            log.info('Cleaning up mounts in %s and %s',
-                     self.builddir, self.cachedir)
-            while True:
-                path = None
-                with open('/proc/self/mountinfo') as mountf:
-                    # Read the mounts backwards to unmount submounts
-                    # first
-                    for line in reversed(mountf.readlines()):
-                        mountdir = line.split()[4]
-                        # Search for mounts that begin with $dir/. The
-                        # trailing / is added for 2 reasons.
-                        #
-                        # 1. It makes sure that $dir itself is not
-                        # matched. If someone has mounted the build
-                        # directory itself, that was probably done
-                        # intentionally and wasn't done by the builder.
-                        #
-                        # 2. It ensures that only paths below $dir are
-                        # matched and not $dir-backup or anything else
-                        # that begins with the same characters.
-                        if mountdir.startswith(real_builddir + '/') or \
-                           mountdir.startswith(real_cachedir + '/'):
-                            path = mountdir
-                            break
-
-                if path is None:
-                    # No more paths to unmount
-                    break
-
-                log.info('Unmounting %s', path)
-                subprocess.check_call(['umount', path])
+        # If the scratch space exists, cleanup any resources from a
+        # previous build.
+        for path in (self.builddir, self.cachedir):
+            if os.path.isdir(path):
+                log.info('Cleaning up %s', path)
+                eib.cleanup_root(os.path.realpath(path))
 
         # Make ostree checkouts mutable
         log.info('Ensuring all ostree checkouts mutable in %s', ostree_co_dir)
