@@ -1,0 +1,4 @@
+# Create the /var/eos-swap-reclaimed file so that eos-reclaim-swap.service does
+# not run on first boot. Swap partitions are not created on new images so there
+# is no storage space to be reclaimed.
+touch -r ${OSTREE_DEPLOYMENT}/usr ${OSTREE_VAR}/eos-swap-reclaimed
