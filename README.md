@@ -239,22 +239,48 @@ appropriate image variant. This will print the merged configuration in
 INI format. The merged configuration is also saved during the build into
 the output directory.
 
+Seeing the apps and runtimes
+----------------------------
+
+Sometimes you may want to see which apps and runtimes will be included in an
+image, without actually building the image. To do this, run
+`./eos-image-builder --show-apps` with other `--product` type options for
+selecting the appropriate image variant. This will print tables of apps and
+runtimes, along with compressed and uncompressed size estimates for each.
+
+```
+# ./eos-image-builder --show-apps --product eosdvd --personalities pt_BR eos3.4
+```
+
+If you are trying to reduce the compressed image size by, say, 300 MB, you can
+pass the number of bytes to --show-apps, and see crude suggestions for which
+apps to remove. (Hint: for images with a size limit, like eosdvd, the number to
+use is in the image build log.)
+
+```
+# ./eos-image-builder --show-apps 300000000 --product eosdvd --personalities pt_BR eos3.4
+```
+
 Execution
 =========
 
-To run EIB, use the eos-image-builder script, optionally with a branch name:
- # ./eos-image-builder [options] master
+To run EIB, use the `eos-image-builder` script, optionally with a branch name:
+
+```
+# ./eos-image-builder [options] master
+```
 
 If no branch name is specified, master is used. If you want to only run
 certain stages, modify the `buildscript` file accordingly before
 starting the program.
 
 Options available:
-  --product : specify product to build (eos, eosnonfree, eosdev)
-  --platform : specify a sub-architecture to build (ec100, odroidu2)
-  --personalities : specify image personaities to build (base, en)
-  --force : perform a build even if the update check says it's not needed
-  --dry-run : perform a build, but do not publish the results
+
+* `--product`: specify product to build (eos, eosnonfree, eosdev)
+* `--platform`: specify a sub-architecture to build (ec100, odroidu2)
+* `--personalities`: specify image personaities to build (base, en)
+* `--force`: perform a build even if the update check says it's not needed
+* `--dry-run`: perform a build, but do not publish the results
 
 Customization
 =============

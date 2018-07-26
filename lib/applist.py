@@ -116,6 +116,9 @@ class AppListFormatter(object):
             return ref.name
 
     def _write_table(self, stream, title, refs, display_branch=False):
+        if not refs:
+            return
+
         stream.write('== {} ==\n\n'.format(title))
         stream.write(self.header)
 
