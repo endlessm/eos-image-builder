@@ -1,13 +1,5 @@
 #!/bin/sh -ex
 
-UNIT_PATH="/lib/systemd/system/eos-setup-flatpak-extension-dir-extra.service"
-if [ ! -f ${UNIT_PATH} ] ; then
-	exit 1
-fi
-
-LN=$(cat ${UNIT_PATH} | grep -e "ExecStart=" | cut -d '=' -f2)
-if [ -z "${LN}" ] ; then
-	exit 2
-fi
-
-exec ${LN}
+# ensure that split images get the same static extensions (eg symlinks
+# to system GL stack) as the default flatpak installation path
+ln -snf -t /var/endless-extra/flatpak /var/lib/flatpak/extension
