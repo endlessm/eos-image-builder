@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from gi import require_version
 require_version('Flatpak', '1.0')
 require_version('OSTree', '1.0')
-from gi.repository import Flatpak, Gio, OSTree
+from gi.repository import Flatpak, GLib, Gio, OSTree
 import json
 import os
 import shutil
@@ -149,6 +149,12 @@ for app in apps:
     size = app.get_installed_size()
     ref = app.format_ref()
     date = commit_date_string(repo, commit)
+    metadata = GLib.KeyFile()
+    metadata.load_from_bytes(app.load_metadata(), GLib.KeyFileFlags.NONE)
+    try:
+        runtime = metadata.get_string('Application', 'runtime')
+    except GLib.GError:
+        runtime = None
 
     # Use a separate section for full and split apps.
     if hook_group == 'image':
@@ -164,6 +170,7 @@ for app in apps:
         'size': size,
         'ref': ref,
         'date': date,
+        'runtime': runtime,
     }
 
 # Now write out the json to a fragment
