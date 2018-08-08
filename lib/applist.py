@@ -22,6 +22,7 @@
 # any resources used here (python modules, executed programs) must be
 # available there. Use a separate module and make sure the components
 # are in the buildroot if the utility is only inside the build.
+import collections
 import eibflatpak
 import logging
 import os
@@ -55,15 +56,104 @@ PREFER_REMOVE_APPS = {
 
 class AppListFormatter(object):
     def __init__(self, refs, personality, verdicts):
-        locales = {
+        self.refs = refs
+        self.locales = {
             personality,
             personality.split('_')[0],  # pt_BR -> pt
         }
-        self.locale_apps = []
-        self.generic_apps = []
-        self.runtimes = []
         self.verdicts = verdicts
 
+        # str -> FlatpakFullRef: index of 'refs' by full ref name
+        self.full_refs = {ref.ref: ref for ref in refs}
+
+        # str -> FlatpakFullRef: "runtime/..." refs which are actually
+        # extensions, indexed by full ref name
+        self.extensions = self._gather_extensions()
+
+        # str -> FlatpakFullRef: Flatpak.RefKind.RUNTIMEs which are "real"
+        # runtimes, indexed by full ref name
+        self.runtimes = self._gather_runtimes()
+
+        # str -> [FlatpakFullRef]: maps installed runtime ref name to non-empty
+        # list of installed apps that use it, runtime extensions it pulls in,
+        # and the runtime itself
+        self.apps_by_runtime = collections.defaultdict(collections.deque)
+
+        # [FlatpakFullRef]: apps which appear specific to this personality
+        self.locale_apps = []
+        # [FlatpakFullRef]: apps which do not
+        self.generic_apps = []
+
+        self._group_refs()
+        self._make_formatters()
+
+    def _gather_extensions(self):
+        extensions = {}
+        for ref in self.refs:
+            for related in ref.related:
+                related_ref = related.format_ref()
+
+                if related.get_kind() == Flatpak.RefKind.APP:
+                    raise ValueError('Ref', ref.ref, 'has app', related_ref,
+                                     'as related ref')
+
+                # It's possible for a possible for a "real" runtime to also be
+                # used an extension. eg app/com.endlessm.EknServicesMultiplexer
+                # mounts any runtime/com.endlessm.apps.Platform//$VERSION-s
+                # which happen to be installed as extensions. In this case, we
+                # don't want to attribute the Platform runtime to
+                # EknServicesMultiplexer. eibflatpak only installs
+                # should_download() extensions, so we treat those as normal
+                # runtimes.
+                #
+                # This does make org.freedesktop.Platform.Icontheme.EndlessOS
+                # end up in a group of its own but I think that's okay.
+                if not related.should_download():
+                    continue
+
+                if related_ref not in self.full_refs:
+                    continue
+
+                extensions[related_ref] = self.full_refs[related_ref]
+
+        return extensions
+
+    def _gather_runtimes(self):
+        runtimes = {}
+        for ref in self.refs:
+            if ref.kind == Flatpak.RefKind.APP:
+                # This ensures that any "real" runtime which is also used as an
+                # extension still shows up as a runtime.
+                runtimes[ref.full_runtime] = self.full_refs[ref.full_runtime]
+            elif ref.ref not in self.extensions:
+                runtimes[ref.ref] = ref
+        return runtimes
+
+    def _group_refs(self):
+        for ref in self.refs:
+            bundle = [ref]
+            for related in ref.related:
+                related_ref = related.format_ref()
+                if related_ref in self.extensions:
+                    bundle.append(self.full_refs[related_ref])
+
+            if ref.kind == Flatpak.RefKind.RUNTIME:
+                if ref.ref in self.extensions:
+                    # It will be attributed to each app/runtime that uses it.
+                    continue
+
+                # Put the runtime (and its extensions) at the top of its own
+                # list
+                self.apps_by_runtime[ref.ref].extendleft(reversed(bundle))
+            elif ref.kind == Flatpak.RefKind.APP:
+                self.apps_by_runtime[ref.full_runtime].extend(bundle)
+
+                if ref.name.split('.')[-1] in self.locales:
+                    self.locale_apps.extend(bundle)
+                else:
+                    self.generic_apps.extend(bundle)
+
+    def _make_formatters(self):
         # Rather than using a construction like '{:>{}}'.format('abc', 8), make
         # a static format string we can re-use with different data. The heading
         # and table formatting is valid Phabricator markup
@@ -75,18 +165,12 @@ class AppListFormatter(object):
 
         widths = [len(h) for h in header_row]
         # Calculate width for first two columns; the others are no wider than
-        # their header. While we're at it, partition the apps.
+        # their header.
         remote_width, id_width = widths[:2]
-        for ref in refs:
+
+        for ref in self.refs:
             remote_width = max(remote_width, len(ref.remote.name))
             id_width = max(id_width, len(self._describe_ref(ref)))
-
-            if ref.kind == Flatpak.RefKind.RUNTIME:
-                self.runtimes.append(ref)
-            elif ref.name.split('.')[-1] in locales:
-                self.locale_apps.append(ref)
-            else:
-                self.generic_apps.append(ref)
 
         widths[:2] = [remote_width, id_width]
 
@@ -135,14 +219,26 @@ class AppListFormatter(object):
 
         stream.write('\n')
 
-    def write(self, stream):
+    def write_by_runtime(self, stream):
+        for runtime, apps in sorted(self.apps_by_runtime.items()):
+            title = self._describe_ref(self.full_refs[runtime])
+            self._write_table(stream, title, apps)
+
+    def write_by_nature(self, stream):
         self._write_table(stream, 'Locale-specific apps', self.locale_apps)
         self._write_table(stream, 'Generic apps', self.generic_apps)
-        self._write_table(stream, 'Runtimes', self.runtimes,
+
+        # TODO: this ignores extensions for runtimes
+        runtimes = sorted(self.runtimes.values(),
+                          key=lambda ref: (- ref.download_size, ref.name))
+        self._write_table(stream, 'Runtimes', runtimes,
                           display_branch=True)
 
+    def write_by(self, by):
+        return getattr(self, 'write_by_' + by)
 
-def show_apps(config, excess, stream):
+
+def show_apps(config, excess, by, stream):
     '''Lists apps that will be installed for this image, with their installed
     (uncompressed) and download (compressed) sizes.
 
@@ -156,6 +252,7 @@ def show_apps(config, excess, stream):
         excess (int): bytes that need to be saved to fit within the size, or 0
                       if there's no size limit and you just want the list of
                       apps
+        by (str): 'nature' or 'runtime'
         stream (file): stream to which to write the lists
     '''
     # Use a temporary repo in the image builder tmpdir where it will be
@@ -175,6 +272,12 @@ def show_apps(config, excess, stream):
 
     # Make a simple list of FlatpakFullRefs sorted by descending
     # download size order, then by app name
+    # TODO: .Locale extensions will appear to be enormous, but in fact their
+    # size is normally much smaller due to being only partially installed.
+    # TODO: sort later, after bundling extensions together with the app(s) that
+    # use them. Without this com.endlessm.extra.pt_BR.Content (421 MB) sorts
+    # below com.endlessm.math.pt (25.5 MB) because the app size (3.2 MB) is the
+    # effective sort key (
     refs = sorted(
         [install_ref.full_ref for install_ref in
          manager.install_refs.values()],
@@ -235,4 +338,5 @@ def show_apps(config, excess, stream):
     stream.write('\n')
 
     personality = config['build']['personality']
-    AppListFormatter(refs, personality, verdicts).write(stream)
+    formatter = AppListFormatter(refs, personality, verdicts)
+    formatter.write_by(by)(stream)

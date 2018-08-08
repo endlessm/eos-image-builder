@@ -210,6 +210,11 @@ def add_cli_options(argparser):
         '--trim', metavar='EXCESS', type=int, default=0,
         help='propose which apps to remove to save approximately EXCESS bytes '
              'in the compressed image')
+    show_apps.add_argument(
+        '--group-by', metavar='GROUPING',
+        choices=('nature', 'runtime'), default='runtime',
+        help='group apps by their "nature" (locale-specific, generic or '
+             'runtime) or by the "runtime" they use (default)')
 
     argparser.add_argument('-f', '--force', action='store_true',
                            help='run build even when no new assets found')

@@ -57,6 +57,12 @@ class FlatpakFullRef(namedtuple('FlatpakFullRef', (
     """
     __slots__ = ()
 
+    @property
+    def full_runtime(self):
+        '''self.runtime does not have the runtime/ prefix.'''
+        if self.runtime is not None:
+            return 'runtime/' + self.runtime
+
 
 class FlatpakInstallRef(object):
     """Flatpak ref for installation
@@ -623,7 +629,7 @@ class FlatpakManager(object):
                     continue
 
                 if full_ref.runtime and \
-                   'runtime/' + full_ref.runtime not in self.install_refs:
+                   full_ref.full_runtime not in self.install_refs:
                     runtime = self._match_runtime(full_ref,
                                                   full_ref.runtime)
                     if not runtime:
