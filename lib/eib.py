@@ -201,13 +201,15 @@ def add_cli_options(argparser):
     ).add_mutually_exclusive_group()
     info.add_argument('--show-config', action='store_true',
                       help='show configuration and exit')
-    info.add_argument('--show-apps', metavar='EXCESS',
-                      nargs='?', type=int, const=0,
+    info.add_argument('--show-apps', action='store_true',
                       help='show apps which will be added to the image, '
-                           'including their approximate compressed size. '
-                           'If EXCESS is specified, propose which apps to '
-                           'remove to save approximately EXCESS bytes in the '
-                           'compressed image.')
+                           'including their approximate compressed size')
+
+    show_apps = argparser.add_argument_group('options for --show-apps')
+    show_apps.add_argument(
+        '--trim', metavar='EXCESS', type=int, default=0,
+        help='propose which apps to remove to save approximately EXCESS bytes '
+             'in the compressed image')
 
     argparser.add_argument('-f', '--force', action='store_true',
                            help='run build even when no new assets found')

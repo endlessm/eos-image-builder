@@ -253,12 +253,12 @@ runtimes, along with compressed and uncompressed size estimates for each.
 ```
 
 If you are trying to reduce the compressed image size by, say, 300 MB, you can
-pass the number of bytes to --show-apps, and see crude suggestions for which
+pass `--trim BYTES`, and see crude suggestions for which
 apps to remove. (Hint: for images with a size limit, like eosdvd, the number to
 use is in the image build log.)
 
 ```
-# ./eos-image-builder --show-apps 300000000 --product eosdvd --personalities pt_BR eos3.4
+# ./eos-image-builder --show-apps --trim 300000000 --product eosdvd --personalities pt_BR eos3.4
 ```
 
 Execution
