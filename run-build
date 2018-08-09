@@ -253,7 +253,8 @@ class ImageBuilder(object):
             super().__setattr__(attr, value)
 
     def __init__(self, product, branch, arch, platform, personality,
-                 show_config=False, show_apps=False,
+                 show_config=False,
+                 show_apps=False, show_apps_trim=0, show_apps_group_by=None,
                  force=False, dry_run=False,
                  use_production_ostree=False):
         # Create the config option first to allow the proxying between
@@ -264,6 +265,8 @@ class ImageBuilder(object):
         self.personality = personality
         self.show_config = show_config
         self.show_apps = show_apps
+        self.show_apps_trim = show_apps_trim
+        self.show_apps_group_by = show_apps_group_by
         self.force = force
         self.dry_run = dry_run
         self.use_production_ostree = use_production_ostree
@@ -536,11 +539,12 @@ class ImageBuilder(object):
             # Just show the configuration without doing anything
             self.config.write(sys.stdout)
             return
-        elif self.show_apps is not None:
+        elif self.show_apps:
             # Can't import applist module unconditionally since build
             # host likely doesn't have flatpak GIR module
             import applist
-            applist.show_apps(self.config, self.show_apps, sys.stdout)
+            applist.show_apps(self.config, self.show_apps_trim,
+                              self.show_apps_group_by, sys.stdout)
             return
 
         if self.use_production_ostree:
@@ -590,6 +594,8 @@ def main():
                                personality=personality,
                                show_config=args.show_config,
                                show_apps=args.show_apps,
+                               show_apps_trim=args.trim,
+                               show_apps_group_by=args.group_by,
                                force=args.force,
                                dry_run=args.dry_run,
                                use_production_ostree=args.use_production_ostree)

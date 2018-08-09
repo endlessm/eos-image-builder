@@ -245,20 +245,28 @@ Seeing the apps and runtimes
 Sometimes you may want to see which apps and runtimes will be included in an
 image, without actually building the image. To do this, run
 `./eos-image-builder --show-apps` with other `--product` type options for
-selecting the appropriate image variant. This will print tables of apps and
-runtimes, along with compressed and uncompressed size estimates for each.
+selecting the appropriate image variant. This will print tables of apps,
+grouped by their runtime, along with compressed and uncompressed size estimates
+for each app and runtime.
 
 ```
 # ./eos-image-builder --show-apps --product eosdvd --personalities pt_BR eos3.4
 ```
 
+If you want to group by regional-personality-specific vs generic vs runtime
+instead, use `--group-by nature`:
+
+```
+# ./eos-image-builder --show-apps --group-by nature --product eosdvd --personalities pt_BR eos3.4
+```
+
 If you are trying to reduce the compressed image size by, say, 300 MB, you can
-pass the number of bytes to --show-apps, and see crude suggestions for which
+pass `--trim BYTES`, and see crude suggestions for which
 apps to remove. (Hint: for images with a size limit, like eosdvd, the number to
 use is in the image build log.)
 
 ```
-# ./eos-image-builder --show-apps 300000000 --product eosdvd --personalities pt_BR eos3.4
+# ./eos-image-builder --show-apps --trim 300000000 --product eosdvd --personalities pt_BR eos3.4
 ```
 
 Execution
