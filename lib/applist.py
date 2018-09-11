@@ -238,7 +238,7 @@ class AppListFormatter(object):
         return getattr(self, 'write_by_' + by)
 
 
-def show_apps(config, excess, by, stream):
+def show_apps(config, split, excess, by, stream):
     '''Lists apps that will be installed for this image, with their installed
     (uncompressed) and download (compressed) sizes.
 
@@ -249,6 +249,7 @@ def show_apps(config, excess, by, stream):
 
     Args:
         config (ConfigParser): the image config
+        split (bool): true to consider the split image configuration
         excess (int): bytes that need to be saved to fit within the size, or 0
                       if there's no size limit and you just want the list of
                       apps
@@ -268,7 +269,7 @@ def show_apps(config, excess, by, stream):
     manager = eibflatpak.FlatpakManager(installation, config)
     manager.add_remotes()
     manager.enumerate_remotes()
-    manager.resolve_refs()
+    manager.resolve_refs(split=split)
 
     # Make a simple list of FlatpakFullRefs sorted by descending
     # download size order, then by app name

@@ -207,6 +207,9 @@ def add_cli_options(argparser):
 
     show_apps = argparser.add_argument_group('options for --show-apps')
     show_apps.add_argument(
+        '--split', action='store_true',
+        help='list the apps which will be included in a split image')
+    show_apps.add_argument(
         '--trim', metavar='EXCESS', type=int, default=0,
         help='propose which apps to remove to save approximately EXCESS bytes '
              'in the compressed image')
