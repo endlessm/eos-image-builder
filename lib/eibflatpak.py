@@ -758,7 +758,7 @@ class FlatpakManager(object):
                     })
                 options_var = GLib.Variant('a{sv}', options)
                 self._log_installation_free_space()
-                eib.retry(self._do_pull, timeout=30, repo, remote, options_var)
+                eib.retry(self._do_pull, repo, remote, options_var, timeout=30)
 
             repo.commit_transaction()
         except:
