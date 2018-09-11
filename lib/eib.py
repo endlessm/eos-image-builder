@@ -296,7 +296,7 @@ def disk_usage(path):
     return total
 
 
-def retry(func, *args, max_retries=3, **kwargs):
+def retry(func, *args, max_retries=3, timeout=1, **kwargs):
     """Retry a function in case of intermittent errors"""
     # A no-op if the hook has already called this
     setup_logging()
@@ -313,7 +313,7 @@ def retry(func, *args, max_retries=3, **kwargs):
 
             # Show the traceback so the error isn't hidden
             logger.warning('Retrying attempt %d', retry, exc_info=True)
-            time.sleep(1)
+            time.sleep(timeout)
 
 
 def latest_manifest_data():
