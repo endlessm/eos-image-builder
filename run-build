@@ -254,7 +254,10 @@ class ImageBuilder(object):
 
     def __init__(self, product, branch, arch, platform, personality,
                  show_config=False,
-                 show_apps=False, show_apps_trim=0, show_apps_group_by=None,
+                 show_apps=False,
+                 show_apps_split=False,
+                 show_apps_trim=0,
+                 show_apps_group_by=None,
                  force=False, dry_run=False,
                  use_production_ostree=False):
         # Create the config option first to allow the proxying between
@@ -265,6 +268,7 @@ class ImageBuilder(object):
         self.personality = personality
         self.show_config = show_config
         self.show_apps = show_apps
+        self.show_apps_split = show_apps_split
         self.show_apps_trim = show_apps_trim
         self.show_apps_group_by = show_apps_group_by
         self.force = force
@@ -543,8 +547,11 @@ class ImageBuilder(object):
             # Can't import applist module unconditionally since build
             # host likely doesn't have flatpak GIR module
             import applist
-            applist.show_apps(self.config, self.show_apps_trim,
-                              self.show_apps_group_by, sys.stdout)
+            applist.show_apps(self.config,
+                              self.show_apps_split,
+                              self.show_apps_trim,
+                              self.show_apps_group_by,
+                              sys.stdout)
             return
 
         if self.use_production_ostree:
@@ -594,6 +601,7 @@ def main():
                                personality=personality,
                                show_config=args.show_config,
                                show_apps=args.show_apps,
+                               show_apps_split=args.split,
                                show_apps_trim=args.trim,
                                show_apps_group_by=args.group_by,
                                force=args.force,
