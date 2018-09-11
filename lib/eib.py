@@ -350,6 +350,29 @@ def get_config(path=None):
     return config
 
 
+def get_manifest(path=None):
+    """Read and parse the full merged manifest file
+
+    This will only work if called after the eib_manifest stage has completed.
+
+    Returns a Python object containing the merged manifest JSON data. If path
+    is not provided, it is looked for as
+    ${EIB_OUTDIR}/${EIB_OUTVERSION}.manifest.json.
+    """
+    if path is None:
+        outversion = os.getenv('EIB_OUTVERSION')
+        path = os.path.join(os.getenv('EIB_OUTDIR'),
+                            outversion + '.manifest.json')
+        if not path:
+            raise ImageBuildError(
+                'Path to manifest file not set in EIB_OUTDIR')
+    if not os.path.exists(path):
+        raise ImageBuildError('No manifest file found at', path)
+
+    with open(path) as f:
+        return json.load(f)
+
+
 def signal_root_processes(root, sig):
     """Send signal sig to all processes in root path
 

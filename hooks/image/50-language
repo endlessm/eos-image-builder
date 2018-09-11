@@ -2,3 +2,10 @@
 if [ -n "${EIB_IMAGE_LANGUAGE}" ]; then
   echo "LANG=${EIB_IMAGE_LANGUAGE}" > ${OSTREE_DEPLOYMENT}/etc/locale.conf
 fi
+
+# Dump it into the manifest too
+cat > "${EIB_MANIFESTDIR}"/image-language.json <<EOF
+{
+  "image_language": "${EIB_IMAGE_LANGUAGE}"
+}
+EOF
