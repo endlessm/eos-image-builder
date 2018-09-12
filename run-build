@@ -456,6 +456,11 @@ class ImageBuilder(object):
             config = self.config
         for section, prefix in self.CONFIG_MERGE_PREFIXES:
             config.merge_option_prefix(section, prefix)
+        # clear the _add_* and _del_* options after merging, so they can be
+        # used for interpolation in the meantime regardless of order and where
+        # they are defined
+        for section, prefix in self.CONFIG_MERGE_PREFIXES:
+            config.clear_merged_options(section, prefix)
 
     def setenv(self, section, option, value):
         """Export config values as variable in EIB namespace
