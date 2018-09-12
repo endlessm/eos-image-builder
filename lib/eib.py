@@ -121,8 +121,9 @@ class ImageConfigParser(configparser.ConfigParser):
 
     def merge_option_prefix(self, section, prefix):
         """Merge multiple options named like <prefix>_add_* and
-        <prefix>_del_*. The original options will be deleted.
-        If an option named <prefix> already exists, it is not changed.
+        <prefix>_del_*. The original options can be deleted later
+        with the clear_merged_options function. If an option named
+        <prefix> already exists, it is not changed.
 
         The section can be a glob pattern to merge options in similarly
         named sections.
@@ -147,6 +148,16 @@ class ImageConfigParser(configparser.ConfigParser):
                 # in the original configuration.
                 vals = add_vals - del_vals
                 sect[prefix] = '\n'.join(sorted(vals.keys()))
+
+    def clear_merged_options(self, section, prefix):
+        """Clear the <prefix>_add_* and <prefix>_del_* options left by
+        the merge operation in merge_option_prefix. Called once all merges
+        have been done in order to allow the intermediate values to be used
+        for interpolation."""
+        for sect_name in fnmatch.filter(self.sections(), section):
+            sect = self[sect_name]
+            add_opts = fnmatch.filter(sect.keys(), prefix + '_add_*')
+            del_opts = fnmatch.filter(sect.keys(), prefix + '_del_*')
 
             # Remove the add/del options to cleanup the section
             for opt in add_opts + del_opts:
