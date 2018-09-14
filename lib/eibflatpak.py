@@ -228,14 +228,6 @@ class FlatpakRemote(object):
 
         Sync the appstream and metadata from the remote.
         """
-        # Fetch the deployed remote's appstream and metadata
-        logger.info('Updating appstream data for remote %s',
-                    self.name)
-        eib.retry(self.installation.update_appstream_sync, self.name,
-                  self.arch)
-        logger.info('Updating metadata for remote %s', self.name)
-        eib.retry(self.installation.update_remote_sync, self.name)
-
         # Set the flatpak remote collection ID if it's enabled and the
         # remote has a collection ID
         # Temporarily(?) disable P2P for eos-runtimes (which are legacy). See:
@@ -246,6 +238,17 @@ class FlatpakRemote(object):
             collection_id = fetch_remote_collection_id(repo, self.name)
             if collection_id is not None:
                 self._set_collection_id(collection_id)
+
+        # Fetch the deployed remote's appstream and metadata
+        # NOTE: This is done after adding the collection ID so that the
+        # ostree-metadata will be pulled as well, which enables using USB
+        # updates without ever going online
+        logger.info('Updating appstream data for remote %s',
+                    self.name)
+        eib.retry(self.installation.update_appstream_sync, self.name,
+                  self.arch)
+        logger.info('Updating metadata for remote %s', self.name)
+        eib.retry(self.installation.update_remote_sync, self.name)
 
         # Reset any configuration defined metadata
         self.reset_metadata()

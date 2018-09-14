@@ -45,6 +45,9 @@ ostree --repo="${REPOPATH}" remote add ${EIB_OSTREE_REMOTE} \
 ostree --repo="${REPOPATH}" pull-local --disable-fsync \
   --remote=${EIB_OSTREE_REMOTE} ${EIB_OSTREE_REPODIR} ${EIB_OSTREE_REF_DEPLOY}
 
+# Pull the repo metadata ref so USB updates are possible without going online
+ostree --repo="${REPOPATH}" pull ${EIB_OSTREE_REMOTE} ostree-metadata
+
 # Basic bootloader setup
 if [[ "${EIB_ARCH}" == "armhf" ]]; then
   mkdir -p "${BOOT}"/loader.0
