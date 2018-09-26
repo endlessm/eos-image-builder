@@ -35,22 +35,22 @@ log = logging.getLogger(__name__)
 
 
 MUST_KEEP_APPS = {
-    # https://phabricator.endlessm.com/T18626#436847
-    'net.gcompris.Gcompris',
-    'net.sourceforge.Supertuxkart',
-
     # “encyclopedia is the most important app” – Nick/Matt
     'com.endlessm.encyclopedia.id',
+
+    # https://phabricator.endlessm.com/T18626#436847
+    'net.supertuxkart.SuperTuxKart',
+    'org.kde.gcompris',
 }
 PREFER_REMOVE_NS = {
     'org.kde.',
 }
 PREFER_REMOVE_APPS = {
-    'net.sourceforge.Warmux',
-    'io.github.Supertux',
-    'org.marsshooter.Marsshooter',
-    'net.wz2100.Warzone2100',
-    'org.tuxfamily.Xmoto',
+    'net.sourceforge.mars-game',
+    'net.wz2100.wz2100',
+    'org.gna.Warmux',
+    'org.supertuxproject.SuperTux',
+    'org.tuxfamily.XMoto',
 }
 
 
