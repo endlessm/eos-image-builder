@@ -1,0 +1,15 @@
+#Customize the standard keyboard layout
+
+TARGET_PATH=/etc/X11/xorg.conf.d
+
+if [ -n "${EIB_IMAGE_XKB_LAYOUT}" ]; then
+	mkdir -p ${TARGET_PATH}
+
+	cat <<- EOF > ${TARGET_PATH}/00-keyboard.conf
+	Section "InputClass"
+		Identifier "system-keyboard"
+		MatchIsKeyboard "on"
+		Option "XkbLayout" "${EIB_IMAGE_XKB_LAYOUT}"
+	EndSection
+	EOF
+fi
