@@ -192,6 +192,12 @@ class FlatpakRemote(object):
             gpg_key_bytes = GLib.Bytes.new(gpg_key_decoded)
             remote.set_gpg_key(gpg_key_bytes)
 
+        # Recent flatpak began automatically adding collection IDs in
+        # certain scenarios, but once they're set they can't change.
+        # Clear any collection ID that might be present since it may not
+        # match the configured URL.
+        remote.set_collection_id(None)
+
         # Commit the changes
         self.installation.modify_remote(remote)
 
