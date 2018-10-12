@@ -201,6 +201,15 @@ class FlatpakRemote(object):
         # Commit the changes
         self.installation.modify_remote(remote)
 
+        # In case the remote metadata update applies a collection ID,
+        # delete any current ostree-metadata ref to ensure flatpak pulls
+        # it again.
+        logger.info('Deleting %s ref for %s', OSTree.REPO_METADATA_REF,
+                    self.name)
+        repo = self.manager.get_repo()
+        repo.set_ref_immediate(self.name, OSTree.REPO_METADATA_REF, None)
+        self.installation.drop_caches()
+
         # Fetch the deployed remote's metadata
         logger.info('Updating metadata for remote %s', self.name)
         eib.retry(self.installation.update_remote_sync, self.name)
