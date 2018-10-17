@@ -47,7 +47,7 @@ class FlatpakError(eib.ImageBuildError):
 class FlatpakFullRef(namedtuple('FlatpakFullRef', (
         'ref', 'remote', 'kind', 'name', 'arch', 'branch', 'commit',
         'installed_size', 'download_size', 'runtime', 'sdk',
-        'related'))):
+        'related', 'extra_data'))):
     """Complete representation of Flatpak ref
 
     This is basically a superset of Flatpak.RemoteRef with a couple
@@ -328,6 +328,7 @@ class FlatpakRemote(object):
             runtime = metadata.get('Application', 'runtime',
                                    fallback=None)
             sdk = metadata.get('Application', 'sdk', fallback=None)
+            extra_data = 'Extra Data' in metadata
 
             # Get all the related refs
             logger.debug('Getting related refs for %s ref %s',
@@ -348,7 +349,8 @@ class FlatpakRemote(object):
                                             download_size=download_size,
                                             runtime=runtime,
                                             sdk=sdk,
-                                            related=related)
+                                            related=related,
+                                            extra_data=extra_data)
 
     def check_excluded(self, name):
         logger.debug('Checking ID %s in %s against exclude list', name, self.name)
@@ -619,6 +621,10 @@ class FlatpakManager(object):
                 if remote.check_excluded(full_ref.name):
                     raise FlatpakError('Explicitly added app', app, 'in',
                                        remote.name, 'is on excluded list.')
+                if full_ref.extra_data:
+                    raise FlatpakError('Refusing to include', app, 'as it',
+                                       'contains potentially non-redistributable',
+                                       'extra data.')
                 logger.info('Adding app %s from %s', full_ref.ref,
                             remote.name)
                 self.install_refs[full_ref.ref] = FlatpakInstallRef(
