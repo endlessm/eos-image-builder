@@ -219,6 +219,7 @@ class ImageBuilder(object):
         ('flatpak-remote-*', 'nosplit_apps'),
         ('flatpak-remote-*', 'nosplit_runtimes'),
         ('flatpak-remote-*', 'exclude'),
+        ('image', 'branding_subst_vars'),
         ('image', 'hooks'),
         ('image', 'icon_grid'),
         ('image', 'settings'),
