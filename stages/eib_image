@@ -554,7 +554,7 @@ EOF
   # signature, and the signature for boot.zip. In theory we could `wait` only
   # for those two signatures and allow compressing the image and signing it to
   # happen in parallel with creating the ISO.
-  if [ "${EIB_IMAGE_ISO}" = "true" && "$EIB_IMAGE_BOOT_ZIP" = "true" ]; then
+  if [[ "${EIB_IMAGE_ISO}" = "true" && "$EIB_IMAGE_BOOT_ZIP" = "true" ]]; then
     "${EIB_HELPERSDIR}"/create-iso "${version}" "$(eib_outfile iso)" \
       "${img}" "${boot_zip}" "${img_asc}" "${boot_zip}.asc"
   fi
