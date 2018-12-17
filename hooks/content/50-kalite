@@ -1,15 +1,22 @@
 # Get all ka-lite content we want at this point so it's cached
 
-# Skip download if no KA LITE content is needed
-[ "${EIB_IMAGE_KALITE_CONTENT}" = true ] || exit 0
+# Check if kalite content is needed
+if [ "${EIB_IMAGE_KALITE_CONTENT}" != true ]; then
+    exit 0
+fi
 
 dest=${EIB_CONTENTDIR}/kalite
-user=${EIB_IMAGE_KALITE_CONTENT_USER}
 host=${EIB_IMAGE_KALITE_CONTENT_HOST}
-path=${EIB_IMAGE_KALITE_CONTENT_PATH}
+version=${EIB_IMAGE_KALITE_CONTENT_VERSION}
+variant=${EIB_IMAGE_KALITE_CONTENT_VARIANT}
+
+# We need to convert from a locale (e.g. pt_BR.utf8) to
+# a language code matching our s3 bucket (e.g. pt).
+lang=`echo ${EIB_IMAGE_LANGUAGE} | sed -r 's/_.*//' `
+echo "LANGUAGE: ${lang}"
+
 mkdir -p "${dest}"
-rsync -av --delete -e "ssh ${EIB_SSH_OPTIONS}" \
-  "${user}@${host}:${path}/" "${dest}"/
+aws s3 sync --delete "${host}/${version}/${variant}/${lang}/" "${dest}/${lang}/"
 
 # Get latest modification time and write to a manifest fragment
 mtime=$(find "${dest}" -exec stat -c '%Y' '{}' '+' | sort -n | tail -n1)
