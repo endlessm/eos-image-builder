@@ -23,7 +23,7 @@
 # available there. Use a separate module and make sure the components
 # are in the buildroot if the utility is only inside the build.
 
-from argparse import ArgumentParser, SUPPRESS
+from argparse import ArgumentParser
 import configparser
 from collections import Counter, OrderedDict
 import fnmatch
@@ -237,10 +237,9 @@ def add_cli_options(argparser):
     argparser.add_argument('--debug', action='store_true',
                            help="enable slightly more verbose logging")
     argparser.add_argument('--use-production', action='store_true',
-                           dest='use_production_ostree',
-                           help="use production ostree repos rather than staging (deprecated)")
+                           help="use production ostree/flatpak repos rather than staging (deprecated)")
     argparser.add_argument('--use-production-apps', action='store_true',
-                           help=SUPPRESS)
+                           help="use production flatpak repos rather than staging")
     argparser.add_argument('--use-production-ostree', action='store_true',
                            help="use production ostree repos rather than staging")
     argparser.add_argument('--build-from-tag',

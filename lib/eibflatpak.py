@@ -98,18 +98,20 @@ class FlatpakRemote(object):
     # Convenience for decoding from utf-8 from open file
     UTF8_READER = codecs.getreader('utf-8')
 
-    def __init__(self, manager, name, url=None, repo_file=None,
-                 apps=None, runtimes=None, nosplit_apps=None,
-                 nosplit_runtimes=None, exclude=None, title=None,
-                 default_branch=None, **extra_options):
+    def __init__(self, manager, name, url=None, deploy_url=None,
+                 repo_file=None, apps=None, runtimes=None,
+                 nosplit_apps=None, nosplit_runtimes=None, exclude=None,
+                 title=None, default_branch=None, **extra_options):
         # Copy some manager attributes
         self.manager = manager
         self.installation = manager.installation
         self.arch = manager.arch
+        self.use_production = manager.use_production
         self.enable_p2p_updates = manager.enable_p2p_updates
 
         self.name = name
         self.url = url
+        self.deploy_url = deploy_url
         self.repo_file = repo_file
         self.apps = apps.split() if apps else []
         self.runtimes = runtimes.split() if runtimes else []
@@ -147,6 +149,16 @@ class FlatpakRemote(object):
         # Make sure URL configured
         if not self.url:
             raise FlatpakError('No URL defined for remote', self.name)
+
+        # Adjust URL for production usage
+        if self.deploy_url and self.use_production:
+            logger.info('Using production URL %s for %s',
+                        self.deploy_url, self.name)
+            self.url = self.deploy_url
+
+        # If the deploy URL isn't set, use the pull URL
+        if not self.deploy_url:
+            self.deploy_url = self.url
 
         # Calculated values
         self.refs = {}
@@ -241,8 +253,16 @@ class FlatpakRemote(object):
     def deploy(self):
         """Prepare remote for deployment
 
-        Sync the appstream and metadata from the remote.
+        Sync the appstream and metadata from the remote. If the deploy
+        URL differs from the pull URL, it's adjusted here, too.
         """
+        if self.deploy_url != self.url:
+            logger.info('Setting %s URL to %s for deployment', self.name,
+                        self.deploy_url)
+            remote = self.installation.get_remote_by_name(self.name)
+            remote.set_url(self.deploy_url)
+            self.installation.modify_remote(remote)
+
         # Set the flatpak remote collection ID if it's enabled and the
         # remote has a collection ID
         # Temporarily(?) disable P2P for eos-runtimes (which are legacy). See:
@@ -449,6 +469,10 @@ class FlatpakManager(object):
         if self.locales:
             logger.info('Using flatpak locales %s',
                         ' '.join(self.locales))
+
+        # See if production flatpaks should be used
+        self.use_production = self.config.getboolean(
+            'build', 'use_production_apps', fallback=False)
 
         # See if collection IDs should be set
         self.enable_p2p_updates = self.config.getboolean(
