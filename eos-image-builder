@@ -50,11 +50,11 @@ def lock_builder(lockf, timeout):
             if err.errno in [errno.EACCES, errno.EAGAIN]:
                 if wait == timeout:
                     lockpid = lockf.read().strip()
-                    print(LOCKFILE, 'currently locked by pid', lockpid,
+                    print(lockf.name, 'currently locked by pid', lockpid,
                           file=sys.stderr)
                 wait -= 1
                 if wait <= 0:
-                    raise Exception('Could not lock file %s' % LOCKFILE)
+                    raise Exception('Could not lock file %s' % lockf.name)
                 time.sleep(1)
             else:
                 # Some other issue
