@@ -37,14 +37,18 @@ shrink_disk1_image() {
   # Calculate the shrunken root fs size from the esimated minimum. The
   # minimum size is in blocks, which are assumed to be 4kB.
   e2fsck -f -p "${ROOT_LOOP}"
-  local root_part_min_blocks=$(resize2fs -P $ROOT_LOOP | \
+  local root_part_min_blocks
+  root_part_min_blocks=$(resize2fs -P $ROOT_LOOP | \
     awk '/^Estimated minimum size/{print $NF}')
-  local root_part_size=$((root_part_min_blocks * 4096))
+
+  local root_part_size
+  root_part_size=$((root_part_min_blocks * 4096))
 
   # Calculate the new total disk1 size
   local new_disk1_img_size=$root_part_size
-  local old_disk1_img_size=$(blockdev --getsize64 $DISK1_LOOP)
-  local old_disk1_root_size=$(blockdev --getsize64 $ROOT_LOOP)
+  local old_disk1_img_size old_disk1_root_size
+  old_disk1_img_size=$(blockdev --getsize64 $DISK1_LOOP)
+  old_disk1_root_size=$(blockdev --getsize64 $ROOT_LOOP)
 
   # Add the same number of sectors before and after the root partition
   (( new_disk1_img_size += old_disk1_img_size - old_disk1_root_size))
@@ -55,7 +59,8 @@ shrink_disk1_image() {
   # but we'll assume 98% available space, which is 15680000000 bytes.
   # Fail if the image won't fit in this space.
   disk1_size=${EIB_IMAGE_DISK1_SIZE}
-  local disk1_max_img_size=$(python -c "print int(${disk1_size} * 0.98)")
+  local disk1_max_img_size
+  disk1_max_img_size=$(python -c "print int(${disk1_size} * 0.98)")
   ((disk1_max_img_size -= 1 * 2**30))
   if ((new_disk1_img_size > disk1_max_img_size)); then
     echo "ERROR: ${EIB_PERSONALITY} disk1 image exceeds" \
@@ -83,7 +88,8 @@ shrink_disk1_image() {
   # Read the current partition table. Must be done before truncating the
   # image; sfdisk doesn't manage to read the GPT from the truncated image
   # because it has lost the GPT backup.
-  local orig_partitions=$(sfdisk -d "${disk1_img}")
+  local orig_partitions
+  orig_partitions=$(sfdisk -d "${disk1_img}")
 
   # We need to avoid presenting the 0B marker partition to the next 'sfdisk'
   # call since the latest version doesn't recognize this as a valid partition.
@@ -117,14 +123,16 @@ shrink_disk2_image() {
   # Calculate the shrunken extra fs size from the esimated minimum. The
   # minimum size is in blocks, which are assumed to be 4kB.
   e2fsck -f -p "${EXTRA_LOOP}"
-  local extra_part_min_blocks=$(resize2fs -P $EXTRA_LOOP | \
+  local extra_part_min_blocks
+  extra_part_min_blocks=$(resize2fs -P $EXTRA_LOOP | \
     awk '/^Estimated minimum size/{print $NF}')
   local extra_part_size=$((extra_part_min_blocks * 4096))
 
   # Calculate the new total disk1 size
   local new_disk2_img_size=$extra_part_size
-  local old_disk2_img_size=$(blockdev --getsize64 $DISK2_LOOP)
-  local old_disk2_extra_size=$(blockdev --getsize64 $EXTRA_LOOP)
+  local old_disk2_img_size old_disk2_extra_size
+  old_disk2_img_size=$(blockdev --getsize64 $DISK2_LOOP)
+  old_disk2_extra_size=$(blockdev --getsize64 $EXTRA_LOOP)
 
   # Add the same number of sectors before and after the partition
   (( new_disk2_img_size += old_disk2_img_size - old_disk2_extra_size))
@@ -139,7 +147,8 @@ shrink_disk2_image() {
   # Read the current partition table. Must be done before truncating the
   # image; sfdisk doesn't manage to read the GPT from the truncated image
   # because it has lost the GPT backup.
-  local orig_partitions=$(sfdisk -d "${disk2_img}")
+  local orig_partitions
+  orig_partitions=$(sfdisk -d "${disk2_img}")
 
   # Resize the image file first to try to catch errors in the partition
   # setup.
@@ -217,7 +226,8 @@ split_image() {
   # so use 98% of 16 GB, which is 15680000000 bytes.
   rm -f "${disk2_img}"
   disk2_size=${EIB_IMAGE_DISK2_SIZE}
-  local disk2_img_size=$(python -c "print int(${disk2_size} * 0.98)")
+  local disk2_img_size
+  disk2_img_size=$(python -c "print int(${disk2_size} * 0.98)")
   truncate -s ${disk2_img_size} "${disk2_img}"
 
   pt_label=${EIB_IMAGE_PARTITION_TABLE}
@@ -316,8 +326,9 @@ split_image() {
   cleanup_devices
 
   # Publish uncompressed file sizes.
-  local disk1_extracted_size=$(stat -c "%s" "${disk1_img}")
-  local disk2_extracted_size=$(stat -c "%s" "${disk2_img}")
+  local disk1_extracted_size disk2_extracted_size
+  disk1_extracted_size=$(stat -c "%s" "${disk1_img}")
+  disk2_extracted_size=$(stat -c "%s" "${disk2_img}")
   echo "${disk1_extracted_size}" > "${disk1_zimg}.size"
   echo "${disk2_extracted_size}" > "${disk2_zimg}.size"
 
@@ -339,12 +350,15 @@ split_image() {
   rm -f "${disk2_img}"
 
   # Generate split disk manifest information
-  local disk1_name=$(basename "${disk1_zimg}")
-  local disk1_compressed_size=$(stat -c "%s" "${disk1_zimg}")
-  local disk1_signature="${disk1_name}.asc"
-  local disk2_name=$(basename "${disk2_zimg}")
-  local disk2_compressed_size=$(stat -c "%s" "${disk2_zimg}")
-  local disk2_signature="${disk2_name}.asc"
+  local disk1_name disk1_compressed_size disk1_signature
+  disk1_name=$(basename "${disk1_zimg}")
+  disk1_compressed_size=$(stat -c "%s" "${disk1_zimg}")
+  disk1_signature="${disk1_name}.asc"
+
+  local disk2_name disk2_compressed_size disk2_signature
+  disk2_name=$(basename "${disk2_zimg}")
+  disk2_compressed_size=$(stat -c "%s" "${disk2_zimg}")
+  disk2_signature="${disk2_name}.asc"
   cat > "${EIB_MANIFESTDIR}"/split-images.json <<EOF
 {
   "images": {
