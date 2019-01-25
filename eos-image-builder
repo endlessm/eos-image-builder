@@ -50,11 +50,11 @@ def lock_builder(lockf, timeout):
             if err.errno in [errno.EACCES, errno.EAGAIN]:
                 if wait == timeout:
                     lockpid = lockf.read().strip()
-                    print(LOCKFILE, 'currently locked by pid', lockpid,
+                    print(lockf.name, 'currently locked by pid', lockpid,
                           file=sys.stderr)
                 wait -= 1
                 if wait <= 0:
-                    raise Exception('Could not lock file %s' % LOCKFILE)
+                    raise Exception('Could not lock file %s' % lockf.name)
                 time.sleep(1)
             else:
                 # Some other issue
@@ -93,7 +93,7 @@ with open(eib.LOCKFILE, 'a+') as lf:
 
     # If requested or running on jenkins, make a copy of this repo so
     # the code doesn't change while the builder is running.
-    if args.checkout or 'JENKINS_HOME' in os.environ:
+    if args.checkout or (args.checkout is None and 'JENKINS_HOME' in os.environ):
         # Make a copy of the repo to use. A real git repo is needed
         # since the build later queries the current commit.
         srcdir = os.path.join(eib.CACHEDIR, 'src')
