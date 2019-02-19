@@ -8,37 +8,26 @@ if ! test -f ${OSTREE_DEPLOYMENT}/lib/systemd/system/eos-kalite-system-helper.so
     exit 0
 fi
 
-rm -rf ${kalitehome}/*
+rm -rf "${kalitehome}"/*
 
 # Skip check if no sample media needed
 if [ "${EIB_IMAGE_KALITE_CONTENT}" != true ]; then
     exit 0
 fi
 
-# EIB_IMAGE_LANGUAGE could not be defined
-if [ -z "${EIB_IMAGE_LANGUAGE}" ]; then
-    exit 0
-fi
-
 # We need to convert from a locale (e.g. pt_BR.utf8) to
-# a language code recognized by KA Lite (e.g. pt-BR).
-iso_lang=$(locale_to_iso_639_1 ${EIB_IMAGE_LANGUAGE})
-echo "ISO LANGUAGE: ${iso_lang}"
+# a language code matching our s3 bucket (e.g. pt).
+lang=`echo ${EIB_IMAGE_LANGUAGE} | sed -r 's/_.*//' `
+echo "LANGUAGE: ${lang}"
 
-# Pre-load select content videos (note: there's an fallback C directory)
-mkdir -p ${preloaded}
-content_dir="C"
-if [ -d ${EIB_CONTENTDIR}/kalite/${iso_lang} ]; then
-    content_dir="${iso_lang}"
-fi
-
-# Uncompress the first-run data then copy the videos to PRELOADED
-pushd ${preloaded}
-tar Jxvf ${EIB_CONTENTDIR}/kalite/${content_dir}/first-run-data.xz
-cp -r ${EIB_CONTENTDIR}/kalite/${content_dir}/content/* content/
+# Copy the videos to PRELOADED
+mkdir -p "${preloaded}"/content
+pushd "${preloaded}"
+tar Jxvf "${EIB_CONTENTDIR}"/kalite/"${lang}"/first-run-data.xz
+cp -r "${EIB_CONTENTDIR}"/kalite/"${lang}"/* content/
 popd
 
 # set content permissions
-chown -R $(ostree_uid kalite):$(ostree_gid kalite) ${preloaded}
-find ${preloaded} -type f -exec chmod 664 '{}' ';'
+chown -R $(ostree_uid kalite):$(ostree_gid kalite) "${preloaded}"
+find "${preloaded}" -type f -exec chmod 664 '{}' ';'
 chmod 775 ${preloaded}
