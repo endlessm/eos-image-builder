@@ -26,6 +26,8 @@
 from argparse import ArgumentParser
 import configparser
 from collections import Counter, OrderedDict
+import errno
+import fcntl
 import fnmatch
 import glob
 import json
@@ -34,7 +36,9 @@ import os
 import re
 import shutil
 import signal
+import struct
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -65,6 +69,28 @@ CHECK_EXIT_BUILD_NEEDED = 90
 # KeyboardInterrupt would be useful, and any code that needs this
 # behavior can restore python's default signal handler.
 DEFAULT_SIGINT_HANDLER = signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+# Constants for inode attributes. The ioctl value differs on 32 and 64
+# bit systems. To check the values, compile and run the following:
+#
+# #include <stdio.h>
+# #include <linux/fs.h>
+# int main(void)
+# {
+#   printf("FS_IMMUTABLE_FL=%#010x\n", FS_IMMUTABLE_FL);
+#   printf("FS_IOC_GETFLAGS=%#0lx\n", (unsigned long)FS_IOC_GETFLAGS);
+#   printf("FS_IOC_SETFLAGS=%#0lx\n", (unsigned long)FS_IOC_SETFLAGS);
+#   return 0;
+# }
+FS_IMMUTABLE_FL = 0x00000010
+if sys.maxsize < (1 << 32):
+    # 32 bit system
+    FS_IOC_GETFLAGS = 0x80046601
+    FS_IOC_SETFLAGS = 0x40046602
+else:
+    # 64 bit system
+    FS_IOC_GETFLAGS = 0x80086601
+    FS_IOC_SETFLAGS = 0x40086602
 
 
 class ImageBuildError(Exception):
@@ -550,3 +576,37 @@ def cleanup_root(root):
 
     logger.info('Unmounting filesystems in %s', root)
     unmount_root_filesystems(root)
+
+
+def mutable_path(path):
+    """
+    Make the inode for path mutable
+
+    This is equivalent to `chattr -i` except that it catches errors when
+    the inode attributes are not supported for a specific filesystem. In
+    particular, this will ignore failures getting and changing attributes
+    for a directory on overlayfs in a docker container.
+    """
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        buf = fcntl.ioctl(fd, FS_IOC_GETFLAGS, struct.pack('i', 0))
+        attr = struct.unpack('i', buf)[0]
+        if (attr & FS_IMMUTABLE_FL):
+            # Clear the immutable bit
+            attr &= ~(FS_IMMUTABLE_FL)
+        else:
+            # Already mutable, nothing to do
+            logger.debug('Path "%s" already mutable', path)
+            return
+        buf = struct.pack('i', attr)
+        fcntl.ioctl(fd, FS_IOC_SETFLAGS, buf)
+    except IOError as err:
+        # When inode attributes aren't supported, the error will be
+        # ENOTTY (Inappropriate ioctl) or ENOTSUP (Operation not
+        # supported)
+        if err.errno in (errno.ENOTTY, errno.ENOTSUP):
+            logger.info('Inode attributes for "%s" not supported', path)
+        else:
+            raise
+    finally:
+        os.close(fd)

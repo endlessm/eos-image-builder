@@ -8,7 +8,7 @@
 
 mutable_deployment() {
   if [ -n "${OSTREE_DEPLOYMENT}" ]; then
-    chattr -i "${OSTREE_DEPLOYMENT}"
+    "${EIB_HELPERSDIR}"/mutable-path "${OSTREE_DEPLOYMENT}"
   fi
 }
 
@@ -518,7 +518,9 @@ EOF
   # Read OS version from ostree deployment before we unmount it
   local version=$(. ${DEPLOY}/etc/os-release && echo ${VERSION})
 
-  # Restore the immutable attribute on the deployment root lost via cp
+  # Restore the immutable attribute on the deployment root lost via cp.
+  # Note that errors are not ignored here as we require the deployment
+  # root to be immutable.
   chattr +i "${DEPLOY}"
 
   # Cleanup mounts

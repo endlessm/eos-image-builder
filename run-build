@@ -527,7 +527,7 @@ class ImageBuilder(object):
         for path in glob.iglob(ostree_checkouts):
             # Only directories are checkouts
             if os.path.isdir(path):
-                subprocess.check_call(['chattr', '-i', path])
+                eib.mutable_path(path)
 
         # Cleanup files from previous build
         log.info('Recreating build specific temporary directories')
