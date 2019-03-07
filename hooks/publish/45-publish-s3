@@ -1,0 +1,41 @@
+# Publish full image directory to S3. This needs to happen before
+# rsyncing to the server so that it doesn't begin to sync that build to
+# S3 concurrently.
+
+src="${EIB_OUTDIR}"
+dest="s3://${EIB_PUBLISH_S3_BUCKET}/${EIB_PUBLISH_PATH}"
+region="${EIB_PUBLISH_S3_REGION}"
+
+# Delete the .inprogress file in the S3 bucket to indicate that this
+# build has finished publishing files.
+end_publishing() {
+  aws --region="${region}" s3 rm "${dest}"/.inprogress
+}
+trap end_publishing EXIT
+
+# Delete the in progess image publishing directory on failure.
+fail_publishing() {
+  aws --region="${region}" s3 rm --recursive "${dest}"
+}
+trap fail_publishing ERR
+
+# Create an empty .inprogress file and copy it to the S3 bucket to
+# indicate that this build has started publishing files.
+: >"${EIB_TMPDIR}"/.inprogress
+aws --region="${region}" s3 cp "${EIB_TMPDIR}"/.inprogress \
+  "${dest}"/.inprogress
+
+# Sync the output directory to the S3 bucket. It would be nice to use
+# the sync command, but we want to set Content-Disposition to attachment
+# for asc files (https://phabricator.endlessm.com/T20501) and the AWS
+# API does not allow updating metadata on an existing object after the
+# fact. Just loop ourselves.
+for f in "${src}"/*; do
+  opts=()
+  case "${f}" in
+    *.asc)
+      opts+=(--content-disposition=attachment)
+      ;;
+  esac
+  aws --region="${region}" s3 cp "${opts[@]}" "${f}" "${dest}/"
+done
