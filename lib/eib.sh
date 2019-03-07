@@ -146,50 +146,6 @@ eib_fix_boot_checksum() {
   "${deploy}"/usr/sbin/amlogic-fix-spl-checksum "${disk}"
 }
 
-# Create a .inprogress file on the remote image server to indicate that
-# this build has started publishing files.
-eib_start_publishing() {
-  local destdir="${EIB_IMAGE_DESTDIR}"
-
-  # Skip on dry runs
-  [ "${EIB_DRY_RUN}" = true ] && return 0
-
-  ssh ${EIB_SSH_OPTIONS} ${EIB_IMAGE_USER}@${EIB_IMAGE_UPLOAD_API_HOST} \
-    mkdir -p "${destdir}"
-  ssh ${EIB_SSH_OPTIONS} ${EIB_IMAGE_USER}@${EIB_IMAGE_UPLOAD_API_HOST} \
-    touch "${destdir}"/.inprogress
-}
-
-# Delete the .inprogress file on the remote image server to indicate
-# that this build has finished publishing files.
-eib_end_publishing() {
-  local destdir="${EIB_IMAGE_DESTDIR}"
-
-  # Skip on dry runs
-  [ "${EIB_DRY_RUN}" = true ] && return 0
-
-  ssh ${EIB_SSH_OPTIONS} ${EIB_IMAGE_USER}@${EIB_IMAGE_UPLOAD_API_HOST} \
-    rm -f "${destdir}"/.inprogress
-}
-
-# Delete the in progess image publishing directory on failure.
-eib_fail_publishing() {
-  local destdir="${EIB_IMAGE_DESTDIR}"
-
-  # Skip on dry runs
-  [ "${EIB_DRY_RUN}" = true ] && return 0
-
-  # If the .inprogress file exists, delete the entire destdir. This is
-  # pretty ugly because we need a shell command list and that would
-  # require quite a bit of magic escaping.
-  if ssh ${EIB_SSH_OPTIONS} ${EIB_IMAGE_USER}@${EIB_IMAGE_UPLOAD_API_HOST} \
-    test -f "${destdir}"/.inprogress
-  then
-    ssh ${EIB_SSH_OPTIONS} ${EIB_IMAGE_USER}@${EIB_IMAGE_UPLOAD_API_HOST} \
-      rm -rf "${destdir}"
-  fi
-}
-
 # Work around transient failures
 eib_retry() {
   local subcommand=${1:?No subcommand supplied to ${FUNCNAME}}

@@ -3,6 +3,28 @@
 srcdir="${EIB_OUTDIR}"
 destdir="${EIB_IMAGE_DESTDIR}"
 
+# Delete the .inprogress file on the remote image server to indicate
+# that this build has finished publishing files.
+end_publishing() {
+  ssh ${EIB_SSH_OPTIONS} "${EIB_IMAGE_USER}@${EIB_IMAGE_UPLOAD_API_HOST}" \
+    rm -f "${destdir}"/.inprogress
+}
+trap end_publishing EXIT
+
+# Delete the in progess image publishing directory on failure.
+fail_publishing() {
+  ssh ${EIB_SSH_OPTIONS} "${EIB_IMAGE_USER}@${EIB_IMAGE_UPLOAD_API_HOST}" \
+    rm -rf "${destdir}"
+}
+trap fail_publishing ERR
+
+# Create a .inprogress file on the remote image server to indicate that
+# this build has started publishing files.
+ssh ${EIB_SSH_OPTIONS} "${EIB_IMAGE_USER}@${EIB_IMAGE_UPLOAD_API_HOST}" \
+  mkdir -p "${destdir}"
+ssh ${EIB_SSH_OPTIONS} "${EIB_IMAGE_USER}@${EIB_IMAGE_UPLOAD_API_HOST}" \
+  touch "${destdir}"/.inprogress
+
 # Use rsync with --delay-updates so the files remain hidden until
 # publishing completes.
 rsync -av --delay-updates -e "ssh ${EIB_SSH_OPTIONS}" \
