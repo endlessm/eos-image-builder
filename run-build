@@ -58,9 +58,22 @@ class ImageBuildRoot(object):
         packages = config['buildroot']['packages'].split()
         script = config['buildroot']['script']
         keyring = config['build']['keyring']
-        wanted_mounts = config['buildroot']['mounts'].split()
+        config_mounts = config['buildroot']['mounts'].split()
         aptcache_dir = config['buildroot']['aptcache_dir']
         aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
+
+        # Build a list of required mounts using configuration values
+        required_mounts = [
+            # Typical kernel filesystems
+            '/sys',
+            '/proc',
+            '/dev',
+            '/dev/pts',
+            # Required builder directories
+            config['build']['sysconfdir'],
+            config['build']['cachedir'],
+            config['build']['srcdir'],
+        ]
 
         # Make sure the keyring is created
         eib.create_keyring(config)
@@ -94,12 +107,12 @@ class ImageBuildRoot(object):
                                repo,
                                script])
 
-        # Mount all the desired paths. Sort the list of wanted mounts so
+        # Mount all the desired paths. Sort the list of needed mounts so
         # the shortest paths (parents) come before longer paths
         # (children). Avoid superfluous mounts when a parent on the same
         # device is already being mounted.
         to_mount = OrderedDict()
-        for path in sorted(wanted_mounts):
+        for path in sorted(required_mounts + config_mounts):
             dev = os.stat(path).st_dev
 
             for parent, parent_dev in to_mount.items():
