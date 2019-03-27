@@ -1,0 +1,14 @@
+#!/usr/bin/python3
+
+# Make a path mutable ignoring errors when inode attributes aren't
+# supported. This is just a wrapper for eib.mutable_path().
+
+import eib
+import sys
+
+if len(sys.argv) < 2:
+    print('No path supplied', file=sys.stderr)
+    sys.exit(1)
+
+eib.setup_logging()
+eib.mutable_path(sys.argv[1])

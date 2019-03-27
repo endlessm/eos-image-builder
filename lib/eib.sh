@@ -232,7 +232,11 @@ ostree_write_refs() {
 eib_compress_image() {
   case "${EIB_IMAGE_COMPRESSION}" in
     xz)
-      xz -T0 -4 -c "${1}" > "${2}"
+      # Memory is limited to 1GB so that we don't ENOMEM on 32 bit
+      # builds and so the number of threads is limited on hosts with
+      # lots of CPUs. This should still allow 12 threads when enough
+      # memory and CPUs are available.
+      xz -vv -M1G -T0 -4 -c "${1}" > "${2}"
       ;;
     gz)
       pigz --no-name -c "${1}" > "${2}"
