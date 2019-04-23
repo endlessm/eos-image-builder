@@ -1,0 +1,5 @@
+mkdir -p /etc/systemd/system-preset
+cat >/etc/systemd/system-preset/40-eos-safe-defaults.preset <<EOF
+enable eos-safe-defaults.service
+EOF
+systemctl preset eos-safe-defaults.service
