@@ -9,6 +9,6 @@
 # actually been installed on the system.
 
 [ "${EIB_FLATPAK_ENABLE}" = true ] || exit 0
-/usr/lib/${EIB_DEB_HOST_MULTIARCH}/eos-updater-flatpak-installer --mode stamp
-/usr/lib/${EIB_DEB_HOST_MULTIARCH}/eos-updater-flatpak-installer --mode check
+/usr/libexec/eos-updater-flatpak-installer --mode stamp
+/usr/libexec/eos-updater-flatpak-installer --mode check
 
