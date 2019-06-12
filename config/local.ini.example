@@ -41,7 +41,6 @@ compression = gz
 # be useful if the exact app set is known or if the build is for testing
 # and the full multi-gigabyte app set is not needed.
 apps =
-  com.endlessm.photos
   com.endlessm.resume
 
 # Alternatively, a set of apps can be added or deleted from the existing
@@ -54,7 +53,14 @@ apps =
 # Testing for apps to be removed when creating the split disk. As with
 # the install option, this overrides all settings but could use the
 # _add_/_del_ merged options.
-nosplit_apps = com.endlessm.photos
+nosplit_apps = com.endlessm.resume
+
+[flatpak-remote-flathub]
+# Completely override the set of installed Flathub apps. See documentation
+# for eos-apps above.
+apps =
+  com.endlessm.photos
+nosplit_apps =
 
 [content]
 # 50-gnome-software-cache:
