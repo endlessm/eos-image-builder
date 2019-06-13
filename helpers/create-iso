@@ -133,7 +133,7 @@ AUTORUN_INF
           -append_partition 2 0xef "${DIR_ESP}/efi.img" \
           -iso-level 3 \
           -joliet -joliet-long \
-          -volid "$VOLID" \
+          -volid "${VOLID::32}" \
           -publisher 'Endless Computers' \
           "${DIR_IMAGES}"
 
