@@ -35,7 +35,7 @@ repo.open()
 _, refs = repo.list_refs()
 for refspec in refs.keys():
     _, remote, ref = OSTree.parse_refspec(refspec)
-    if remote is None:
+    if remote is None and not ref.startswith("deploy/"):
         # Local ref, keep it
         continue
     if remote == os_remote:
