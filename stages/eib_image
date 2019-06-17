@@ -431,17 +431,18 @@ EOF
       if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
         # Capture EFI GRUB for both live+installer and dual-boot image boots.
         #
-        # From 3.1.x onwards, our ESP has the following layout:
+        # From 3.6.x onwards, our ESP has the following layout:
         #
         # EFI/
         #   endless/
         #     grubx64.efi
-        #     shim.efi
-        #     BOOT.CSV
-        #     MokManager.efi
+        #     shimx64.efi
+        #     BOOTX64.CSV
+        #     mmx64.efi
         #   BOOT/
-        #     bootx64.efi  - identical to shim.efi
-        #     fallback.efi
+        #     BOOTX64.EFI  - identical to shimx64.efi
+        #     fbx64.efi
+        #     mmx64.efi
         #
         # However, the installer for Windows, eos-write-live-image from
         # eos-meta, and helpers/create-iso in this repository all expect the
@@ -449,9 +450,9 @@ EOF
         #
         # EFI/
         #   BOOT/
-        #     bootx64.efi
+        #     BOOTX64.EFI
         #     grubx64.efi
-        #     MokManager.efi
+        #     mmx64.efi
         #
         # For dual-boot installs, we copy the entire contents of EFI/BOOT to
         # EFI/Endless on the ESP, and creates a boot entry for
@@ -461,9 +462,9 @@ EOF
         # arrange for EFI/ to have the right structure:
         mkdir -p "${boot_zip_dir}/EFI/BOOT"
         cp \
-          "${DEPLOY}"/boot/efi/EFI/BOOT/bootx64.efi \
+          "${DEPLOY}"/boot/efi/EFI/BOOT/BOOTX64.EFI \
           "${DEPLOY}"/boot/efi/EFI/BOOT/bootia32.efi \
-          "${DEPLOY}"/boot/efi/EFI/endless/MokManager.efi \
+          "${DEPLOY}"/boot/efi/EFI/endless/mmx64.efi \
           "${DEPLOY}"/boot/efi/EFI/endless/grubx64.efi \
           "${boot_zip_dir}/EFI/BOOT"
 
@@ -473,8 +474,8 @@ EOF
         # triplicating Shim and duplicating the 64-bit GRUB added 50% to the
         # boot.zip size, and this directory was never actually used.)
         mkdir -p "${boot_zip_dir}/EFI3/BOOT" "${boot_zip_dir}/EFI3/endless"
-        cp "${DEPLOY}"/boot/efi/EFI/BOOT/fallback.efi "${boot_zip_dir}/EFI3/BOOT"
-        cp "${DEPLOY}"/boot/efi/EFI/endless/BOOT.CSV "${boot_zip_dir}/EFI3/endless"
+        cp "${DEPLOY}"/boot/efi/EFI/BOOT/fbx64.efi "${boot_zip_dir}/EFI3/BOOT"
+        cp "${DEPLOY}"/boot/efi/EFI/endless/BOOTX64.CSV "${boot_zip_dir}/EFI3/endless"
 
         # Bundle all GRUB versions up for distribution
         local boot_zip="$(eib_outfile boot.zip)"
@@ -497,11 +498,11 @@ EOF
       else
         # No boot.zip means this is eosinstaller, not an installable image.
         # Since this will only be used on removable media, it should not
-        # include fallback.efi, which alters the system's BootOrder. In effect,
+        # include fallback, which alters the system's BootOrder. In effect,
         # we are recreating the layout in boot.zip/EFI, only on the real ESP.
-        rm "${ESP}/EFI/BOOT/fallback.efi"
+        rm "${ESP}/EFI/BOOT/fbx64.efi"
         mv \
-          "${ESP}/EFI/endless/MokManager.efi" \
+          "${ESP}/EFI/endless/mmx64.efi" \
           "${ESP}/EFI/endless/grubx64.efi" \
           "${ESP}/EFI/BOOT/"
         rm -r "${ESP}/EFI/endless"
