@@ -24,6 +24,11 @@ cleanup_devices() {
     eib_delete_loop "${img_loop}"
   fi
   unset img_loop
+
+  if [ -n "${sdboot_esp_img_loop}" ]; then
+    eib_delete_loop "${sdboot_esp_img_loop}"
+  fi
+  unset sdboot_esp_img_loop
 }
 
 cleanup() {
@@ -58,6 +63,27 @@ if [[ "${EIB_ARCH}" == "armhf" ]]; then
 else
   # Assume grub for all other architectures
   mkdir -p "${BOOT}"/grub
+fi
+
+# 62MB seems to be arbitrarily chosen to minimize the impact of the ESP
+# on non-EFI and low storage (small EMMC) devices.
+esp_size=62
+if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
+  sdboot_esp_img="${EIB_TMPDIR}/${EIB_OUTVERSION}_sdboot.img"
+  # 250MB of ESP is off-handedly referred to as "large enough" in
+  # the boot loader spec (at time of this commit) available at:
+  # https://www.freedesktop.org/wiki/Specifications/BootLoaderSpec
+  # We'll be using the increase in space to store kernel+initramfs
+  # for an active and potentially a rollback copy.
+  esp_size=250
+  rm -f "${sdboot_esp_img}"
+  truncate -s ${esp_size}M "${sdboot_esp_img}"
+  mkfs.vfat "${sdboot_esp_img}"
+  sdboot_esp_img_loop=$(losetup -f --show "${sdboot_esp_img}")
+  # Currently our ostree + sd-boot implementation creates fake
+  # symlinks on vfat. We need the vfat ESP to be mounted at
+  # deploy time to ensure these fake symlinks are created.
+  eib_mount ${sdboot_esp_img_loop} "${BOOT}"
 fi
 
 kargs=(--karg=rw --karg=splash \
@@ -106,6 +132,12 @@ treeinfo="${EIB_TMPDIR}"/ostree.txt
 echo "Branch ${EIB_OSTREE_REF}" > ${treeinfo}
 ostree --repo="${EIB_OSTREE_CHECKOUT}"/ostree/repo show \
   ${EIB_OSTREE_REF_DEPLOY} >> ${treeinfo}
+
+if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
+  eib_umount "${BOOT}"
+  eib_delete_loop "${sdboot_esp_img_loop}"
+  unset sdboot_esp_img_loop
+fi
 
 # Output package list using the dpkg database from the deployment's /var
 dpkgdir="${OSTREE_DEPLOYMENT}"/var/lib/dpkg
@@ -171,7 +203,7 @@ create_image() {
      case "${EIB_ARCH}" in
        i386|amd64)
          # EFI system partition
-         echo "size=62MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+         echo "size=${esp_size}MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
          # GRUB BIOS BOOT partition
          echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
          ;;
@@ -236,7 +268,11 @@ create_image() {
       root_loop=${img_loop}p3
       ext4_opts="dir_index,^huge_file"
       ESP="${ROOT}"/boot/efi
-      mkfs.vfat "${esp_loop}"
+      if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
+        dd conv=notrunc if="${sdboot_esp_img}" of="${esp_loop}" bs=1M
+      else
+        mkfs.vfat "${esp_loop}"
+      fi
       ;;
     *)
       # On ARM disable 64bit ext4 option
@@ -427,6 +463,11 @@ EOF
 
       # UEFI bootloader install
       cp -r "${DEPLOY}"/boot/efi/EFI "${ESP}"
+
+      # For PAYG, boot with systemd-boot instead of shim
+      if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
+        cp -r "${DEPLOY}/usr/lib/systemd/boot/efi/systemd-bootx64.efi" "${ESP}/EFI/BOOT/BOOTX64.efi"
+      fi
 
       if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
         # Capture EFI GRUB for both live+installer and dual-boot image boots.
