@@ -395,10 +395,18 @@ EOF
           dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=1 count=442
           dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=17408 skip=1 seek=1
           ;;
-        s905x)
-          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/s905x
-          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin.padded of=${img} bs=1 count=442
-          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin.padded of=${img} bs=512 skip=1 seek=1
+        libretechcc)
+          local BOOTIMG_PATH="${EIB_TMPDIR}"/gxl-boot.img
+          "${EIB_HELPERSDIR}"/s905x-bootloader-setup \
+            "${EIB_DATADIR}"/s905x-bootloader \
+            "${DEPLOY}"/usr/lib/u-boot/libretech-cc/u-boot.bin \
+            "${BOOTIMG_PATH}"
+          dd conv=notrunc if="${BOOTIMG_PATH}" of=${img} bs=512 seek=1
+
+	  # make a boot script for u-boot
+	  mkimage -T script -C none -n "libretechcc boot script" -d \
+	    "${EIB_DATADIR}"/s905x-bootloader/boot.src \
+	    "${ROOT}"/boot/boot.scr
           ;;
         rk3288)
           local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/chromebook_jerry
