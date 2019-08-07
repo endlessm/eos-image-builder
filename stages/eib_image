@@ -54,7 +54,7 @@ ostree --repo="${REPOPATH}" pull-local --disable-fsync \
 ostree --repo="${REPOPATH}" pull ${EIB_OSTREE_REMOTE} ostree-metadata
 
 # Basic bootloader setup
-if [[ "${EIB_ARCH}" == "armhf" ]]; then
+if [[ "${EIB_ARCH}" == "armhf" ]] || [[ "${EIB_ARCH}" == "arm64" ]]; then
   mkdir -p "${BOOT}"/loader.0
   ln -s loader.0 "${BOOT}"/loader
   # Empty uEnv.txt otherwise ostree gets upset
@@ -213,6 +213,13 @@ create_image() {
          ;;
      esac
 
+     # Raspberry Pi'ss GPU starts the boot process by loading bootloader blobs
+     # from the first partition which must be VFAT.
+     if [ "${EIB_PLATFORM}" == "rpi3" ]; then
+         # BOOT Partition
+         echo "size=100MiB, type=c"
+     fi
+
      if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
        part_type="83"
      else
@@ -222,6 +229,10 @@ create_image() {
          i386|amd64)
            # Root Partition (x86-64)
            part_type="4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
+           ;;
+         arm64)
+           # Root Partition (64-bit ARM)
+           part_type="b921b045-1df0-41c3-af44-4c6f280d3fae"
            ;;
          armhf)
            # Root Partition (32-bit ARM)
@@ -245,6 +256,11 @@ create_image() {
       # Mark the partition where /boot is as LegacyBIOSBootable as required by
       # the distro booting protocol (see U-Boot doc/README.distro)
        rootfs_attrs="$rootfs_attrs LegacyBIOSBootable"
+     fi
+
+     if [[ "${EIB_PLATFORM}" == "rpi3" ]]; then
+       # Make u-boot find the bootable partition which is rootfs for rpi3
+       echo -n "bootable "
      fi
 
      # We need to escape attrs= otherwise sfdisk complains when passing an empty string
@@ -281,7 +297,7 @@ create_image() {
     *)
       # On ARM disable 64bit ext4 option
       ext4_opts="dir_index,^huge_file,^64bit"
-      if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ]; then
+      if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ] || [ "${EIB_PLATFORM}" == "rpi3" ]; then
         boot_loop=${img_loop}p1
         root_loop=${img_loop}p2
       else
@@ -434,7 +450,31 @@ EOF
           fi
           ;;
         *)
-          echo "Unrecognized armhf platform ${EIB_ARCH}" >&2
+          echo "Unrecognized armhf platform ${EIB_PLATFORM}" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    arm64)
+      case "${EIB_PLATFORM}" in
+        rpi3)
+          mkfs.vfat ${boot_loop}
+
+          # Copy Raspberry Pi's bootloader and u-boot
+          mkdir ${EIB_TMPDIR}/rpi3boot
+          eib_mount ${boot_loop} ${EIB_TMPDIR}/rpi3boot
+          cp ${EIB_DATADIR}/rpi3/* ${EIB_TMPDIR}/rpi3boot/
+          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_3
+          cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpi3boot/kernel8.img
+          eib_umount ${EIB_TMPDIR}/rpi3boot
+
+	  # Make a boot script for u-boot
+	  mkimage -T script -C none -n "Raspberry Pi 3 boot script" -d \
+	    "${EIB_DATADIR}"/rpi3/boot.src \
+	    "${ROOT}"/boot/boot.scr
+          ;;
+        *)
+          echo "Unrecognized arm64 platform ${EIB_PLATFORM}" >&2
           return 1
           ;;
       esac

@@ -53,6 +53,7 @@ LOCKTIMEOUT = 60
 SUPPORTED_ARCHES = [
     'i386',
     'amd64',
+    'arm64',
     'armhf'
 ]
 

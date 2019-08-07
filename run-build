@@ -305,6 +305,8 @@ class ImageBuilder(object):
             machine = os.uname().machine
             if machine == 'x86_64':
                 self.arch = 'amd64'
+            elif machine == 'aarch64':
+                self.arch = 'arm64'
             elif fnmatch.fnmatch(machine, 'i?86'):
                 self.arch = 'i386'
             elif machine.startswith('arm'):
