@@ -13,25 +13,21 @@
 # it's only needed on production images.
 hooks_del_local = 50-media
 
-[content]
-# Skip syncing sample media content
-hooks_del_local = 50-media
-
 [image]
 # Skip GPG signing of the completed image files since the default key ID
 # isn't available. Alternatively, the key ID for any private key in the
 # GPG homedir at /etc/eos-image-builder/gnupg.
 signing_keyid =
 
-# Skip copying sample media into image
-hooks_del_local = 50-media
+# 50-gnome-software-cache: see comment for corresponding [content] key below.
+# 50-media: see comment in [check] section above.
+hooks_del_local =
+    50-gnome-software-cache
+    50-media
 
 # Most products don't generate split images, but it can be useful to do
 # that locally for testing since the codepaths there are fragile.
 #split = true
-
-# See documentation for the corresponding entry in [content] below.
-hooks_del_local = 50-gnome-software-cache
 
 # Some products are compressed with xz, trading the one-time cost of
 # substantially slower image builds for substantially smaller image
@@ -45,7 +41,6 @@ compression = gz
 # be useful if the exact app set is known or if the build is for testing
 # and the full multi-gigabyte app set is not needed.
 apps =
-  com.endlessm.photos
   com.endlessm.resume
 
 # Alternatively, a set of apps can be added or deleted from the existing
@@ -58,15 +53,27 @@ apps =
 # Testing for apps to be removed when creating the split disk. As with
 # the install option, this overrides all settings but could use the
 # _add_/_del_ merged options.
-nosplit_apps = com.endlessm.photos
+nosplit_apps = com.endlessm.resume
+
+[flatpak-remote-flathub]
+# Completely override the set of installed Flathub apps. See documentation
+# for eos-apps above.
+apps =
+  com.endlessm.photos
+nosplit_apps =
 
 [content]
-# The gnome-software-data git repo is not publicly accessible, so an SSH
-# key is required to clone the repo. Alternatively, an SSH private key
-# with access to the git@github.com/endlessm/gnome-software-data.git
-# repo can be installed at /etc/eos-image-builder/ssh-key.pem and this
-# setting can be commented out.
-hooks_del_local = 50-gnome-software-cache
+# 50-gnome-software-cache:
+#   The gnome-software-data git repo is not publicly accessible, so an SSH key
+#   is required to clone the repo. Alternatively, an SSH private key with
+#   access to the git@github.com/endlessm/gnome-software-data.git repo can be
+#   installed at /etc/eos-image-builder/ssh-key.pem and 50-gnome-software-cache
+#   can be removed from all the _del_ lists in this file.
+#
+# 50-media: see comment in [check] section above.
+hooks_del_local =
+    50-gnome-software-cache
+    50-media
 
 [buildroot]
 # The buildroot is generated using packages on the internal OBS repos,
