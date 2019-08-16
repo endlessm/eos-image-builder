@@ -110,10 +110,11 @@ for details on this file.
 Email notification
 ------------------
 
-When a build completes successfully, EIB will send an email indicating
+When a build completes successfully, EIB can be configured to send an email indicating
 where the published build can be downloaded. Settings for where to send
 the email are managed in the `email` section of the image builder
-configuration. See [config/defaults.ini](config/defaults.ini) for
+configuration. See [config/defaults.ini](config/defaults.ini) and
+[hooks/publish/90-email-success](hooks/publish/90-email-success) for
 details.
 
 Configuration
