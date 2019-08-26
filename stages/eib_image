@@ -84,6 +84,10 @@ if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
   # symlinks on vfat. We need the vfat ESP to be mounted at
   # deploy time to ensure these fake symlinks are created.
   eib_mount ${sdboot_esp_img_loop} "${BOOT}"
+
+  # We set the OSTREE_DEPLOY_PAYG env var to alert ostree to the
+  # fact that we're deploying a PAYG image.
+  export OSTREE_DEPLOY_PAYG=1
 fi
 
 kargs=(--karg=rw --karg=splash \
