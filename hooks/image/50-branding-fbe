@@ -15,7 +15,6 @@ if [ "$CHECK" != OK ]; then
 fi
 
 CONFIG_DIR="${OSTREE_VAR}"/lib/eos-image-defaults/branding
-ASSETS_DIR="${OSTREE_VAR}"/lib/eos-image-defaults/branding/assets
 
 mkdir -p "${CONFIG_DIR}"
 cp "${EIB_IMAGE_BRANDING_FBE_CONFIG}" "${CONFIG_DIR}"/
@@ -29,9 +28,4 @@ done
 # The skipped pages file and the logo are optional
 if [ -n "${EIB_IMAGE_BRANDING_FBE_SKIP_PAGES_FILE}" ]; then
     cp "${EIB_IMAGE_BRANDING_FBE_SKIP_PAGES_FILE}" "${CONFIG_DIR}"/
-fi
-
-if [ -n "${EIB_IMAGE_BRANDING_FBE_LOGO}" ]; then
-    mkdir -p "${ASSETS_DIR}"
-    cp "${EIB_IMAGE_BRANDING_FBE_LOGO}" "${ASSETS_DIR}"/
 fi
