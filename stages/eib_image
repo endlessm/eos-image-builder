@@ -419,9 +419,9 @@ EOF
             "${BOOTIMG_PATH}"
           dd conv=notrunc if="${BOOTIMG_PATH}" of=${img} bs=512 seek=1
 
-	  # make a boot script for u-boot
+	  # make a boot script for u-boot (same boot script as arm64)
 	  mkimage -T script -C none -n "libretechcc boot script" -d \
-	    "${EIB_DATADIR}"/s905x-bootloader/boot.src \
+	    "${EIB_DATADIR}"/arm64/boot.src \
 	    "${ROOT}"/boot/boot.scr
           ;;
         rk3288)
@@ -456,6 +456,11 @@ EOF
       esac
       ;;
     arm64)
+      # Make a boot script for u-boot
+      mkimage -T script -C none -n "Endless OS arm64 boot script" -d \
+        "${EIB_DATADIR}"/arm64/boot.src \
+        "${ROOT}"/boot/boot.scr
+
       case "${EIB_PLATFORM}" in
         rpi3)
           mkfs.vfat ${boot_loop}
@@ -467,11 +472,6 @@ EOF
           local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_3
           cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpi3boot/kernel8.img
           eib_umount ${EIB_TMPDIR}/rpi3boot
-
-	  # Make a boot script for u-boot
-	  mkimage -T script -C none -n "Raspberry Pi 3 boot script" -d \
-	    "${EIB_DATADIR}"/rpi3/boot.src \
-	    "${ROOT}"/boot/boot.scr
           ;;
         *)
           echo "Unrecognized arm64 platform ${EIB_PLATFORM}" >&2

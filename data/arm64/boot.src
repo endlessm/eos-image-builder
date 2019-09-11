@@ -1,0 +1,30 @@
+echo "Load u-Boot environment ..."
+ext4load ${devtype} ${devnum}:${distro_bootpart} ${scriptaddr} /boot/uEnv.txt
+env import -t ${scriptaddr} ${filesize}
+
+echo "Load device tree ..."
+# Documented approach of passing ${addr}:${fdt_notation} doesn't work and we
+# don't know why.  However, we can find the start address of the specific device
+# tree corresponding to ${fdt_notation} in /boot/${fdt_file} and relocate it to
+# the designed ${fdt_addr_r}.  We do not know why relocation is necessary, but
+# suspect it is because the FDT start address should be aligned.
+fdt_load_addr_r=${ramdisk_addr_r}
+ext4load ${devtype} ${devnum}:${distro_bootpart} ${fdt_load_addr_r} /boot/${fdt_file}
+fdt addr ${fdt_load_addr_r}
+setexpr fdt_notation gsub / _ ${fdtfile}
+fdt get addr fdt_start_addr_r /images/${fdt_notation} data
+fdt get size fdt_size /images/${fdt_notation} data
+fdt move ${fdt_start_addr_r} ${fdt_addr_r} ${fdt_size}
+fdt addr ${fdt_addr_r}
+
+echo "Load kernel and unzip it ..."
+kernel_load_addr_r=${ramdisk_addr_r}
+ext4load ${devtype} ${devnum}:${distro_bootpart} ${kernel_load_addr_r} /boot/${kernel_image}
+unzip ${kernel_load_addr_r} ${kernel_addr_r}
+
+echo "Load RAM disk ..."
+ext4load ${devtype} ${devnum}:${distro_bootpart} ${ramdisk_addr_r} /boot/${ramdisk_image}
+
+echo "Boot ..."
+setenv bootargs root=LABEL=ostree ${bootargs} splash
+booti ${kernel_addr_r} ${ramdisk_addr_r}:${filesize} ${fdt_addr_r}
