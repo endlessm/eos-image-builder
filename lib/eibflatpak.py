@@ -519,52 +519,29 @@ class FlatpakManager(object):
         for remote in self.remotes.values():
             remote.deploy()
 
-    def _set_languages(self):
-        """Set the core.xa.languages repo option
+    def _set_extra_languages(self):
+        """Set the core.xa.extra-languages repo option
 
         Define the flatpak languages to use for installs via the
-        core.xa.languages repo config option.
+        core.xa.extra-languages repo config option.
         """
         if len(self.locales) == 0:
             return
         repo = self.get_repo()
         repo_config = repo.copy_config()
         value = ';'.join(self.locales)
-        logger.info('Setting repo option core.xa.languages to %s', value)
-        repo_config.set_value('core', 'xa.languages', value)
-        repo.write_config(repo_config)
-        self.installation.drop_caches()
-
-    def _remove_languages(self):
-        """Remove the core.xa.languages repo option
-
-        Remove the flatpak languages repo config option.
-        """
-        repo = self.get_repo()
-        repo_config = repo.copy_config()
-        try:
-            repo_config.remove_key('core', 'xa.languages')
-        except GLib.Error as err:
-            # Ignore errors for missing group or key
-            if err.matches(GLib.KeyFile.error_quark(),
-                           GLib.KeyFileError.GROUP_NOT_FOUND):
-                pass
-            elif err.matches(GLib.KeyFile.error_quark(),
-                             GLib.KeyFileError.KEY_NOT_FOUND):
-                pass
-            else:
-                raise
+        logger.info('Setting repo option core.xa.extra-languages to %s', value)
+        repo_config.set_value('core', 'xa.extra-languages', value)
         repo.write_config(repo_config)
         self.installation.drop_caches()
 
     def enumerate_remotes(self):
         """Enumerate all configured remotes"""
-        # Set xa.languages since subpaths get calculated when calling
+        # Set xa.extra-languages since subpaths get calculated when calling
         # installation.list_remote_related_refs_sync().
-        self._set_languages()
+        self._set_extra_languages()
         for remote in self.remotes.values():
             remote.enumerate()
-        self._remove_languages()
 
     def _match_runtime(self, ref, runtime):
         """Find a ref's runtime
