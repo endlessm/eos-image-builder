@@ -616,6 +616,20 @@ class FlatpakManager(object):
                     self.installation_path, GLib.format_size(free),
                     GLib.format_size(total), percent)
 
+    def _check_excluded(self, full_ref):
+        """Verifies that full_ref may be included in images, raising an
+        exception if not."""
+        remote = full_ref.remote
+
+        if remote.check_excluded(full_ref.name):
+            raise FlatpakError(full_ref.ref, "in", remote.name,
+                               "is on excluded list")
+
+        if full_ref.extra_data:
+            raise FlatpakError(full_ref.ref, "in", remote.name,
+                               "contains potentially non-redistributable",
+                               "extra data")
+
     def resolve_refs(self, split=False):
         """Resolve all refs needed for installation
 
@@ -642,13 +656,7 @@ class FlatpakManager(object):
                 if full_ref is None:
                     raise FlatpakError('Could not find app', app, 'in',
                                        remote.name)
-                if remote.check_excluded(full_ref.name):
-                    raise FlatpakError('Explicitly added app', app, 'in',
-                                       remote.name, 'is on excluded list.')
-                if full_ref.extra_data:
-                    raise FlatpakError('Refusing to include', app, 'as it',
-                                       'contains potentially non-redistributable',
-                                       'extra data.')
+                self._check_excluded(full_ref)
                 logger.info('Adding app %s from %s', full_ref.ref,
                             remote.name)
                 self.install_refs[full_ref.ref] = FlatpakInstallRef(
@@ -659,9 +667,7 @@ class FlatpakManager(object):
                 if full_ref is None:
                     raise FlatpakError('Could not find runtime',
                                        runtime, 'in', remote.name)
-                if remote.check_excluded(full_ref.name):
-                    raise FlatpakError('Explicitly added runtime', runtime, 'in',
-                                       remote.name, 'is on excluded list.')
+                self._check_excluded(full_ref)
                 logger.info('Adding runtime %s from %s', full_ref.ref,
                             remote.name)
                 self.install_refs[full_ref.ref] = FlatpakInstallRef(
@@ -684,11 +690,11 @@ class FlatpakManager(object):
                         raise FlatpakError('Could not find runtime',
                                            full_ref.runtime, 'for ref',
                                            full_ref.ref)
-                    if runtime.remote.check_excluded(runtime.name):
-                        raise FlatpakError('Runtime', runtime.ref, 'for ref',
-                                           full_ref.ref, 'from',
-                                           runtime.remote.name,
-                                           'is on excluded list.')
+                    try:
+                        self._check_excluded(runtime)
+                    except FlatpakError as e:
+                        raise FlatpakError("Can't install runtime for ref",
+                                           full_ref.ref, "-", e.msg)
                     logger.info('Adding %s runtime %s from %s',
                                 full_ref.ref, runtime.ref,
                                 runtime.remote.name)
@@ -711,9 +717,11 @@ class FlatpakManager(object):
                                 'Could not find related ref %s for %s',
                                 related_ref, full_ref.ref)
                             continue
-                        if match.remote.check_excluded(match.name):
-                            logger.info('Excluding %s related ref %s from %s',
-                                        full_ref.ref, related_ref, match.remote.name)
+                        try:
+                            self._check_excluded(match)
+                        except FlatpakError as e:
+                            logger.info("Excluding %s related ref: %s",
+                                        full_ref.ref, e)
                             continue
                         logger.info('Adding %s related ref %s from %s',
                                     full_ref.ref, related_ref,
