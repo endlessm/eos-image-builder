@@ -25,6 +25,10 @@ if not config.getboolean('flatpak', 'enable', fallback=True):
 # Enable debug logging for all flatpak operations
 os.environ['G_MESSAGES_DEBUG'] = 'flatpak'
 
+# Skip flatpak parental controls checks when running from
+# the builder - see https://phabricator.endlessm.com/T27896.
+os.environ['FLATPAK_SKIP_PARENTAL_CONTROLS_NO_SYSTEM_BUS'] = '1'
+
 # Make sure we set the correct XDG_DATA_DIRS when installing, or the
 # triggers won't work properly. Normally these are always set when
 # running in a session, but may not on Jenkins. See also
