@@ -65,6 +65,14 @@ else
   mkdir -p "${BOOT}"/grub
 fi
 
+# Platform dependent boot arguments
+platform_bootargs="platform_bootargs="
+if [ "${EIB_PLATFORM}" == "rpi3" ]; then
+  # RPi3 needs the memory config if vc4 is loaded
+  # https://phabricator.endlessm.com/T27774#757530
+  platform_bootargs+="cma=256M@512M"
+fi
+
 # 62MB seems to be arbitrarily chosen to minimize the impact of the ESP
 # on non-EFI and low storage (small EMMC) devices.
 esp_size=62
@@ -456,9 +464,12 @@ EOF
       esac
       ;;
     arm64)
+      cp "${EIB_DATADIR}"/arm64/boot.src "${EIB_TMPDIR}"/boot.scr
+      sed -i "1s/^/"$platform_bootargs"\n/" "${EIB_TMPDIR}"/boot.scr
+
       # Make a boot script for u-boot
       mkimage -T script -C none -n "Endless OS arm64 boot script" -d \
-        "${EIB_DATADIR}"/arm64/boot.src \
+        "${EIB_TMPDIR}"/boot.scr \
         "${ROOT}"/boot/boot.scr
 
       case "${EIB_PLATFORM}" in
