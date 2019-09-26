@@ -26,5 +26,5 @@ echo "Load RAM disk ..."
 ext4load ${devtype} ${devnum}:${distro_bootpart} ${ramdisk_addr_r} /boot/${ramdisk_image}
 
 echo "Boot ..."
-setenv bootargs root=LABEL=ostree ${bootargs} splash
+setenv bootargs root=LABEL=ostree ${bootargs} ${platform_bootargs}
 booti ${kernel_addr_r} ${ramdisk_addr_r}:${filesize} ${fdt_addr_r}
