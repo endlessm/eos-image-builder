@@ -1,0 +1,7 @@
+# Dump flatpak locales variable into a json file that will be concatenated 
+# with the image manifest
+cat > "${EIB_MANIFESTDIR}"/flatpak-locales.json <<EOF
+{
+  "flatpak_locales": "${EIB_FLATPAK_LOCALES}"
+}
+EOF
