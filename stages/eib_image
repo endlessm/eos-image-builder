@@ -473,16 +473,27 @@ EOF
         "${ROOT}"/boot/boot.scr
 
       case "${EIB_PLATFORM}" in
-        rpi3)
+        rpi3|rpi4)
           mkfs.vfat ${boot_loop}
 
-          # Copy Raspberry Pi's bootloader and u-boot
-          mkdir ${EIB_TMPDIR}/rpi3boot
-          eib_mount ${boot_loop} ${EIB_TMPDIR}/rpi3boot
-          cp ${EIB_DATADIR}/rpi3/* ${EIB_TMPDIR}/rpi3boot/
-          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_3
-          cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpi3boot/kernel8.img
-          eib_umount ${EIB_TMPDIR}/rpi3boot
+          # Copy Raspberry Pi's bootloader
+          mkdir ${EIB_TMPDIR}/rpiboot
+          eib_mount ${boot_loop} ${EIB_TMPDIR}/rpiboot
+          cp ${EIB_DATADIR}/rpi-common/* ${EIB_TMPDIR}/rpiboot/
+          # Copy Raspberry Pi's u-boot
+          case "${EIB_PLATFORM}" in
+            rpi3)
+              local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_3
+	      ;;
+            rpi4)
+	      local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_4
+	      # Also need device tree for RPi 4
+	      # https://phabricator.endlessm.com/T27942#760094
+	      cp ${EIB_DATADIR}/rpi4/* ${EIB_TMPDIR}/rpiboot/
+	      ;;
+            cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpiboot/kernel8.img
+          esac
+          eib_umount ${EIB_TMPDIR}/rpiboot
           ;;
         *)
           echo "Unrecognized arm64 platform ${EIB_PLATFORM}" >&2
