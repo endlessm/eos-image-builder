@@ -67,8 +67,8 @@ fi
 
 # Platform dependent boot arguments
 platform_bootargs="platform_bootargs="
-if [ "${EIB_PLATFORM}" == "rpi3" ]; then
-  # RPi3 needs the memory config if vc4 is loaded
+if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
+  # Raspberry Pi needs the memory config if vc4 is loaded
   # https://phabricator.endlessm.com/T27774#757530
   platform_bootargs+="cma=256M@512M"
 fi
@@ -223,7 +223,7 @@ create_image() {
 
      # Raspberry Pi'ss GPU starts the boot process by loading bootloader blobs
      # from the first partition which must be VFAT.
-     if [ "${EIB_PLATFORM}" == "rpi3" ]; then
+     if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
          # BOOT Partition
          echo "size=100MiB, type=c"
      fi
@@ -266,8 +266,8 @@ create_image() {
        rootfs_attrs="$rootfs_attrs LegacyBIOSBootable"
      fi
 
-     if [[ "${EIB_PLATFORM}" == "rpi3" ]]; then
-       # Make u-boot find the bootable partition which is rootfs for rpi3
+     if [[ "${EIB_PLATFORM:0:3}" == "rpi" ]]; then
+       # Make u-boot find the bootable partition which is rootfs for Raspberry Pi
        echo -n "bootable "
      fi
 
@@ -305,7 +305,7 @@ create_image() {
     *)
       # On ARM disable 64bit ext4 option
       ext4_opts="dir_index,^huge_file,^64bit"
-      if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ] || [ "${EIB_PLATFORM}" == "rpi3" ]; then
+      if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ] || [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
         boot_loop=${img_loop}p1
         root_loop=${img_loop}p2
       else
