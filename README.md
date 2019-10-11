@@ -324,7 +324,7 @@ information in these files to gather information from the previous
 build.
 
 Hooks signal that an update is needed by exiting with a special error
-code. This is available in `eib.sh` from the environnment variable
+code. This is available in `eib.sh` from the environment variable
 `EIB_CHECK_EXIT_BUILD_NEEDED`. Python hooks can access this code from
 the `eib` module attribute `CHECK_EXIT_BUILD_NEEDED`. If no update is
 needed, then the hooks should exit successfully. Other exit codes are
