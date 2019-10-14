@@ -4,4 +4,4 @@
 pushd "${EIB_OUTDIR}"
 sha256sum * > SHA256SUMS
 popd
-sign_file "$(eib_outfile SHA256SUMS)" "$(eib_outfile SHA256SUMS).gpg"
+sign_file "${EIB_OUTDIR}/SHA256SUMS" "${EIB_OUTDIR}/SHA256SUMS.gpg"
