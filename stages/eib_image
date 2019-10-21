@@ -338,7 +338,7 @@ create_image() {
 
   if [[ "$readahead_files" ]]; then
     # First, copy only files used during boot process. This ensures they are
-    # mostly contitugous at the start of the partition.
+    # mostly contiguous at the start of the partition.
     rsync -aHAX --files-from="$readahead_files" \
       "${EIB_OSTREE_CHECKOUT}/" "${ROOT}/"
     if [[ -n "$ESP" && -d "$ESP" ]]; then
