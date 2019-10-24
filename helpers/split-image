@@ -63,8 +63,8 @@ shrink_disk1_image() {
   disk1_max_img_size=$(python -c "print int(${disk1_size} * 0.98)")
   ((disk1_max_img_size -= 1 * 2**30))
   if ((new_disk1_img_size > disk1_max_img_size)); then
-    echo "ERROR: ${EIB_PERSONALITY} disk1 image exceeds" \
-         "${disk1_max_img_size}" >&2
+    echo "ERROR: ${EIB_PERSONALITY} disk1 image size ${new_disk1_img_size} " \
+         "exceeds ${disk1_max_img_size}" >&2
     return 1
   fi
 
