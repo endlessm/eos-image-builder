@@ -58,7 +58,8 @@ installation_file = repo_file.get_parent()
 installation = Flatpak.Installation.new_for_path(installation_file,
                                                  user=False)
 
-manager = eibflatpak.FlatpakManager(installation, config=config)
+manager = eibflatpak.FlatpakManager(installation, config=config,
+                                    is_cache_repo=True)
 manager.add_remotes()
 manager.enumerate_remotes()
 manager.resolve_refs()
