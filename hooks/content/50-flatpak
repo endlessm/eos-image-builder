@@ -38,6 +38,20 @@ print('Creating flatpak content repo at', repo_path)
 os.makedirs(repo_path, exist_ok=True)
 repo.create(OSTree.RepoMode.ARCHIVE_Z2)
 
+# Remove any xa.* options in the core config section that might be left
+# over from a previous build. FlatpakManager will set any that are
+# needed for this build.
+removed_options = False
+repo_config = repo.copy_config()
+core_options, _ = repo_config.get_keys('core')
+for opt in core_options:
+    if opt.startswith('xa.'):
+        logger.info('Removing content repo option core.%s', opt)
+        repo_config.remove_key('core', opt)
+        removed_options = True
+if removed_options:
+    repo.write_config(repo_config)
+
 # Open the parent directory as a flatpak installation so the API can be
 # used for repo operations
 installation_file = repo_file.get_parent()
