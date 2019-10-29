@@ -1,7 +1,8 @@
 # Dump flatpak locales variable into a json file that will be concatenated 
-# with the image manifest
+# with the image manifest. Use jq to reformat the newline-separated list of
+# locales as a JSON array of strings, dropping empty elements.
 cat > "${EIB_MANIFESTDIR}"/flatpak-locales.json <<EOF
 {
-  "flatpak_locales": "${EIB_FLATPAK_LOCALES}"
+  "flatpak_locales": $(echo -e "${EIB_FLATPAK_LOCALES}" | jq --raw-input --slurp 'split("\n") | map(select(. != ""))')
 }
 EOF
