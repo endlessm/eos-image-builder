@@ -447,13 +447,15 @@ class FlatpakManager(object):
     """
     REMOTE_PREFIX = 'flatpak-remote-'
 
-    def __init__(self, installation, config=None):
+    def __init__(self, installation, config=None, is_cache_repo=False):
         self.installation = installation
         self.installation_path = self.installation.get_path().get_path()
 
         self.config = config
         if self.config is None:
             self.config = eib.get_config()
+
+        self.is_cache_repo = is_cache_repo
 
         self.install_refs = None
 
@@ -519,6 +521,39 @@ class FlatpakManager(object):
         for remote in self.remotes.values():
             remote.deploy()
 
+    def _set_all_languages(self):
+        """Set the core.xa.languages repo option to *
+
+        Configure flatpak to fetch all languages via the core.xa.languages
+        repo config option.
+        """
+        repo = self.get_repo()
+        repo_config = repo.copy_config()
+        logger.info('Setting repo option core.xa.languages to *')
+        repo_config.set_value('core', 'xa.languages', '*')
+        repo.write_config(repo_config)
+        self.installation.drop_caches()
+
+    def _remove_languages(self):
+        """Remove the core.xa.languages repo option"""
+        repo = self.get_repo()
+        repo_config = repo.copy_config()
+        logger.info('Removing repo option core.xa.languages')
+        try:
+            repo_config.remove_key('core', 'xa.languages')
+        except GLib.Error as err:
+            # Ignore errors for missing group or key
+            if err.matches(GLib.KeyFile.error_quark(),
+                           GLib.KeyFileError.GROUP_NOT_FOUND):
+                pass
+            elif err.matches(GLib.KeyFile.error_quark(),
+                             GLib.KeyFileError.KEY_NOT_FOUND):
+                pass
+            else:
+                raise
+        repo.write_config(repo_config)
+        self.installation.drop_caches()
+
     def _set_extra_languages(self):
         """Set the core.xa.extra-languages repo option
 
@@ -537,11 +572,22 @@ class FlatpakManager(object):
 
     def enumerate_remotes(self):
         """Enumerate all configured remotes"""
-        # Set xa.extra-languages since subpaths get calculated when calling
+        # Set languages since subpaths get calculated when calling
         # installation.list_remote_related_refs_sync().
-        self._set_extra_languages()
-        for remote in self.remotes.values():
-            remote.enumerate()
+        try:
+            if self.is_cache_repo:
+                # For the cache repo, fetch all languages in case another
+                # build could use them
+                self._set_all_languages()
+            else:
+                # Configure the extra languages for installation
+                self._set_extra_languages()
+            for remote in self.remotes.values():
+                remote.enumerate()
+        finally:
+            if self.is_cache_repo:
+                # Don't leave the languages hanging around for the next build
+                self._remove_languages()
 
     def _match_runtime(self, ref, runtime):
         """Find a ref's runtime
