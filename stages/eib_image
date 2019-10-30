@@ -536,11 +536,13 @@ EOF
       rm -f "${DEPLOY}"/img
 
       # UEFI bootloader install
-      cp -r "${DEPLOY}"/usr/lib/efi_binaries/EFI "${ESP}"
-
-      # For PAYG, boot with systemd-boot instead of shim
       if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
+        # PAYG uses systemd-boot, install only that
+        mkdir -p "${ESP}/EFI/BOOT/"
         cp -r "${DEPLOY}/usr/lib/systemd/boot/efi/systemd-bootx64.efi" "${ESP}/EFI/BOOT/BOOTX64.efi"
+      else
+        # Standard endless system - grub, shim, all that kind of thing
+        cp -r "${DEPLOY}"/usr/lib/efi_binaries/EFI "${ESP}"
       fi
 
       if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
@@ -610,6 +612,10 @@ EOF
       "signature": "${boot_zip_signature}"
     },
 EOF
+      elif [[ "${EIB_IMAGE_SDBOOT}" == "true" ]]; then
+        # We're building a PAYG image, so do nothing and move on instead
+        # of polluting the ESP with non-PAYG binaries.
+        :
       else
         # No boot.zip means this is eosinstaller, not an installable image.
         # Since this will only be used on removable media, it should not
