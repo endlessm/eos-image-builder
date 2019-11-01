@@ -480,6 +480,10 @@ class FlatpakManager(object):
         self.enable_p2p_updates = self.config.getboolean(
             'flatpak', 'enable_p2p_updates', fallback=False)
 
+        # See if extra-languages should be set
+        self.set_extra_languages = self.config.getboolean(
+            'flatpak', 'set_extra_languages', fallback=False)
+
         self.remotes = OrderedDict()
         for sect in self.config.sections():
             head, sep, name = sect.partition(self.REMOTE_PREFIX)
@@ -538,19 +542,20 @@ class FlatpakManager(object):
         """Remove the core.xa.languages repo option"""
         repo = self.get_repo()
         repo_config = repo.copy_config()
-        logger.info('Removing repo option core.xa.languages')
-        try:
-            repo_config.remove_key('core', 'xa.languages')
-        except GLib.Error as err:
-            # Ignore errors for missing group or key
-            if err.matches(GLib.KeyFile.error_quark(),
-                           GLib.KeyFileError.GROUP_NOT_FOUND):
-                pass
-            elif err.matches(GLib.KeyFile.error_quark(),
-                             GLib.KeyFileError.KEY_NOT_FOUND):
-                pass
-            else:
-                raise
+        for option in ["xa.languages", "xa.extra-languages"]:
+            logger.info("Removing repo option core.%s", option)
+            try:
+                repo_config.remove_key('core', option)
+            except GLib.Error as err:
+                # Ignore errors for missing group or key
+                if err.matches(GLib.KeyFile.error_quark(),
+                               GLib.KeyFileError.GROUP_NOT_FOUND):
+                    pass
+                elif err.matches(GLib.KeyFile.error_quark(),
+                                 GLib.KeyFileError.KEY_NOT_FOUND):
+                    pass
+                else:
+                    raise
         repo.write_config(repo_config)
         self.installation.drop_caches()
 
@@ -585,8 +590,9 @@ class FlatpakManager(object):
             for remote in self.remotes.values():
                 remote.enumerate()
         finally:
-            if self.is_cache_repo:
+            if self.is_cache_repo or not self.set_extra_languages:
                 # Don't leave the languages hanging around for the next build
+                # or set in the image, respectively
                 self._remove_languages()
 
     def _match_runtime(self, ref, runtime):
