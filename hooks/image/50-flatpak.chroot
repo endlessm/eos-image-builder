@@ -14,6 +14,7 @@ import os
 import sys
 import time
 import subprocess
+import shutil
 
 logger = logging.getLogger(os.path.basename(__file__))
 eib.setup_logging()
@@ -75,4 +76,17 @@ manager.deploy_remotes()
 # Prune the installation to drop unused refs and objects
 logger.info('Cleaning up installation %s', installation_path)
 installation.cleanup_local_refs_sync()
+
+# Due to a bug which is not yet fully diagnosed, Flatpak sometimes writes refs
+# at refs/mirrors/$COLLECTION_ID/$REF as well as refs/remotes/$REMOTE/$REF, but
+# it does not remove the former when uninstalling the app/runtime, causing its
+# disk space to be (effectively) leaked.
+#
+# TODO: fix Flatpak to consistently handle these collection ID-based refs, then
+# remove this hack.
+refs_mirrors_path = os.path.join(installation_path, "repo", "refs", "mirrors")
+if os.path.isdir(refs_mirrors_path):
+    logger.info("Cleaning up p2p refs in %s", refs_mirrors_path)
+    shutil.rmtree(refs_mirrors_path)
+
 installation.prune_local_repo()
