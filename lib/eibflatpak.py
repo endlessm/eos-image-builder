@@ -880,10 +880,13 @@ class FlatpakManager(object):
                         full_ref.remote.name)
             self._log_installation_free_space()
             eib.retry(self.installation.install_full,
-                      flags=Flatpak.InstallFlags.NO_STATIC_DELTAS,
+                      flags=Flatpak.InstallFlags.NO_STATIC_DELTAS |
+                            Flatpak.InstallFlags.NO_TRIGGERS,
                       remote_name=full_ref.remote.name,
                       kind=full_ref.kind,
                       name=full_ref.name,
                       arch=full_ref.arch,
                       branch=full_ref.branch,
                       subpaths=install_ref.subpaths)
+
+        self.installation.run_triggers()
