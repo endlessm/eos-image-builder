@@ -26,6 +26,27 @@ for ent in os.listdir(flatpak_path):
         else:
             os.unlink(path)
 
+# Delete unwanted mirror refs. These are of the form
+# refs/mirrors/$COLLECTION_ID/$FLATPAK_REF, as opposed to the classic
+# refs/remotes/$REMOTE_ID/$FLATPAK_REF.  Taking advantage of the fact that
+# only Flatpaks have mirror refs, aggressively delete them all.
+#
+# TODO: replace this workaround with one of the following, in increasing order
+# of preference:
+#
+# (a) use the OSTree API to remove collection refs for all but the collection
+#     ID of the OS, once the pygobject bug is fixed
+# (b) use the Flatpak API to uninstall all Flatpaks, once Flatpak is fixed to
+#     more consistently handle mirror refs
+# (c) stop unifying the Flatpak and OS OSTree repos
+#     https://phabricator.endlessm.com/T19248
+#
+# https://phabricator.endlessm.com/T28344
+mirror_refs_path = os.path.join(repo_path, "refs", "mirrors")
+if os.path.exists(mirror_refs_path):
+    print("Removing", mirror_refs_path)
+    shutil.rmtree(mirror_refs_path)
+
 # Open the repo
 repo_file = Gio.File.new_for_path(repo_path)
 repo = OSTree.Repo.new(repo_file)
