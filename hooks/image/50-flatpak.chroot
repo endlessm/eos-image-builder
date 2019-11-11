@@ -5,15 +5,13 @@
 
 import eib
 import eibflatpak
-from gi import require_version
-require_version('Flatpak', '1.0')
-require_version('OSTree', '1.0')
-from gi.repository import Flatpak, Gio, OSTree
 import logging
 import os
 import sys
-import time
-import subprocess
+from gi import require_version
+require_version('Flatpak', '1.0')
+require_version('OSTree', '1.0')
+from gi.repository import Flatpak, Gio  # noqa: E402
 
 logger = logging.getLogger(os.path.basename(__file__))
 eib.setup_logging()
