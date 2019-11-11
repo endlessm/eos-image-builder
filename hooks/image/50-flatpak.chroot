@@ -14,7 +14,6 @@ import os
 import sys
 import time
 import subprocess
-import shutil
 
 logger = logging.getLogger(os.path.basename(__file__))
 eib.setup_logging()
@@ -85,8 +84,47 @@ installation.cleanup_local_refs_sync()
 # TODO: fix Flatpak to consistently handle these collection ID-based refs, then
 # remove this hack.
 refs_mirrors_path = os.path.join(installation_path, "repo", "refs", "mirrors")
+refs_remotes_path = os.path.join(installation_path, "repo", "refs", "remotes")
+
 if os.path.isdir(refs_mirrors_path):
     logger.info("Cleaning up p2p refs in %s", refs_mirrors_path)
-    shutil.rmtree(refs_mirrors_path)
+
+    remote_for_collection_id = {
+        remote.get_collection_id(): remote.get_name()
+        for remote in installation.list_remotes()
+        if remote.get_collection_id() is not None
+    }
+
+    refs_mirrors_fd = os.open(refs_mirrors_path, os.O_RDONLY)
+    for root, dirs, files, rootfd in os.fwalk(
+        dir_fd=refs_mirrors_fd, topdown=False,
+    ):
+        bits = root.split(os.path.sep)
+        assert bits[0] == "."
+        if len(bits) > 1:
+            collection_id = bits[1]
+            remote = remote_for_collection_id[collection_id]
+            remote_root = os.path.join(refs_remotes_path, remote, *bits[2:])
+
+            for filename in files:
+                remote_ref = os.path.join(remote_root, filename)
+                mirror_ref = os.path.join(refs_mirrors_path, root, filename)
+                if not os.path.exists(remote_ref):
+                    raise eibflatpak.FlatpakError(
+                        f"{mirror_ref} exists, but {remote_ref} does not"
+                    )
+                print(f"Removing {mirror_ref} since {remote_ref} exists")
+                os.unlink(filename, dir_fd=rootfd)
+        elif files:
+            # This is just the refs/mirrors/ directory itself. We don't expect
+            # any files here, only directories named after collection IDs.
+            raise eibflatpak.FlatpakError(
+                f"Unexpected files in {root}:", *files
+            )
+
+        for dirname in dirs:
+            os.rmdir(dirname, dir_fd=rootfd)
+
+    os.rmdir(refs_mirrors_path)
 
 installation.prune_local_repo()
