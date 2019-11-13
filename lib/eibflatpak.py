@@ -810,6 +810,7 @@ class FlatpakManager(object):
         localcache_repos = (cache_repo_path,) if cache_repo_path else ()
         common_pull_options = {
             'depth': GLib.Variant('i', 0),
+            'disable-static-deltas': GLib.Variant('b', True),
             'localcache-repos': GLib.Variant('as', localcache_repos),
             'inherit-transaction': GLib.Variant('b', True),
         }
@@ -838,8 +839,6 @@ class FlatpakManager(object):
                                 ref, ' '.join(subdirs))
                     options.update({
                         'subdirs': GLib.Variant('as', subdirs),
-                        # Ensure no deltas are used for subdir pull
-                        'disable-static-deltas': GLib.Variant('b', True)
                     })
                 options_var = GLib.Variant('a{sv}', options)
                 self._log_installation_free_space()
@@ -881,10 +880,13 @@ class FlatpakManager(object):
                         full_ref.remote.name)
             self._log_installation_free_space()
             eib.retry(self.installation.install_full,
-                      flags=Flatpak.InstallFlags.NONE,
+                      flags=Flatpak.InstallFlags.NO_STATIC_DELTAS |
+                            Flatpak.InstallFlags.NO_TRIGGERS,
                       remote_name=full_ref.remote.name,
                       kind=full_ref.kind,
                       name=full_ref.name,
                       arch=full_ref.arch,
                       branch=full_ref.branch,
                       subpaths=install_ref.subpaths)
+
+        self.installation.run_triggers()
