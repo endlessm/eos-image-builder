@@ -1,0 +1,20 @@
+# Add custom policies to the chrome/chromium filetree
+
+[ "${EIB_IMAGE_CHROMIUM_POLICIES}" = true ] || exit 0
+
+CHROME_DIR="${OSTREE_DEPLOYMENT}"/etc/opt/chrome/policies
+CHROMIUM_DIR="${OSTREE_DEPLOYMENT}"/etc/chromium-browser/policies
+
+if [ -n "${EIB_IMAGE_CHROMIUM_POLICIES_MANAGED}" ]; then
+	mkdir -p "${CHROME_DIR}"/managed
+	mkdir -p "${CHROMIUM_DIR}"/managed
+	cp "${EIB_IMAGE_CHROMIUM_POLICIES_MANAGED}" "${CHROME_DIR}"/managed
+	cp "${EIB_IMAGE_CHROMIUM_POLICIES_MANAGED}" "${CHROMIUM_DIR}"/managed
+fi
+
+if [ -n "${EIB_IMAGE_CHROMIUM_POLICIES_RECOMMENDED}" ]; then
+	mkdir -p "${CHROME_DIR}"/recommended
+	mkdir -p "${CHROMIUM_DIR}"/recommended
+	cp "${EIB_IMAGE_CHROMIUM_POLICIES_RECOMMENDED}" "${CHROME_DIR}"/recommended
+	cp "${EIB_IMAGE_CHROMIUM_POLICIES_RECOMMENDED}" "${CHROMIUM_DIR}"/recommended
+fi
