@@ -495,7 +495,17 @@ class FlatpakManager(object):
                 raise FlatpakError(
                     'No remote name suffix in config section', sect)
 
+            # Skip if the remote is disabled
+            remote_enabled = self.config.getboolean(
+                sect, 'enable', fallback=True)
+            if not remote_enabled:
+                logger.info('Remote %s disabled, skipping', name)
+                continue
+
+            # Pass the remote options as keyword arguments to
+            # FlatpakRemote after removing unrecognized options
             remote_options = dict(self.config.items_no_default(sect))
+            remote_options.pop('enable', None)
             logger.debug('Remote %s options: %s', name, remote_options)
             self.remotes[name] = FlatpakRemote(self, name,
                                                **remote_options)
