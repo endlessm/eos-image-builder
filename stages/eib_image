@@ -184,6 +184,12 @@ create_image() {
   (( extra_size < min_extra_size )) && extra_size=${min_extra_size}
   (( img_size += extra_size ))
   (( img_size -= img_size % 512 ))
+
+  if [[ "${EIB_IMAGE_MAX_SIZE}" ]] && (( img_size > EIB_IMAGE_MAX_SIZE )); then
+    echo "ERROR: $1 image size ${img_size} exceeds ${EIB_IMAGE_MAX_SIZE}" >&2
+    return 1
+  fi
+
   echo "Creating $1 image with size ${img_size}"
 
   local img="${EIB_TMPDIR}/${EIB_OUTVERSION}.img"
