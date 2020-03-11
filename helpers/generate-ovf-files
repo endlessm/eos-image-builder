@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+'''
+Generate Open Virtualization Format package for Endless OS
+'''
+
+import argparse
+import os
+import subprocess
+import uuid
+from xml.dom import minidom
+from xml.etree import ElementTree
+from xml.etree.ElementTree import Element, SubElement
+
+class OVFGenerator:
+    # System configuration
+    EXTRA_STORAGE = 10 # gigabytes
+    RAM = 2048    # megabytes
+    CPUS = 1
+    VM_UUID = None
+    VOL_UUID = None
+    IMAGE_FILE = None
+    IMG_SIZE = None
+    VMDISK_SIZE = None
+    VM_NAME = None
+
+    def __init__(self, image_file, storage=None, memory=None, cpus=None):
+        if storage is not None:
+            self.EXTRA_STORAGE = storage
+        if memory is not None:
+            self.RAM = memory
+        if cpus is not None:
+            self.CPUS = cpus
+        self.IMAGE_FILE = image_file
+        self.VM_NAME = self.__trim_file_type(os.path.basename(image_file))
+        self.VM_UUID = str(uuid.uuid4())
+        self.VOL_UUID = str(uuid.uuid4())
+
+    def __run(self, cmd, shell=False):
+        '''Run cmd locally.'''
+        print('# {}'.format(cmd))
+
+        return subprocess.check_output(cmd, shell=shell)
+
+    def __trim_file_type(self, filename):
+        if filename.endswith('.img.xz') or \
+           filename.endswith('.img.gz'):
+            return filename[:-7]
+        elif filename.endswith('.img'):
+            return filename[:-4]
+        else:
+            raise Exception('Unknown input file type for %s. (not .img.xz, .img.gz or .img)' % filename)
+
+    def __create_virtual_disk(self, input_filename):
+        # Sort out the input file format.
+        compressed_img_filename = None
+        img_filename = None
+        vmdk_filename = None
+        extra_size = self.EXTRA_STORAGE * 1024 * 1024 * 1024
+        sizeopt = None
+
+        if input_filename.endswith('.img'):
+            img_filename = input_filename
+        elif input_filename.endswith('.img.xz') or input_filename.endswith('.img.gz'):
+            compressed_img_filename = input_filename
+            img_filename, ext = os.path.splitext(compressed_img_filename)
+            cmds = {
+                '.gz': ['gunzip', '-k', compressed_img_filename],
+                '.xz': ['unxz', '-kv', compressed_img_filename],
+            }
+            self.__run(cmds[ext])
+
+        self.IMG_SIZE = os.stat(img_filename).st_size
+        self.VMDISK_SIZE = self.IMG_SIZE + extra_size
+        sizeopt = '+' + str(extra_size)
+        self.__run(['qemu-img', 'resize', '-f', 'raw', img_filename, sizeopt])
+
+        vmdk_filename = img_filename[:-4] + '.vmdk'
+        self.__run(['qemu-img', 'convert', '-p', '-O', 'vmdk',
+                    img_filename, vmdk_filename])
+        if compressed_img_filename:
+            self.__run(['rm', '-f', img_filename])
+
+    def __generate_ovf(self, pathname):
+        hw_items = [None] * 5
+
+        top = Element('ovf:Envelope')
+        top.set('ovf:version', '1.0')
+        top.set('xmlns:ovf', 'http://schemas.dmtf.org/ovf/envelope/1')
+        top.set('xmlns:vbox', 'http://www.virtualbox.org/ovf/machine')
+        top.set('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance')
+        top.set('xmlns:vssd', 'http://schemas.dmtf.org/wbem/wscim/1/' +
+                              'cim-schema/2/CIM_VirtualSystemSettingData')
+        top.set('xmlns:rasd', 'http://schemas.dmtf.org/wbem/wscim/1/' +
+                              'cim-schema/2/CIM_ResourceAllocationSettingData')
+
+        ref = SubElement(top, 'References')
+        SubElement(ref, 'File', {'ovf:href': self.VM_NAME + '.vmdk',
+                                 'ovf:id': self.VM_NAME + '0',
+                                 'ovf:size': str(self.VMDISK_SIZE)})
+
+        # Network section
+        network_section = SubElement(top, 'NetworkSection')
+        SubElement(network_section, 'Info').text = 'List of networks'
+        network = SubElement(network_section, 'Network', {'ovf:name':'NAT'})
+        SubElement(network, 'Description').text = 'NAT network used by this VM'
+
+        # Disk section
+        disk_section = SubElement(top, 'DiskSection')
+        SubElement(disk_section, 'Info').text = 'List of Virtual Disks'
+        SubElement(disk_section, 'Disk',
+                   {'ovf:diskId': 'vmdisk0',
+                    'ovf:capacity': str(self.VMDISK_SIZE),
+                    'ovf:fileRef': self.VM_NAME + '0',
+                    'ovf:format':
+                         'http://www.vmware.com/interfaces/specifications/' +
+                         'vmdk.html#streamOptimized',
+                    'ovf:disk-type':'System',
+                    'ovf:boot': 'True',
+                    'vbox:uuid': self.VOL_UUID})
+
+        # Virtual System section
+        virtual_section = SubElement(top, 'VirtualSystem',
+                                     {'ovf:id': self.VM_NAME})
+        SubElement(virtual_section, 'Info').text = 'Endless linux x86_64'
+        SubElement(virtual_section, 'Name').text = 'Endless'
+        os_section = SubElement(virtual_section, 'OperatingSystemSection',
+                                {'ovf:id': '101', 'ovf:required': 'false'})
+        SubElement(os_section, 'Info').text = 'The OS contained in this VM'
+        SubElement(os_section, 'Description').text = 'Endless OS'
+        vhw_section = SubElement(virtual_section, 'VirtualHardwareSection')
+        SubElement(vhw_section, 'Info').text = str(self.CPUS) + ' CPU, ' + str(self.RAM) + ' Memory'
+
+        hw_items[0] = Element('Item')
+        SubElement(hw_items[0], 'rasd:Caption').text = str(self.CPUS) + ' virtual cpu'
+        SubElement(hw_items[0], 'rasd:Description').text = 'Number of ' + 'virtual CPUs'
+        SubElement(hw_items[0], 'rasd:InstanceID').text = str(self.CPUS)
+        SubElement(hw_items[0], 'rasd:ResourceType').text = '3'
+        SubElement(hw_items[0], 'rasd:VirtualQuantity').text = str(self.CPUS)
+        vhw_section.append(hw_items[0])
+
+        hw_items[1] = Element('Item')
+        SubElement(hw_items[1], 'rasd:AllocationUnits').text = 'byte * 2^20'
+        SubElement(hw_items[1], 'rasd:Caption').text = str(self.RAM) + ' MB of memory'
+        SubElement(hw_items[1], 'rasd:Description').text = 'Memory Size'
+        SubElement(hw_items[1], 'rasd:InstanceID').text = '2'
+        SubElement(hw_items[1], 'rasd:ResourceType').text = '4'
+        SubElement(hw_items[1], 'rasd:VirtualQuantity').text = str(self.RAM)
+        vhw_section.append(hw_items[1])
+
+        hw_items[2] = Element('Item')
+        SubElement(hw_items[2], 'rasd:Address').text = '0'
+        SubElement(hw_items[2], 'rasd:Caption').text = 'sataController0'
+        SubElement(hw_items[2], 'rasd:Description').text = 'SATA Controller'
+        SubElement(hw_items[2], 'rasd:ElementName').text = 'sataController0'
+        SubElement(hw_items[2], 'rasd:InstanceID').text = '3'
+        SubElement(hw_items[2], 'rasd:ResourceSubType').text = 'AHCI'
+        SubElement(hw_items[2], 'rasd:ResourceType').text = '20'
+        vhw_section.append(hw_items[2])
+
+        hw_items[3] = Element('Item')
+        SubElement(hw_items[3], 'rasd:AutomaticAllocation').text = 'true'
+        SubElement(hw_items[3], 'rasd:Caption').text = 'Ethernet adapter on "NAT"'
+        SubElement(hw_items[3], 'rasd:Connection').text = 'NAT'
+        SubElement(hw_items[3], 'rasd:ElementName').text = 'Ethernet Adapter on "NAT"'
+        SubElement(hw_items[3], 'rasd:InstanceID').text = '4'
+        SubElement(hw_items[3], 'rasd:ResourceSubType').text = 'E1000'
+        SubElement(hw_items[3], 'rasd:ResourceType').text = '10'
+        vhw_section.append(hw_items[3])
+
+        # depends on how many disk images
+        hw_items[4] = Element('Item')
+        SubElement(hw_items[4], 'rasd:AddressOnParent').text = '0'
+        SubElement(hw_items[4], 'rasd:ElementName').text = 'Drive 0'
+        SubElement(hw_items[4], 'rasd:HostResource').text = 'ovf:/disk/vmdisk0'
+        SubElement(hw_items[4], 'rasd:InstanceID').text = '5'
+        SubElement(hw_items[4], 'rasd:Parent').text = '3'
+        SubElement(hw_items[4], 'rasd:ResourceType').text = '17'
+        vhw_section.append(hw_items[4])
+
+        # vbox:Machine section
+        vMachine = SubElement(virtual_section, 'vbox:Machine',
+                              {'ovf:required': 'false',
+                               'version': '1.16-linux',
+                               'uuid': '{'+str(self.VM_UUID)+'}',
+                               'name': self.VM_NAME})
+        SubElement(vMachine, 'ovf:Info').text = 'Extra Virtual Machine Configuration in VirtualBoxFormat'
+        hw = SubElement(vMachine, 'Hardware')
+        SubElement(hw, 'CPU', {'count':str(self.CPUS)})
+        SubElement(hw, 'BIOS')
+        SubElement(hw, 'Memory', {'RAMSize':str(self.RAM)})
+        network = SubElement(hw, 'Network')
+        SubElement(network, 'Adapter',
+                   {'slot': '0',
+                    'enabled': 'true',
+                    'type': '82540EM'}).append(Element('NAT'))
+        for i in range(1, 8):
+            SubElement(network, 'Adapter', {'slot':str(i), 'type':'82540EM'})
+
+        # Storage Controllers section
+        storage = SubElement(vMachine, 'StorageControllers')
+        attach_dev = Element('AttachedDevice', {'type': 'HardDisk',
+                                                'hotpluggable': 'false',
+                                                'port': '0',
+                                                'device': '0'})
+        attach_dev.append(Element('Image', {'uuid': '{'+str(self.VOL_UUID)+'}'}))
+        SubElement(storage, 'StorageController',
+                   {'name': 'SATA Controller',
+                    'type': 'AHCI',
+                    'PortCount': '1'}).append(attach_dev)
+        SubElement(storage, 'StorageController',
+                   {'name': 'Floppy Controller Controller',
+                    'type': 'I82078',
+                    'PortCount': '1'})
+
+        # Output OVF description file
+        mydata = ElementTree.tostring(top, 'utf-8')
+        reparsed = minidom.parseString(mydata)
+        ovfile = open(self.__trim_file_type(pathname)+'.ovf', 'w')
+        ovfile.write(reparsed.toprettyxml(indent='    '))
+        ovfile.close()
+
+    def __archive_to_zip(self, out_path=None):
+        ovf_file = self.__trim_file_type(self.IMAGE_FILE) + '.ovf'
+        vmdk_file = self.__trim_file_type(self.IMAGE_FILE) + '.vmdk'
+        mf_file = self.__trim_file_type(self.IMAGE_FILE) + '.mf'
+        if out_path != None:
+            zip_file = out_path
+        else:
+            zip_file = self.__trim_file_type(self.IMAGE_FILE) + '.ovf.zip'
+
+        manifest = open(mf_file, 'w')
+        for f in ovf_file, vmdk_file:
+            digest = self.__run(['openssl', 'sha256', '-r', f]).decode('utf-8').split()[0]
+            manifest.write('SHA256(' + os.path.basename(f) + ')= ' + digest + '\n')
+        manifest.close()
+
+        self.__run(['zip', '--junk-paths', zip_file, ovf_file, vmdk_file, mf_file])
+
+        uncompressed_size = os.stat(ovf_file).st_size + os.stat(vmdk_file).st_size + os.stat(mf_file).st_size
+        size_file = open(zip_file + '.size', 'w')
+        size_file.write(str(uncompressed_size))
+        size_file.close()
+
+    def __del__(self):
+        # Remove left-over artifacts
+        ovf_file = self.__trim_file_type(self.IMAGE_FILE) + '.ovf'
+        vmdk_file = self.__trim_file_type(self.IMAGE_FILE) + '.vmdk'
+        mf_file = self.__trim_file_type(self.IMAGE_FILE) + '.mf'
+        self.__run(['rm', '-f', ovf_file, vmdk_file, mf_file])
+
+    def generate_zip_archive(self, output_file=None):
+        self.__create_virtual_disk(self.IMAGE_FILE)
+        self.__generate_ovf(self.IMAGE_FILE)
+        self.__archive_to_zip(output_file)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+    description='Import an EOS disk image into OVF format as a VM'
+                'with approiate system configuration.')
+    parser.add_argument('-c', '--cpus', type=int, required=False,
+                        help='number of virtual CPUs (default 1)')
+    parser.add_argument('-m', '--memory', type=int, required=False,
+                        help='RAM size (default 2048MB)')
+    parser.add_argument('-e', '--extra-storage', type=int, required=False,
+                        help='extra virtual disk storage (in addition to the '
+                             'image size, default 10GB)')
+    parser.add_argument('image_file', metavar='IMAGE-FILE', type=str,
+                        help='image file to import (.img.xz, .img.gz, .img) ' )
+    parser.add_argument('output_file', metavar='OUTPUT-FILE', type=str,
+                        help='output file' )
+    args=parser.parse_args()
+
+    ovfgen = OVFGenerator(args.image_file, args.extra_storage, args.memory,
+                          args.cpus)
+    ovfgen.generate_zip_archive(args.output_file)
+
+if __name__ == '__main__':
+    main()
