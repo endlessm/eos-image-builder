@@ -29,6 +29,10 @@ hooks_del_local =
 # that locally for testing since the codepaths there are fragile.
 #split = true
 
+# Most people probably do not need VM images when building locally. Disabling
+# by default to save storage and time.
+vm_image = false
+
 # Some products are compressed with xz, trading the one-time cost of
 # substantially slower image builds for substantially smaller image
 # files. When testing locally, you probably don't care how big the image
