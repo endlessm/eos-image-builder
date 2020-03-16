@@ -35,6 +35,12 @@ hooks_del_local =
 # file is, but you'd probably like it to build quickly.
 compression = gz
 
+# One may want to completely disable flatpaks for local builds to save storage
+# and time. Also, disabling flatpak support may increase the changes of a
+# successful build.
+#[flatpak]
+#enable = false
+
 [flatpak-remote-eos-apps]
 # Completely override the set of installed EOS apps for testing. This will
 # take precedence over all other image variant configuration. This can
