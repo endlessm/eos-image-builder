@@ -15,9 +15,9 @@ ostree --repo="${EIB_OSTREE_REPODIR}" prune --refs-only --depth=0
 
 # Optionally use the production ostree repo rather than staging.
 if [ "${EIB_USE_PRODUCTION_OSTREE}" = true ]; then
-  BUILD_OSTREE_URL="${EIB_OSTREE_URL}"
+  BUILD_OSTREE_URL="${EIB_OSTREE_PROD_PULL_URL}"
 else
-  BUILD_OSTREE_URL="${EIB_OSTREE_INT_URL}"
+  BUILD_OSTREE_URL="${EIB_OSTREE_DEV_PULL_URL}"
 fi
 
 # Pull in the latest commit. Recreate the remote setup to ensure there

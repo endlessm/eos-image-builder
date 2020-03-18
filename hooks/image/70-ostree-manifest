@@ -53,7 +53,7 @@ data = {
     'ostree': {
         'remote': remote,
         'ref': ref,
-        'url': os.environ['EIB_OSTREE_URL'],
+        'url': os.environ['EIB_OSTREE_DEPLOY_URL'],
         'os': os.environ['EIB_OSTREE_OS'],
         'version': ostree_get_version(),
     }
