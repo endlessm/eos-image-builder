@@ -1,0 +1,40 @@
+#!/bin/bash -ex
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
+. "${EIB_BASELIB}"
+
+# Create a zip archive file containing:
+#  1. OVF VM description file
+#  2. VMDK virtual disk image
+#  3. Manifest file with sha256 signatures of the other files.
+#
+# The OVF file can be imported to VirtualBox and VMWare.
+create_ovf_zip() {
+  local ovfzip=$1
+  local img=$2
+
+  # Generate .zip and .zip.size containing the total uncompressed size
+  "${EIB_HELPERSDIR}"/generate-ovf-files --cpus 1 --memory 2048 --extra-storage 10 ${img} ${ovfzip}
+  sign_file ${ovfzip}
+
+  # Generate OVF manifest information
+  local ovf_name=$(basename "${ovfzip}")
+  local ovf_uncompressed_size=$(cat "${ovfzip}.size")
+  local ovf_compressed_size=$(stat -c "%s" "${ovfzip}")
+  local ovf_signature=$(basename "${ovfzip}.asc")
+
+  cat > "${EIB_MANIFESTDIR}"/ovf.json <<EOF
+{
+  "images": {
+    "ovfzip": {
+      "file": "${ovf_name}",
+      "extracted_size": ${ovf_uncompressed_size},
+      "compressed_size": ${ovf_compressed_size},
+      "compression_type": "zip",
+      "signature": "${ovf_signature}"
+    }
+  }
+}
+EOF
+}
+
+create_ovf_zip "$@"

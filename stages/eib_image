@@ -689,6 +689,11 @@ EOF
       "${img}" "${boot_zip}" "${img_asc}" "${boot_zip}.asc"
   fi
 
+  # Create VM image if required
+  if [ "${EIB_IMAGE_VM_IMAGE}" = true ]; then
+    "${EIB_HELPERSDIR}"/create-vm-image "$(eib_outfile ovf.zip)" "${img}"
+  fi
+
   # Create split image for 2 disk systems if required.
   # This must happen after creating the ISO, since the splitting
   # operation edits the original image in place.
