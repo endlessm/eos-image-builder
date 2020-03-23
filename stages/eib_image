@@ -690,7 +690,7 @@ EOF
   fi
 
   # Create VM image if required
-  if [ "${EIB_IMAGE_VM_IMAGE}" = true ]; then
+  if [[ "${EIB_IMAGE_VM_IMAGE}" = "true" && "${EIB_ARCH}" == "amd64" ]]; then
     "${EIB_HELPERSDIR}"/create-vm-image "$(eib_outfile ovf.zip)" "${img}"
   fi
 
