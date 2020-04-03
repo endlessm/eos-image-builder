@@ -83,7 +83,7 @@ class OVFGenerator:
             self.__run(['rm', '-f', img_filename])
 
     def __generate_ovf(self, pathname):
-        hw_items = [None] * 5
+        hw_items = [None] * 8
 
         top = Element('ovf:Envelope')
         top.set('ovf:version', '1.0')
@@ -94,6 +94,7 @@ class OVFGenerator:
                               'cim-schema/2/CIM_VirtualSystemSettingData')
         top.set('xmlns:rasd', 'http://schemas.dmtf.org/wbem/wscim/1/' +
                               'cim-schema/2/CIM_ResourceAllocationSettingData')
+        top.set('xmlns:vmw', 'http://www.vmware.com/schema/ovf')
 
         ref = SubElement(top, 'References')
         SubElement(ref, 'File', {'ovf:href': self.VM_NAME + '.vmdk',
@@ -179,6 +180,46 @@ class OVFGenerator:
         SubElement(hw_items[4], 'rasd:ResourceType').text = '17'
         vhw_section.append(hw_items[4])
 
+        hw_items[5] = Element('Item', {'ovf:required': 'false'})
+        SubElement(hw_items[5], 'rasd:Address').text = '0'
+        SubElement(hw_items[5], 'rasd:Caption').text = 'usb'
+        SubElement(hw_items[5], 'rasd:Description').text = 'USB Controller'
+        SubElement(hw_items[5], 'rasd:ElementName').text = 'usb'
+        SubElement(hw_items[5], 'rasd:InstanceID').text = '6'
+        SubElement(hw_items[5], 'rasd:ResourceType').text = '23'
+        SubElement(hw_items[5], 'vmw:Config',
+                    {'ovf:required': 'false',
+                     'vmw:key': 'ehciEnabled',
+                     'vmw:value': 'true'})
+        vhw_section.append(hw_items[5])
+
+        hw_items[6] = Element('Item')
+        SubElement(hw_items[6], 'rasd:AddressOnParent').text = '3'
+        SubElement(hw_items[6], 'rasd:AutomaticAllocation').text = 'false'
+        SubElement(hw_items[6], 'rasd:Caption').text = 'sound'
+        SubElement(hw_items[6], 'rasd:Description').text = 'Sound Card'
+        SubElement(hw_items[6], 'rasd:ElementName').text = 'sound'
+        SubElement(hw_items[6], 'rasd:InstanceID').text = '7'
+        SubElement(hw_items[6], 'rasd:ResourceSubType').text = 'ensoniq1371'
+        SubElement(hw_items[6], 'rasd:ResourceType').text = '35'
+        vhw_section.append(hw_items[6])
+
+        hw_items[7] = Element('Item', {'ovf:required': 'false'})
+        SubElement(hw_items[7], 'rasd:AutomaticAllocation').text = 'false'
+        SubElement(hw_items[7], 'rasd:ElementName').text = 'video'
+        SubElement(hw_items[7], 'rasd:InstanceID').text = '8'
+        SubElement(hw_items[7], 'rasd:ResourceType').text = '24'
+        SubElement(hw_items[7], 'vmw:Config',
+                    {'ovf:required': 'false',
+                     'vmw:key': 'videoRamSizeInKB',
+                     'vmw:value': '262144'})
+        vhw_section.append(hw_items[7])
+
+        SubElement(vhw_section, 'vmw:ExtraConfig',
+                    {'ovf:required': 'false',
+                     'vmw:key': 'virtualHW.productCompatibility',
+                     'vmw:value': 'hosted'})
+
         # vbox:Machine section
         vMachine = SubElement(virtual_section, 'vbox:Machine',
                               {'ovf:required': 'false',
@@ -190,6 +231,7 @@ class OVFGenerator:
         SubElement(hw, 'CPU', {'count':str(self.CPUS)})
         SubElement(hw, 'BIOS')
         SubElement(hw, 'Memory', {'RAMSize':str(self.RAM)})
+        SubElement(hw, 'Display', {'VRAMSize':'16'})
         network = SubElement(hw, 'Network')
         SubElement(network, 'Adapter',
                    {'slot': '0',
@@ -198,6 +240,18 @@ class OVFGenerator:
         for i in range(1, 8):
             SubElement(network, 'Adapter', {'slot':str(i), 'type':'82540EM'})
 
+        SubElement(hw, 'AudioAdapter', {'driver':'DirectSound',
+                                        'enabled':'true',
+                                        'enabledIn':'true',
+                                        'enabledOut':'true'})
+        SubElement(hw, 'AudioAdapter', {'driver':'CoreAudio',
+                                        'enabled':'true',
+                                        'enabledIn':'true',
+                                        'enabledOut':'true'})
+        SubElement(hw, 'AudioAdapter', {'driver':'Pulse',
+                                        'enabled':'true',
+                                        'enabledIn':'true',
+                                        'enabledOut':'true'})
         # Storage Controllers section
         storage = SubElement(vMachine, 'StorageControllers')
         attach_dev = Element('AttachedDevice', {'type': 'HardDisk',
