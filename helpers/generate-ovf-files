@@ -86,7 +86,7 @@ class OVFGenerator:
         hw_items = [None] * 8
 
         top = Element('ovf:Envelope')
-        top.set('ovf:version', '1.0')
+        top.set('ovf:version', '2.0')
         top.set('xmlns:ovf', 'http://schemas.dmtf.org/ovf/envelope/1')
         top.set('xmlns:vbox', 'http://www.virtualbox.org/ovf/machine')
         top.set('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance')
@@ -130,6 +130,8 @@ class OVFGenerator:
                                 {'ovf:id': '101', 'ovf:required': 'false'})
         SubElement(os_section, 'Info').text = 'The OS contained in this VM'
         SubElement(os_section, 'Description').text = 'Endless OS'
+        SubElement(os_section, 'vbox:OSType',
+                                {'ovf:required': 'false'}).text = 'Linux_64'
         vhw_section = SubElement(virtual_section, 'VirtualHardwareSection')
         SubElement(vhw_section, 'Info').text = str(self.CPUS) + ' CPU, ' + str(self.RAM) + ' Memory'
 
