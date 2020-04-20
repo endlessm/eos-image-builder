@@ -22,8 +22,8 @@ class OVFGenerator:
     VOL_UUID = None
     IMAGE_FILE = None
     IMG_SIZE = None
-    VMDK_DISKSZ = None
-    VMDK_VIRTSZ = None
+    VIRTUAL_DISK_SIZE = None
+    VIRTUAL_DISK_FILE_SIZE = None
     VM_NAME = None
 
     def __init__(self, image_file, storage=None, memory=None, cpus=None):
@@ -73,14 +73,14 @@ class OVFGenerator:
             self.__run(cmds[ext])
 
         self.IMG_SIZE = os.stat(img_filename).st_size
-        self.VMDK_VIRTSZ = self.IMG_SIZE + extra_size
+        self.VIRTUAL_DISK_SIZE = self.IMG_SIZE + extra_size
         sizeopt = '+' + str(extra_size)
         self.__run(['qemu-img', 'resize', '-f', 'raw', img_filename, sizeopt])
 
         vmdk_filename = img_filename[:-4] + '.vmdk'
         self.__run(['qemu-img', 'convert', '-p', '-O', 'vmdk',
                     img_filename, vmdk_filename])
-        self.VMDK_DISKSZ = os.stat(vmdk_filename).st_size
+        self.VIRTUAL_DISK_FILE_SIZE = os.stat(vmdk_filename).st_size
         if compressed_img_filename:
             self.__run(['rm', '-f', img_filename])
 
@@ -101,7 +101,7 @@ class OVFGenerator:
         ref = SubElement(top, 'References')
         SubElement(ref, 'File', {'ovf:href': self.VM_NAME + '.vmdk',
                                  'ovf:id': self.VM_NAME + '0',
-                                 'ovf:size': str(self.VMDK_DISKSZ)})
+                                 'ovf:size': str(self.VIRTUAL_DISK_FILE_SIZE)})
 
         # Network section
         network_section = SubElement(top, 'NetworkSection')
@@ -114,7 +114,7 @@ class OVFGenerator:
         SubElement(disk_section, 'Info').text = 'List of Virtual Disks'
         SubElement(disk_section, 'Disk',
                    {'ovf:diskId': 'vmdisk0',
-                    'ovf:capacity': str(self.VMDK_VIRTSZ),
+                    'ovf:capacity': str(self.VIRTUAL_DISK_SIZE),
                     'ovf:fileRef': self.VM_NAME + '0',
                     'ovf:format':
                          'http://www.vmware.com/interfaces/specifications/' +
