@@ -197,7 +197,7 @@ class OVFGenerator:
                      'vmw:value': 'true'})
         vhw_section.append(hw_items[5])
 
-        hw_items[6] = Element('Item')
+        hw_items[6] = Element('Item', {'ovf:required': 'false'})
         SubElement(hw_items[6], 'rasd:AddressOnParent').text = '3'
         SubElement(hw_items[6], 'rasd:AutomaticAllocation').text = 'false'
         SubElement(hw_items[6], 'rasd:Caption').text = 'sound'
