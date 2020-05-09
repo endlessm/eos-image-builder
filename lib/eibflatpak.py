@@ -45,9 +45,8 @@ class FlatpakError(eib.ImageBuildError):
 
 
 class FlatpakFullRef(namedtuple('FlatpakFullRef', (
-        'ref', 'remote', 'kind', 'name', 'arch', 'branch', 'commit',
-        'installed_size', 'download_size', 'runtime', 'sdk',
-        'related', 'extra_data'))):
+        'remote', 'remote_ref', 'installed_size', 'download_size', 'metadata',
+        'related'))):
     """Complete representation of Flatpak ref
 
     This is basically a superset of Flatpak.RemoteRef with a couple
@@ -58,10 +57,38 @@ class FlatpakFullRef(namedtuple('FlatpakFullRef', (
     __slots__ = ()
 
     @property
-    def full_runtime(self):
-        '''self.runtime does not have the runtime/ prefix.'''
-        if self.runtime is not None:
-            return 'runtime/' + self.runtime
+    def ref(self):
+        return self.remote_ref.format_ref()
+
+    @property
+    def kind(self):
+        return self.remote_ref.get_kind()
+
+    @property
+    def name(self):
+        return self.remote_ref.get_name()
+
+    @property
+    def arch(self):
+        return self.remote_ref.get_arch()
+
+    @property
+    def branch(self):
+        return self.remote_ref.get_branch()
+
+    @property
+    def commit(self):
+        return self.remote_ref.get_commit()
+
+    @property
+    def runtime(self):
+        runtime = self.metadata.get('Application', 'runtime', fallback=None)
+        if runtime is not None:
+            return 'runtime/' + runtime
+
+    @property
+    def has_extra_data(self):
+        return 'Extra Data' in self.metadata
 
 
 class FlatpakInstallRef(object):
@@ -345,10 +372,6 @@ class FlatpakRemote(object):
                       .format(self.name, ref, metadata_str),
                       file=sys.stderr)
                 raise
-            runtime = metadata.get('Application', 'runtime',
-                                   fallback=None)
-            sdk = metadata.get('Application', 'sdk', fallback=None)
-            extra_data = 'Extra Data' in metadata
 
             # Get all the related refs
             logger.debug('Getting related refs for %s ref %s',
@@ -358,19 +381,12 @@ class FlatpakRemote(object):
                 self.name, ref)
 
             # Create FlatpakFullRef
-            self.refs[ref] = FlatpakFullRef(ref=ref,
-                                            remote=self,
-                                            kind=remote_ref.get_kind(),
-                                            name=remote_ref.get_name(),
-                                            arch=remote_ref.get_arch(),
-                                            branch=remote_ref.get_branch(),
-                                            commit=remote_ref.get_commit(),
+            self.refs[ref] = FlatpakFullRef(remote=self,
+                                            remote_ref=remote_ref,
                                             installed_size=installed_size,
                                             download_size=download_size,
-                                            runtime=runtime,
-                                            sdk=sdk,
-                                            related=related,
-                                            extra_data=extra_data)
+                                            metadata=metadata,
+                                            related=related)
 
     def check_excluded(self, name):
         logger.debug('Checking ID %s in %s against exclude list', name, self.name)
@@ -611,12 +627,12 @@ class FlatpakManager(object):
         Look for the ref's runtime in any remote, preferring the ref's
         own remote.
         """
-        match = full_ref.remote.refs.get(full_ref.full_runtime)
+        match = full_ref.remote.refs.get(full_ref.runtime)
         if not match:
             for name, remote in self.remotes.items():
                 if name == ref.remote.name:
                     continue
-                match = remote.refs.get(full_ref.full_runtime)
+                match = remote.refs.get(full_ref.runtime)
                 if match:
                     break
 
@@ -662,7 +678,7 @@ class FlatpakManager(object):
             raise FlatpakError(full_ref.ref, "in", remote.name,
                                "is on excluded list")
 
-        if full_ref.extra_data:
+        if full_ref.has_extra_data:
             raise FlatpakError(full_ref.ref, "in", remote.name,
                                "contains potentially non-redistributable",
                                "extra data")
@@ -720,7 +736,7 @@ class FlatpakManager(object):
                     continue
 
                 if full_ref.runtime and \
-                   full_ref.full_runtime not in self.install_refs:
+                   full_ref.runtime not in self.install_refs:
                     runtime = self._match_runtime(full_ref)
                     if not runtime:
                         raise FlatpakError('Could not find runtime',
