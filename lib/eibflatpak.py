@@ -605,20 +605,18 @@ class FlatpakManager(object):
                 # or set in the image, respectively
                 self._remove_languages()
 
-    def _match_runtime(self, ref, runtime):
-        """Find a ref's runtime
+    def _match_runtime(self, full_ref):
+        """Find a FlatpakFullRef's runtime
 
         Look for the ref's runtime in any remote, preferring the ref's
         own remote.
         """
-        match = ref.remote.match(runtime,
-                                 Flatpak.RefKind.RUNTIME)
+        match = full_ref.remote.refs.get(full_ref.full_runtime)
         if not match:
             for name, remote in self.remotes.items():
                 if name == ref.remote.name:
                     continue
-                match = remote.match(runtime,
-                                     Flatpak.RefKind.RUNTIME)
+                match = remote.refs.get(full_ref.full_runtime)
                 if match:
                     break
 
@@ -723,8 +721,7 @@ class FlatpakManager(object):
 
                 if full_ref.runtime and \
                    full_ref.full_runtime not in self.install_refs:
-                    runtime = self._match_runtime(full_ref,
-                                                  full_ref.runtime)
+                    runtime = self._match_runtime(full_ref)
                     if not runtime:
                         raise FlatpakError('Could not find runtime',
                                            full_ref.runtime, 'for ref',
