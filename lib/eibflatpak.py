@@ -137,7 +137,8 @@ class FlatpakRemote(object):
     def __init__(self, manager, name, url=None, deploy_url=None,
                  repo_file=None, apps=None, runtimes=None,
                  nosplit_apps=None, nosplit_runtimes=None, exclude=None,
-                 title=None, default_branch=None, **extra_options):
+                 allow_extra_data=None, title=None, default_branch=None,
+                 **extra_options):
         # Copy some manager attributes
         self.manager = manager
         self.installation = manager.installation
@@ -155,6 +156,8 @@ class FlatpakRemote(object):
         self.nosplit_runtimes = \
             nosplit_runtimes.split() if nosplit_runtimes else []
         self.exclude = set(exclude.split()) if exclude else set()
+        self.allow_extra_data = set(allow_extra_data.split()) \
+            if allow_extra_data else set()
         self.title = title
         self.default_branch = default_branch
 
@@ -401,6 +404,16 @@ class FlatpakRemote(object):
         logger.debug('Checking ID %s in %s against exclude list', name, self.name)
         if name in self.exclude:
             logger.debug('ID %s matched excludes: %s', name, self.exclude)
+            return True
+
+        return False
+
+    def check_allow_extra_data(self, name):
+        logger.debug('Checking ID %s in %s against allow_extra_data list',
+                     name, self.name)
+        if name in self.allow_extra_data:
+            logger.debug('ID %s matched allow_extra_data: %s', name,
+                         self.allow_extra_data)
             return True
 
         return False
@@ -687,7 +700,8 @@ class FlatpakManager(object):
             raise FlatpakError(full_ref.ref, "in", remote.name,
                                "is on excluded list")
 
-        if full_ref.has_extra_data:
+        if full_ref.has_extra_data and \
+           not remote.check_allow_extra_data(full_ref.name):
             raise FlatpakError(full_ref.ref, "in", remote.name,
                                "contains potentially non-redistributable",
                                "extra data")
