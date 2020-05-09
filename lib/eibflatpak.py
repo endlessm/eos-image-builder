@@ -82,9 +82,18 @@ class FlatpakFullRef(namedtuple('FlatpakFullRef', (
 
     @property
     def runtime(self):
-        runtime = self.metadata.get('Application', 'runtime', fallback=None)
+        if self.kind == Flatpak.RefKind.APP:
+            section = 'Application'
+        else:
+            section = 'Runtime'
+
+        runtime = self.metadata.get(section, 'runtime', fallback=None)
         if runtime is not None:
-            return 'runtime/' + runtime
+            runtime = 'runtime/' + runtime
+            # Make sure the runtime specified in the metadata isn't this
+            # flatpak itself.
+            if runtime != self.ref:
+                return runtime
 
     @property
     def has_extra_data(self):
