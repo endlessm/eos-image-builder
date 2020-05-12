@@ -45,9 +45,8 @@ class FlatpakError(eib.ImageBuildError):
 
 
 class FlatpakFullRef(namedtuple('FlatpakFullRef', (
-        'ref', 'remote', 'kind', 'name', 'arch', 'branch', 'commit',
-        'installed_size', 'download_size', 'runtime', 'sdk',
-        'related', 'extra_data'))):
+        'remote', 'remote_ref', 'installed_size', 'download_size', 'metadata',
+        'related'))):
     """Complete representation of Flatpak ref
 
     This is basically a superset of Flatpak.RemoteRef with a couple
@@ -58,10 +57,47 @@ class FlatpakFullRef(namedtuple('FlatpakFullRef', (
     __slots__ = ()
 
     @property
-    def full_runtime(self):
-        '''self.runtime does not have the runtime/ prefix.'''
-        if self.runtime is not None:
-            return 'runtime/' + self.runtime
+    def ref(self):
+        return self.remote_ref.format_ref()
+
+    @property
+    def kind(self):
+        return self.remote_ref.get_kind()
+
+    @property
+    def name(self):
+        return self.remote_ref.get_name()
+
+    @property
+    def arch(self):
+        return self.remote_ref.get_arch()
+
+    @property
+    def branch(self):
+        return self.remote_ref.get_branch()
+
+    @property
+    def commit(self):
+        return self.remote_ref.get_commit()
+
+    @property
+    def runtime(self):
+        if self.kind == Flatpak.RefKind.APP:
+            section = 'Application'
+        else:
+            section = 'Runtime'
+
+        runtime = self.metadata.get(section, 'runtime', fallback=None)
+        if runtime is not None:
+            runtime = 'runtime/' + runtime
+            # Make sure the runtime specified in the metadata isn't this
+            # flatpak itself.
+            if runtime != self.ref:
+                return runtime
+
+    @property
+    def has_extra_data(self):
+        return 'Extra Data' in self.metadata
 
 
 class FlatpakInstallRef(object):
@@ -101,7 +137,8 @@ class FlatpakRemote(object):
     def __init__(self, manager, name, url=None, deploy_url=None,
                  repo_file=None, apps=None, runtimes=None,
                  nosplit_apps=None, nosplit_runtimes=None, exclude=None,
-                 title=None, default_branch=None, **extra_options):
+                 allow_extra_data=None, title=None, default_branch=None,
+                 **extra_options):
         # Copy some manager attributes
         self.manager = manager
         self.installation = manager.installation
@@ -119,6 +156,8 @@ class FlatpakRemote(object):
         self.nosplit_runtimes = \
             nosplit_runtimes.split() if nosplit_runtimes else []
         self.exclude = set(exclude.split()) if exclude else set()
+        self.allow_extra_data = set(allow_extra_data.split()) \
+            if allow_extra_data else set()
         self.title = title
         self.default_branch = default_branch
 
@@ -345,10 +384,6 @@ class FlatpakRemote(object):
                       .format(self.name, ref, metadata_str),
                       file=sys.stderr)
                 raise
-            runtime = metadata.get('Application', 'runtime',
-                                   fallback=None)
-            sdk = metadata.get('Application', 'sdk', fallback=None)
-            extra_data = 'Extra Data' in metadata
 
             # Get all the related refs
             logger.debug('Getting related refs for %s ref %s',
@@ -358,24 +393,27 @@ class FlatpakRemote(object):
                 self.name, ref)
 
             # Create FlatpakFullRef
-            self.refs[ref] = FlatpakFullRef(ref=ref,
-                                            remote=self,
-                                            kind=remote_ref.get_kind(),
-                                            name=remote_ref.get_name(),
-                                            arch=remote_ref.get_arch(),
-                                            branch=remote_ref.get_branch(),
-                                            commit=remote_ref.get_commit(),
+            self.refs[ref] = FlatpakFullRef(remote=self,
+                                            remote_ref=remote_ref,
                                             installed_size=installed_size,
                                             download_size=download_size,
-                                            runtime=runtime,
-                                            sdk=sdk,
-                                            related=related,
-                                            extra_data=extra_data)
+                                            metadata=metadata,
+                                            related=related)
 
     def check_excluded(self, name):
         logger.debug('Checking ID %s in %s against exclude list', name, self.name)
         if name in self.exclude:
             logger.debug('ID %s matched excludes: %s', name, self.exclude)
+            return True
+
+        return False
+
+    def check_allow_extra_data(self, name):
+        logger.debug('Checking ID %s in %s against allow_extra_data list',
+                     name, self.name)
+        if name in self.allow_extra_data:
+            logger.debug('ID %s matched allow_extra_data: %s', name,
+                         self.allow_extra_data)
             return True
 
         return False
@@ -605,20 +643,18 @@ class FlatpakManager(object):
                 # or set in the image, respectively
                 self._remove_languages()
 
-    def _match_runtime(self, ref, runtime):
-        """Find a ref's runtime
+    def _match_runtime(self, full_ref):
+        """Find a FlatpakFullRef's runtime
 
         Look for the ref's runtime in any remote, preferring the ref's
         own remote.
         """
-        match = ref.remote.match(runtime,
-                                 Flatpak.RefKind.RUNTIME)
+        match = full_ref.remote.refs.get(full_ref.runtime)
         if not match:
             for name, remote in self.remotes.items():
                 if name == ref.remote.name:
                     continue
-                match = remote.match(runtime,
-                                     Flatpak.RefKind.RUNTIME)
+                match = remote.refs.get(full_ref.runtime)
                 if match:
                     break
 
@@ -664,7 +700,8 @@ class FlatpakManager(object):
             raise FlatpakError(full_ref.ref, "in", remote.name,
                                "is on excluded list")
 
-        if full_ref.extra_data:
+        if full_ref.has_extra_data and \
+           not remote.check_allow_extra_data(full_ref.name):
             raise FlatpakError(full_ref.ref, "in", remote.name,
                                "contains potentially non-redistributable",
                                "extra data")
@@ -722,9 +759,8 @@ class FlatpakManager(object):
                     continue
 
                 if full_ref.runtime and \
-                   full_ref.full_runtime not in self.install_refs:
-                    runtime = self._match_runtime(full_ref,
-                                                  full_ref.runtime)
+                   full_ref.runtime not in self.install_refs:
+                    runtime = self._match_runtime(full_ref)
                     if not runtime:
                         raise FlatpakError('Could not find runtime',
                                            full_ref.runtime, 'for ref',
