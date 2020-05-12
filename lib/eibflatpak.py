@@ -652,7 +652,7 @@ class FlatpakManager(object):
         match = full_ref.remote.refs.get(full_ref.runtime)
         if not match:
             for name, remote in self.remotes.items():
-                if name == ref.remote.name:
+                if name == full_ref.remote.name:
                     continue
                 match = remote.refs.get(full_ref.runtime)
                 if match:
