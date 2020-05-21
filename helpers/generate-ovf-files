@@ -219,13 +219,13 @@ class OVFGenerator:
                      'vmw:value': '262144'})
         vhw_section.append(hw_items[7])
 
-	hw_items[8] = Element('Item', {'ovf:required': 'false'})
-	SubElement(hw_items[8], 'rasd:AutomaticAllocation').text = 'false'
-	SubElement(hw_items[8], 'rasd:ElementName').text = 'vmci'
-	SubElement(hw_items[8], 'rasd:InstanceID').text = '9'
-	SubElement(hw_items[8], 'rasd:ResourceSubType').text = 'vmware.vmci'
-	SubElement(hw_items[8], 'rasd:ResourceType').text = '1'
-	vhw_section.append(hw_items[8])
+        hw_items[8] = Element('Item', {'ovf:required': 'false'})
+        SubElement(hw_items[8], 'rasd:AutomaticAllocation').text = 'false'
+        SubElement(hw_items[8], 'rasd:ElementName').text = 'vmci'
+        SubElement(hw_items[8], 'rasd:InstanceID').text = '9'
+        SubElement(hw_items[8], 'rasd:ResourceSubType').text = 'vmware.vmci'
+        SubElement(hw_items[8], 'rasd:ResourceType').text = '1'
+        vhw_section.append(hw_items[8])
 
         SubElement(vhw_section, 'vmw:ExtraConfig',
                     {'ovf:required': 'false',
