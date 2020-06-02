@@ -121,6 +121,7 @@ for runtime in runtimes:
     size = runtime.get_installed_size()
     ref = runtime.format_ref()
     date = commit_date_string(repo, commit)
+    version = runtime.get_appdata_version()
 
     # Use a separate section for full and split runtimes
     if hook_group == 'image':
@@ -136,6 +137,7 @@ for runtime in runtimes:
         'size': size,
         'ref': ref,
         'date': date,
+        'version': version,
     }
 
 apps = system.list_installed_refs_by_kind(Flatpak.RefKind.APP)
@@ -149,6 +151,7 @@ for app in apps:
     size = app.get_installed_size()
     ref = app.format_ref()
     date = commit_date_string(repo, commit)
+    version = app.get_appdata_version()
     metadata = GLib.KeyFile()
     metadata.load_from_bytes(app.load_metadata(), GLib.KeyFileFlags.NONE)
     try:
@@ -170,6 +173,7 @@ for app in apps:
         'size': size,
         'ref': ref,
         'date': date,
+        'version': version,
         'runtime': runtime,
     }
 
