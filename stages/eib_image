@@ -500,6 +500,14 @@ EOF
           esac
           cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpiboot/kernel8.img
           eib_umount ${EIB_TMPDIR}/rpiboot
+	  ;;
+        vim2)
+          local BOOTIMG_PATH="${EIB_TMPDIR}"/gxl-boot.img
+          "${EIB_HELPERSDIR}"/s905x-bootloader-setup \
+            "${EIB_DATADIR}"/s912-bootloader \
+            "${DEPLOY}"/usr/lib/u-boot/khadas-vim2/u-boot.bin \
+            "${BOOTIMG_PATH}"
+          dd conv=notrunc if="${BOOTIMG_PATH}" of=${img} bs=512 seek=1
           ;;
         *)
           echo "Unrecognized arm64 platform ${EIB_PLATFORM}" >&2
