@@ -425,19 +425,6 @@ EOF
           dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=1 count=442
           dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=17408 skip=1 seek=1
           ;;
-        libretechcc)
-          local BOOTIMG_PATH="${EIB_TMPDIR}"/gxl-boot.img
-          "${EIB_HELPERSDIR}"/s905x-bootloader-setup \
-            "${EIB_DATADIR}"/s905x-bootloader \
-            "${DEPLOY}"/usr/lib/u-boot/libretech-cc/u-boot.bin \
-            "${BOOTIMG_PATH}"
-          dd conv=notrunc if="${BOOTIMG_PATH}" of=${img} bs=512 seek=1
-
-	  # make a boot script for u-boot (same boot script as arm64)
-	  mkimage -T script -C none -n "libretechcc boot script" -d \
-	    "${EIB_DATADIR}"/arm64/boot.src \
-	    "${ROOT}"/boot/boot.scr
-          ;;
         rk3288)
           local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/chromebook_jerry
           cp "${UBOOT_PATH}/boot.scr" "${ROOT}/boot/boot.scr"
@@ -501,11 +488,21 @@ EOF
           cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpiboot/kernel8.img
           eib_umount ${EIB_TMPDIR}/rpiboot
 	  ;;
-        vim2)
+        libretechcc|vim2)
+          case "${EIB_PLATFORM}" in
+            libretechcc)
+              local BOOTLOADER_DIR="${EIB_DATADIR}"/s905x-bootloader
+              local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/libretech-cc
+	      ;;
+            vim2)
+              local BOOTLOADER_DIR="${EIB_DATADIR}"/s912-bootloader
+              local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/khadas-vim2
+	      ;;
+          esac
           local BOOTIMG_PATH="${EIB_TMPDIR}"/gxl-boot.img
           "${EIB_HELPERSDIR}"/s905x-bootloader-setup \
-            "${EIB_DATADIR}"/s912-bootloader \
-            "${DEPLOY}"/usr/lib/u-boot/khadas-vim2/u-boot.bin \
+            "${BOOTLOADER_DIR}" \
+            "${UBOOT_PATH}"/u-boot.bin \
             "${BOOTIMG_PATH}"
           dd conv=notrunc if="${BOOTIMG_PATH}" of=${img} bs=512 seek=1
           ;;
