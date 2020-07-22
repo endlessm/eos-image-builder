@@ -124,7 +124,7 @@ class AppListFormatter(object):
             if ref.kind == Flatpak.RefKind.APP:
                 # This ensures that any "real" runtime which is also used as an
                 # extension still shows up as a runtime.
-                runtimes[ref.full_runtime] = self.full_refs[ref.full_runtime]
+                runtimes[ref.runtime] = self.full_refs[ref.runtime]
             elif ref.ref not in self.extensions:
                 runtimes[ref.ref] = ref
         return runtimes
@@ -146,7 +146,7 @@ class AppListFormatter(object):
                 # list
                 self.apps_by_runtime[ref.ref].extendleft(reversed(bundle))
             elif ref.kind == Flatpak.RefKind.APP:
-                self.apps_by_runtime[ref.full_runtime].extend(bundle)
+                self.apps_by_runtime[ref.runtime].extend(bundle)
 
                 if ref.name.split('.')[-1] in self.locales:
                     self.locale_apps.extend(bundle)
