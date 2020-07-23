@@ -82,10 +82,22 @@ class FlatpakFullRef(namedtuple('FlatpakFullRef', (
 
     @property
     def runtime(self):
+        """Get the ref for the flatpak's runtime dependency
+
+        This matches the algorithm in FlatpakTransaction's add_deps().
+        Only applications and extensions with extra data that require a
+        runtime to extract the extra data have a hard runtime depdendency.
+
+        https://github.com/flatpak/flatpak/blob/master/common/flatpak-transaction.c#L1985
+        """
         if self.kind == Flatpak.RefKind.APP:
             section = 'Application'
+        elif self.has_extra_data and \
+             not self.metadata.getboolean('Extra Data', 'NoRuntime',
+                                          fallback=False):
+            section = 'ExtensionOf'
         else:
-            section = 'Runtime'
+            return None
 
         runtime = self.metadata.get(section, 'runtime', fallback=None)
         if runtime is not None:
