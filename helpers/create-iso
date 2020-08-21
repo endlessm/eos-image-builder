@@ -134,7 +134,7 @@ AUTORUN_INF
           -iso-level 3 \
           -joliet -joliet-long \
           -volid "${VOLID::32}" \
-          -publisher 'Endless Computers' \
+          -publisher 'Endless OS Foundation LLC' \
           "${DIR_IMAGES}"
 
   # Change partition type from 0x83 to 0x00
