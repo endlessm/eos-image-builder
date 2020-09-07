@@ -8,7 +8,7 @@ if [ -z "${EIB_IMAGE_BRANDING_FBE_CONFIG}" ]; then
 fi
 
 # Validation: either provide a list of initial languages, or skip the language page
-CHECK=$(awk -F= '/initial_languages|skip/ {print "OK"}' "${EIB_IMAGE_BRANDING_FBE_CONFIG}")
+CHECK=$(awk -F= '/(initial_languages=|skip=.*language.*)/ {print "OK"}' "${EIB_IMAGE_BRANDING_FBE_CONFIG}")
 if [ "$CHECK" != OK ]; then
     echo 'You should skip the FBE language page if not defining initial languages'
     exit 1
