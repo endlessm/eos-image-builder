@@ -4,7 +4,7 @@
 
 cleanup() {
   if [ -n "${img_loop}" ]; then
-    partx -v -d "${img_loop}"
+    eib_partx_delete "${img_loop}"
     eib_delete_loop "${img_loop}"
   fi
   rm -f "${img}"

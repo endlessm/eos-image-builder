@@ -163,13 +163,18 @@ eib_retry() {
   fi
 }
 
-# Try to work around a race where partx sometimes reports EBUSY failure
+# Helpers for partx and losetup to work around races with device
+# activity that cause the commands to fail with EBUSY.
 eib_partx_scan() {
   udevadm settle
   eib_retry partx -a -v "$1"
 }
 
-# Work around a race where loop deletion sometimes fails with EBUSY
+eib_partx_delete() {
+  udevadm settle
+  eib_retry partx -d -v "$1"
+}
+
 eib_delete_loop() {
   udevadm settle
   eib_retry losetup -d "$1"
