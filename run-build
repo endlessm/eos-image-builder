@@ -149,7 +149,12 @@ class ImageBuildRoot(object):
         mount_path = self.builddir + target
 
         log.info('Mounting %s at %s', path, mount_path)
-        os.makedirs(mount_path, exist_ok=True)
+        if os.path.isdir(path):
+            os.makedirs(mount_path, exist_ok=True)
+        else:
+            os.makedirs(os.path.dirname(mount_path), exist_ok=True)
+            with open(mount_path, 'w'):
+                pass
         subprocess.check_call(['mount', '--bind', path, mount_path])
         self.mounts.append(mount_path)
 
