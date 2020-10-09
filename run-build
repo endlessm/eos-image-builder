@@ -69,6 +69,8 @@ class ImageBuildRoot(object):
             '/proc',
             '/dev',
             '/dev/pts',
+            # Udev control socket and queue for `udevadm settle`
+            '/run/udev',
             # Required builder directories
             config['build']['sysconfdir'],
             config['build']['cachedir'],
@@ -136,6 +138,9 @@ class ImageBuildRoot(object):
         if not os.path.isabs(path):
             raise eib.ImageBuildError('Buildroot mount path', path,
                                       'is not an absolute path')
+        if not os.path.exists(path):
+            raise eib.ImageBuildError('Buildroot mount path', path,
+                                      'does not exist')
 
         # Where it should be mounted
         if target is None:
@@ -146,7 +151,12 @@ class ImageBuildRoot(object):
         mount_path = self.builddir + target
 
         log.info('Mounting %s at %s', path, mount_path)
-        os.makedirs(mount_path, exist_ok=True)
+        if os.path.isdir(path):
+            os.makedirs(mount_path, exist_ok=True)
+        else:
+            os.makedirs(os.path.dirname(mount_path), exist_ok=True)
+            with open(mount_path, 'w'):
+                pass
         subprocess.check_call(['mount', '--bind', path, mount_path])
         self.mounts.append(mount_path)
 

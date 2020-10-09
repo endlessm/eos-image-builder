@@ -20,7 +20,7 @@ kill_procs() {
 
 cleanup_devices() {
   if [ -n "${img_loop}" ]; then
-    partx -v -d "${img_loop}"
+    eib_partx_delete "${img_loop}"
     eib_delete_loop "${img_loop}"
   fi
   unset img_loop
@@ -674,7 +674,6 @@ EOF
 
   # Check the image for errors
   e2fsck -f -p "${root_loop}"
-  udevadm settle
 
   # Cleanup devices
   cleanup_devices
