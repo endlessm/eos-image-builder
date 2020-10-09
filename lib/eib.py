@@ -477,6 +477,25 @@ def loop_has_partitions(loop):
     return len(loop_parts) > 0
 
 
+def udevadm_settle():
+    """Run udevadm settle to wait for device events to be processed
+
+    Tell udevadm to ignore that we're in a chroot since we expect the
+    udev control socket to be bind mounted into it.
+    """
+    # If settle can't connect to the /run/udev/control socket, it will
+    # simply return without an error. Print an error in that case but
+    # carry on since skipping settle may not be fatal.
+    if not os.path.exists('/run/udev/control'):
+        logger.error('/run/udev/control does not exist when calling '
+                     '"udevadm settle"')
+        return
+
+    env = os.environ.copy()
+    env['SYSTEMD_IGNORE_CHROOT'] = '1'
+    subprocess.check_call(('udevadm', 'settle'), env=env)
+
+
 def delete_root_loops(root):
     """Delete all loop devices with backing files in root path
 
@@ -511,7 +530,7 @@ def delete_root_loops(root):
             subprocess.check_call(('partx', '-d', loop_dev))
 
             # Try to block until the partition devices are removed
-            subprocess.check_call(('udevadm', 'settle'))
+            udevadm_settle()
 
         logger.info('Deleting loop %s', loop_dev)
         retry(subprocess.check_call, ('losetup', '-d', loop_dev))

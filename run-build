@@ -69,6 +69,8 @@ class ImageBuildRoot(object):
             '/proc',
             '/dev',
             '/dev/pts',
+            # Udev control socket and queue for `udevadm settle`
+            '/run/udev',
             # Required builder directories
             config['build']['sysconfdir'],
             config['build']['cachedir'],

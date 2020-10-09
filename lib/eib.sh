@@ -163,20 +163,35 @@ eib_retry() {
   fi
 }
 
+# Run udevadm settle to wait for device events to be processed. Tell
+# udevadm to ignore that we're in a chroot since we expect the udev
+# control socket to be bind mounted into it.
+eib_udevadm_settle() {
+  # If settle can't connect to the /run/udev/control socket, it will
+  # simply return without an error. Print an error in that case but
+  # carry on since skipping settle may not be fatal.
+  if [ ! -e /run/udev/control ]; then
+    echo '/run/udev/control does not exist when calling "udevadm settle"' >&2
+    return 0
+  fi
+
+  SYSTEMD_IGNORE_CHROOT=1 udevadm settle
+}
+
 # Helpers for partx and losetup to work around races with device
 # activity that cause the commands to fail with EBUSY.
 eib_partx_scan() {
-  udevadm settle
+  eib_udevadm_settle
   eib_retry partx -a -v "$1"
 }
 
 eib_partx_delete() {
-  udevadm settle
+  eib_udevadm_settle
   eib_retry partx -d -v "$1"
 }
 
 eib_delete_loop() {
-  udevadm settle
+  eib_udevadm_settle
   eib_retry losetup -d "$1"
 }
 
