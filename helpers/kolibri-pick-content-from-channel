@@ -1,0 +1,185 @@
+#!/usr/bin/python3
+
+# Given a Kolibri channel ID, finds content in remaining Kolibri channels
+# which is duplicated in the original channel, and marks it as available.
+
+from kolibri.utils.cli import initialize
+
+initialize()
+
+import click
+import os
+import requests
+
+from django.core.management import call_command
+
+from kolibri.core.content.models import ChannelMetadata
+from kolibri.core.content.models import ContentNode
+from kolibri.core.content.models import File
+from kolibri.core.content.models import LocalFile
+from kolibri.core.content.utils import annotation
+from kolibri.core.content.utils import paths
+from kolibri.core.content.utils import transfer
+from kolibri.core.content.utils.import_export_content import compare_checksums
+from kolibri.core.tasks.utils import db_task_write_lock
+
+
+CHUNK_SIZE = 200
+
+
+@click.command()
+@click.argument('pick_from_channel')
+@click.option('-i', '--ignore-channel', 'ignore_channels', multiple=True, default=[])
+def main(pick_from_channel, ignore_channels):
+    click.echo("Marking existing content as unavailable")
+
+    visible_channel_ids = ChannelMetadata.objects.exclude(
+        id__in=ignore_channels
+    ).values_list('id', flat=True)
+
+    for channel_id in visible_channel_ids:
+        annotation.set_content_invisible(channel_id, None, None)
+
+    click.echo("Adding content nodes from {}".format(pick_from_channel))
+    target_channel_ids = visible_channel_ids.exclude(
+        id__in=[pick_from_channel]
+    ).values_list('id', flat=True)
+
+    # Match nodes in other (target) channels with nodes in the channel we are
+    # picking from. This is complicated by the fact that content_id is not a
+    # unique value in a channel: multiple nodes with the same content_id may
+    # appear under multiple topic nodes. To solve this, we will first find
+    # non-topic nodes in pick_from_channel, and then find their (topic node)
+    # parents. Then, in each target channel, we select nodes with matching
+    # content_id, but only with parent nodes that also match.
+
+    pick_content_nodes = ContentNode.objects.filter(
+        channel_id=pick_from_channel
+    ).exclude(
+        kind='topic'
+    )
+
+    pick_content_parent_nodes = ContentNode.objects.filter(
+        id__in=pick_content_nodes.values('parent'),
+        channel_id=pick_from_channel,
+        kind='topic'
+    )
+
+    for channel_id in target_channel_ids:
+        add_content_nodes_query = ContentNode.objects.filter(
+            channel_id=channel_id,
+            content_id__in=pick_content_nodes.values('content_id')
+        ).filter(
+            parent__content_id__in=pick_content_parent_nodes.values('content_id')
+        ).exclude(
+            kind='topic'
+        )
+        click.echo("Adding {} content nodes for channel {}".format(add_content_nodes_query.count(), channel_id))
+        for node_ids in _iter_chunks(add_content_nodes_query.values_list('id', flat=True), CHUNK_SIZE):
+            call_command(
+                "importcontent",
+                "network",
+                channel_id,
+                node_ids=node_ids
+            )
+
+    # Go through topic nodes that have been made available and download
+    # attached files ourselves. This is a workaround for an issue in Kolibri
+    # where node ancestor files (such as thumbnails) are not downloaded when
+    # using importcontent. We should remove this code once that is fixed
+    # upstream.
+
+    local_files_to_download = LocalFile.objects.filter(
+        files__in=File.objects.filter(
+            contentnode__available=True,
+            contentnode__channel_id__in=target_channel_ids,
+            contentnode__kind='topic'
+        )
+    )
+    click.echo("Adding {} topic node files".format(local_files_to_download.count()))
+    with click.progressbar(length=local_files_to_download.count()) as progress:
+        file_checksums = _download_local_files(local_files_to_download, progress)
+    with db_task_write_lock:
+        annotation.mark_local_files_as_available(file_checksums)
+
+    unused_files = LocalFile.objects.get_unused_files()
+
+    click.echo("Cleaning up {} unused files".format(unused_files.count()))
+
+    with click.progressbar(length=unused_files.count()) as progress:
+        for _success, _file in LocalFile.objects.delete_unused_files():
+            progress.update(1)
+
+    with db_task_write_lock:
+        LocalFile.objects.delete_orphan_file_objects()
+
+    missing_content_nodes = pick_content_nodes.exclude(
+        content_id__in=ContentNode.objects.filter(
+            available=True,
+            channel_id__in=target_channel_ids
+        ).values('content_id')
+    ).exclude(
+        content_id=pick_from_channel
+    )
+
+    if missing_content_nodes.count() > 0:
+        click.echo("There are {} content nodes with no matching channels:".format(missing_content_nodes.count()), err=True)
+        for content_node in missing_content_nodes:
+            click.echo("- {} ({})".format(content_node.content_id, content_node.title), err=True)
+    else:
+        click.echo("All content nodes were matched with other channels.")
+
+
+def _download_local_files(local_files, progress):
+    # This is a copy of the code for downloading files in
+    # kolibri.core.content.management.commands.importcontent:Command._transfer:
+    # <https://github.com/learningequality/kolibri/blob/release-v0.14.x/kolibri/core/content/management/commands/importcontent.py>
+
+    session = requests.Session()
+
+    file_checksums = []
+
+    for local_file in local_files:
+        filename = local_file.get_filename()
+
+        try:
+            dest = paths.get_content_storage_file_path(filename)
+        except InvalidStorageFilenameError:
+            # If the destination file name is malformed, just stop now.
+            progress.update(1)
+            continue
+
+        # if the file already exists, add its size to our overall progress, and skip
+        if os.path.isfile(dest) and os.path.getsize(dest) == local_file.file_size:
+            file_checksums.append(local_file.id)
+            progress.update(1)
+            continue
+
+        url = paths.get_content_storage_remote_url(filename)
+        filetransfer = transfer.FileDownload(url, dest, session=session, cancel_check=lambda: False)
+
+        with filetransfer:
+            for chunk in filetransfer:
+                pass
+
+            checksum_correctness = compare_checksums(filetransfer.dest, local_file.id)
+            if not checksum_correctness:
+                click.echo("Error downloading '{}': File is corrupted".format(filetransfer.source), err=True)
+                os.remove(filetransfer.dest)
+                # Skip this file
+                progress.update(1)
+                continue
+
+        file_checksums.append(local_file.id)
+        progress.update(1)
+
+    return file_checksums
+
+
+def _iter_chunks(iterable, chunk_size):
+    for i in range(0, len(iterable), chunk_size):
+        yield iterable[i:i + chunk_size]
+
+
+if __name__ == "__main__":
+    main()
