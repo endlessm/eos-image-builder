@@ -1,0 +1,122 @@
+#!/bin/bash -ex
+# -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
+. "${EIB_BASELIB}"
+
+# Create a USB image for booting Endless OS, with data readable from other
+# operating systems in a shared exfat partition. This partition is populated
+# with files located in "${EIB_USB_IMAGE_WORKSPACE_DIR}".
+
+launcher_url=https://images-dl.endlessm.com/endless-key/Endless.Launcher.exe
+create_usb_image_tmp_dir="${EIB_TMPDIR}/create-usb-image"
+
+cleanup_devices() {
+  if [ -n "${usb_image_loop}" ]; then
+    eib_delete_loop "${usb_image_loop}"
+  fi
+  unset usb_image_loop
+}
+
+cleanup() {
+  cleanup_devices || :
+  rm -rf "${create_usb_image_tmp_dir}"
+}
+trap cleanup EXIT
+
+download_file() {
+  local url=${1:?No url supplied to ${FUNCNAME}}
+  local output=${2:?No output supplied to ${FUNCNAME}}
+  if [ -e "${output}" ]; then
+    curl -L --output "${output}" --time-cond "${output}" "${url}"
+  else
+    curl -L --output "${output}" "${url}"
+  fi
+}
+
+# Write a bootable USB image containing Endless OS, Windows tool and extra
+# files.
+create_usb_image() {
+  local version=${1:?No OS version for ${FUNCNAME}}
+  shift
+  local out_img=${1:?No target filename ${FUNCNAME}}
+  shift
+  local src_img=${1:?No src_img supplied to ${FUNCNAME}}
+  shift
+  local boot_zip=${1:?No boot.zip supplied to ${FUNCNAME}}
+  shift
+  local src_img_asc=${1:?No boot.zip supplied to ${FUNCNAME}}
+  shift
+  local boot_zip_asc=${1:?No boot.zip supplied to ${FUNCNAME}}
+  shift
+
+  local src_img_name=$(basename "${src_img}")
+  local out_img_name=$(basename "${out_img}")
+
+  local downloads_dir="${EIB_CONTENTDIR}/create-usb-image-downloads"
+  mkdir -p "${downloads_dir}"
+
+  # eos-write-live-image expects to find img.asc, boot.zip, and boot.zip.asc
+  # in the same directory as $src_img, so create a temporary directory with
+  # all of these files.
+  mkdir -p "${create_usb_image_tmp_dir}"
+  ln -sf "${src_img}" "${src_img_asc}" "${boot_zip}" "${boot_zip_asc}" -t "${create_usb_image_tmp_dir}"
+
+  # Copy Windows launcher
+  download_file "${launcher_url}" "${downloads_dir}/Endless Launcher.exe"
+
+  # Trim duplication of product name from personality name (eg fnde_aluno)
+  local personality=${EIB_PERSONALITY#${EIB_PRODUCT}_}
+
+  truncate -s ${EIB_USB_SIZE} "${out_img}"
+  usb_image_loop=$(losetup --show -f "${out_img}")
+
+  local default_label="${EIB_IMAGE_PRODUCT_NAME} ${version} ${personality}"
+
+  local write_live_image_args=(
+    "--label"
+    "${EIB_USB_LABEL:-$default_label}"
+    "--no-bios"
+    "--persistent"
+    "--free-space"
+    "${EIB_USB_FREE_SPACE:-100}"
+    "--windows-tool"
+    "${downloads_dir}/Endless Launcher.exe"
+  )
+
+  while IFS= read -r -d '' path; do
+    write_live_image_args+=("--extra-data" "$path")
+  done < <(find "${EIB_USB_IMAGE_WORKSPACE_DIR}" -mindepth 1 -maxdepth 1 -print0)
+
+  eos-write-live-image --force "${write_live_image_args[@]}" "${create_usb_image_tmp_dir}/${src_img_name}" "${usb_image_loop}"
+
+  cleanup_devices
+
+  sign_file "${out_img}"
+  local out_img_size=$(stat -c "%s" "${out_img}")
+  local out_img_signature=$(basename "${out_img}.asc")
+
+  local out_zimg="${out_img}.${EIB_IMAGE_COMPRESSION}"
+  eib_compress_image "${out_img}" "${out_zimg}"
+  sign_file "${out_zimg}"
+  local out_zimg_size=$(stat -c "%s" "${out_zimg}")
+
+  # Remove uncompressed image.
+  rm -f "${out_img}"
+
+  # Generate USB image manifest information
+  cat > "${EIB_MANIFESTDIR}"/usb_image.json <<EOF
+{
+  "images": {
+    "usb_image": {
+      "file": "${out_img_name}",
+      "extracted_size": ${out_img_size},
+      "compressed_size": ${out_zimg_size},
+      "compression_type": "${EIB_IMAGE_COMPRESSION}",
+      "signature": "${out_img_signature}"
+    }
+  }
+}
+EOF
+}
+
+# Run main function for this image.
+create_usb_image "$@"

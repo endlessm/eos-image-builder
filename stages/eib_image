@@ -156,6 +156,12 @@ dpkgdir="${OSTREE_DEPLOYMENT}"/var/lib/dpkg
 packageinfo="${EIB_TMPDIR}"/packages.txt
 dpkg-query -W --admindir="${dpkgdir}" > "${packageinfo}"
 
+# Create a clean USB image workspace directory
+if [[ "${EIB_IMAGE_USB}" = "true" ]]; then
+  export EIB_USB_IMAGE_WORKSPACE_DIR="${EIB_TMPDIR}/usb-image-extra"
+  recreate_dir "${EIB_USB_IMAGE_WORKSPACE_DIR}"
+fi
+
 # Add package info to manifest using helper. This needs to be run here
 # rather than in an image hook because the dpkg database will be masked
 # by the OS /var mount.
@@ -716,6 +722,13 @@ EOF
   # operation edits the original image in place.
   if [ "${EIB_IMAGE_SPLIT}" = true ]; then
     "${EIB_HELPERSDIR}"/split-image "${img}"
+  fi
+
+  # Create USB image if required
+  # This expects to have an ISO image for eos-write-live-image.
+  if [[ "${EIB_IMAGE_USB}" = "true" && "${EIB_IMAGE_ISO}" = "true" && "${EIB_IMAGE_BOOT_ZIP}" = "true" ]]; then
+    "${EIB_HELPERSDIR}"/create-usb-image "${version}" "$(eib_outfile usb.img)" \
+      "$(eib_outfile iso)" "${boot_zip}" "${img_asc}" "${boot_zip}.asc"
   fi
 
   # Await sign_file subprocesses
