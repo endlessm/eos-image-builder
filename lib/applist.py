@@ -105,9 +105,6 @@ class AppListFormatter(object):
                 # EknServicesMultiplexer. eibflatpak only installs
                 # should_download() extensions, so we treat those as normal
                 # runtimes.
-                #
-                # This does make org.freedesktop.Platform.Icontheme.EndlessOS
-                # end up in a group of its own but I think that's okay.
                 if not related.should_download():
                     continue
 
