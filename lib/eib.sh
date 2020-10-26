@@ -175,7 +175,21 @@ eib_udevadm_settle() {
     return 0
   fi
 
-  SYSTEMD_IGNORE_CHROOT=1 udevadm settle
+  # If the host udev version doesn't match the one in the build root, it
+  # may fail so retry. In particular, this works around a race when
+  # the host udev is older than version 242 but the build version is
+  # newer. In that case, the host udevd closes the connection to the
+  # control socket immediately after receiving the ping command.
+  # However, newer udev sends a subsequent end of messages command and
+  # may receive an EPIPE if that hasn't completed before udevd closes
+  # the connection.
+  #
+  # Ultimately any errors are ignored in the hope that any device events
+  # have been processed anyways. This is no different than when udevadm
+  # settle was a no-op in the build root.
+  #
+  # https://phabricator.endlessm.com/T30938
+  SYSTEMD_IGNORE_CHROOT=1 eib_retry udevadm settle || return 0
 }
 
 # Helpers for partx and losetup to work around races with device
