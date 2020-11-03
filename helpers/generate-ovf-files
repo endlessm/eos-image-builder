@@ -243,7 +243,9 @@ class OVFGenerator:
         SubElement(hw, 'CPU', {'count':str(self.CPUS)})
         SubElement(hw, 'BIOS')
         SubElement(hw, 'Memory', {'RAMSize':str(self.RAM)})
-        SubElement(hw, 'Display', {'VRAMSize':'16'})
+        SubElement(hw, 'Display', {'controller':'VMSVGA',
+                                   'VRAMSize':'16',
+                                   'accelerate3D':'true'})
         network = SubElement(hw, 'Network')
         SubElement(network, 'Adapter',
                    {'slot': '0',
