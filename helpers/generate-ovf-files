@@ -215,6 +215,10 @@ class OVFGenerator:
         SubElement(hw_items[7], 'rasd:ResourceType').text = '24'
         SubElement(hw_items[7], 'vmw:Config',
                     {'ovf:required': 'false',
+                     'vmw:key': 'enable3DSupport',
+                     'vmw:value': 'true'})
+        SubElement(hw_items[7], 'vmw:Config',
+                    {'ovf:required': 'false',
                      'vmw:key': 'videoRamSizeInKB',
                      'vmw:value': '262144'})
         vhw_section.append(hw_items[7])
