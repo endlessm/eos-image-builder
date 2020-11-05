@@ -15,10 +15,6 @@
 # GPG homedir at /etc/eos-image-builder/gnupg.
 signing_keyid =
 
-# 50-gnome-software-cache: see comment for corresponding [content] key below.
-hooks_del_local =
-    50-gnome-software-cache
-
 # Most products don't generate split images, but it can be useful to do
 # that locally for testing since the codepaths there are fragile.
 #split = true
@@ -65,16 +61,6 @@ nosplit_apps = com.endlessm.resume
 apps =
   com.endlessm.photos
 nosplit_apps =
-
-[content]
-# 50-gnome-software-cache:
-#   The gnome-software-data git repo is not publicly accessible, so an SSH key
-#   is required to clone the repo. Alternatively, an SSH private key with
-#   access to the git@github.com/endlessm/gnome-software-data.git repo can be
-#   installed at /etc/eos-image-builder/ssh-key.pem and 50-gnome-software-cache
-#   can be removed from all the _del_ lists in this file.
-hooks_del_local =
-    50-gnome-software-cache
 
 [buildroot]
 # The buildroot is generated using packages on the internal OBS repos,
