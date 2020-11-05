@@ -3,9 +3,8 @@
 # Fetch the current media list checksums
 clone_dir="${EIB_CONTENTDIR}/gnome-software-data"
 
-# Requires appropriate SSH private key in /etc/eos-image-builder
 if [ ! -d $clone_dir ] ; then
-  git clone git@github.com:endlessm/gnome-software-data.git $clone_dir
+  git clone https://github.com/endlessm/gnome-software-data.git $clone_dir
 else
   pushd $clone_dir
     git pull origin master
