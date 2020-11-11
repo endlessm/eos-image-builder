@@ -105,11 +105,6 @@ AUTORUN_INF
 
   local VOLID=$(echo -n "$label" | tr -cs 'A-Za-z0-9_' '-')
 
-  if [ -f "${EIB_TMPDIR}/iso-initramfs-append" ]; then
-    cp "${EIB_TMPDIR}/iso-initramfs-append" "${DIR_IMAGES_ENDLESS}/initramfs-append"
-    cp "${EIB_TMPDIR}/iso-grub.cfg" "${DIR_IMAGES_ENDLESS}/grub/grub.cfg"
-  fi
-
   # Generate the ISO image.
   # Parameters found using https://dev.lovelyhq.com/libburnia/libisoburn/raw/master/frontend/grub-mkrescue-sed.sh
   #
