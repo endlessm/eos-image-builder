@@ -22,7 +22,7 @@ ICON_TARGET_DIR="${OSTREE_VAR}"/lib/eos-image-defaults/icon-grid
 
 mkdir -p "${ICON_TARGET_DIR}"
 for file in "${ICON_SOURCE_DIR}"/icon-grid-*.json; do
-    sed s/chromium-browser/google-chrome/ "${file}" > "${ICON_TARGET_DIR}/${file##*/}"
+    sed s/org.chromium.Chromium/google-chrome/ "${file}" > "${ICON_TARGET_DIR}/${file##*/}"
 done
 
 
@@ -31,24 +31,24 @@ done
 
 # Parse the gsettings override file, finding a line like this:
 #
-# favorite-apps=['org.gnome.Software.desktop', 'chromium-browser.desktop', 'org.gnome.Nautilus.desktop']
+# favorite-apps=['org.gnome.Software.desktop', 'org.chromium.Chromium.desktop', 'org.gnome.Nautilus.desktop']
 #
 # And then write a settings file such as the following that
 # will be picked up by the 61-dconf-compile.chroot hook:
 #
 # [org/gnome/shell]
-# favorite-apps=['org.gnome.Software.desktop', 'chromium-browser.desktop', 'org.gnome.Nautilus.desktop']
+# favorite-apps=['org.gnome.Software.desktop', 'google-chrome.desktop', 'org.gnome.Nautilus.desktop']
 
 GSCHEMA_OVERRIDES="${OSTREE_DEPLOYMENT}"/usr/share/glib-2.0/schemas/50_eos-theme.gschema.override
 SETTINGS_DIR="${OSTREE_DEPLOYMENT}"/tmp/dconf-overrides
 TASKBAR_SETTINGS="${SETTINGS_DIR}"/taskbar-settings
 
 apps=$(grep '^favorite-apps=' "${GSCHEMA_OVERRIDES}")
-if [[ "$apps" != *chromium-browser* ]]; then
-    echo "ERROR: $apps doesn't mention chromium-browser"
+if [[ "$apps" != *org.chromium.Chromium* ]]; then
+    echo "ERROR: $apps doesn't mention org.chromium.Chromium"
     exit 1
 fi
-apps=${apps/chromium-browser/google-chrome}
+apps=${apps/org.chromium.Chromium/google-chrome}
 mkdir -p "${SETTINGS_DIR}"
 cat <<EOF > "${TASKBAR_SETTINGS}"
 [org/gnome/shell]
