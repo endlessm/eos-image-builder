@@ -109,6 +109,35 @@ class ImageConfigParser(configparser.ConfigParser):
 
     defaultsect = 'build'
 
+    # Config options that will be merged together from multiple
+    # $prefix_add_* and $prefix_del_* options. This is a list of
+    # (section, prefix) tuples. The section can be a glob pattern.
+    #
+    # FIXME: This needs to be managed from the config itself for
+    # flexibility.
+    MERGED_OPTIONS = [
+        ('buildroot', 'mounts'),
+        ('buildroot', 'packages'),
+        ('check', 'hooks'),
+        ('content', 'hooks'),
+        ('error', 'hooks'),
+        ('flatpak', 'locales'),
+        ('flatpak-remote-*', 'apps'),
+        ('flatpak-remote-*', 'runtimes'),
+        ('flatpak-remote-*', 'nosplit_apps'),
+        ('flatpak-remote-*', 'nosplit_runtimes'),
+        ('flatpak-remote-*', 'exclude'),
+        ('flatpak-remote-*', 'allow_extra_data'),
+        ('image', 'branding_subst_vars'),
+        ('image', 'hooks'),
+        ('image', 'icon_grid'),
+        ('image', 'settings'),
+        ('image', 'settings_locks'),
+        ('manifest', 'hooks'),
+        ('publish', 'hooks'),
+        ('split', 'hooks'),
+    ]
+
     def __init__(self, *args, **kwargs):
         kwargs['interpolation'] = configparser.ExtendedInterpolation()
         kwargs['default_section'] = self.defaultsect
@@ -146,49 +175,62 @@ class ImageConfigParser(configparser.ConfigParser):
             value = 'false'
         self.set(section, option, value)
 
-    def merge_option_prefix(self, section, prefix):
-        """Merge multiple options named like <prefix>_add_* and
-        <prefix>_del_*. The original options can be deleted later
-        with the clear_merged_options function. If an option named
-        <prefix> already exists, it is not changed.
+    def merge(self):
+        """Merge the options in the configuration"""
+        unmerged_options = []
+        for section, option in self.MERGED_OPTIONS:
+            unmerged_options += self._merge_option(section, option)
+
+        # Delete the unmerged options
+        for section, option in unmerged_options:
+            logger.debug('Deleting unmerged option %s %s', section, option)
+            del self[section][option]
+
+    def _merge_option(self, section_pattern, option):
+        """Merge multiple options named like <option>_add_* and <option>_del_*.
+        The original unmerged options are then deleted. If an option
+        named <prefix> already exists, it is not changed.
 
         The section can be a glob pattern to merge options in similarly
         named sections.
-        """
-        for sect_name in fnmatch.filter(self.sections(), section):
-            sect = self[sect_name]
-            add_opts = fnmatch.filter(sect.keys(), prefix + '_add_*')
-            del_opts = fnmatch.filter(sect.keys(), prefix + '_del_*')
 
-            # If the prefix doesn't exist, merge together the add and
-            # del options and set it.
-            if prefix not in sect:
+        This function is a generator yielding unmerged (section, option)
+        tuples.
+        """
+        for section in fnmatch.filter(self.sections(), section_pattern):
+            sect = self[section]
+
+            add_opts = fnmatch.filter(sect.keys(), option + '_add_*')
+            del_opts = fnmatch.filter(sect.keys(), option + '_del_*')
+
+            # If the option already exists, it overrides the unmerged
+            # variants
+            if option in sect:
+                logger.debug('Keeping merged option %s %s', section, option)
+                for opt in add_opts + del_opts:
+                    logger.debug('Ignoring unmerged option %s %s', section,
+                                 opt)
+                    yield (section, opt)
+            else:
                 add_vals = Counter()
                 for opt in add_opts:
+                    logger.debug('Adding %s %s values from %s', section,
+                                 option, opt)
                     add_vals.update(sect[opt].split())
+                    yield (section, opt)
+
                 del_vals = Counter()
                 for opt in del_opts:
+                    logger.debug('Removing %s %s values from %s', section,
+                                 option, opt)
                     del_vals.update(sect[opt].split())
+                    yield (section, opt)
 
-                # Set the prefix to the difference of the counters.
+                # Set the option to the difference of the counters.
                 # Merge the values together with newlines like they were
                 # in the original configuration.
                 vals = add_vals - del_vals
-                sect[prefix] = '\n'.join(sorted(vals.keys()))
-
-    def clear_merged_options(self, section, prefix):
-        """Clear the <prefix>_add_* and <prefix>_del_* options left by
-        the merge operation in merge_option_prefix. Called once all merges
-        have been done in order to allow the intermediate values to be used
-        for interpolation."""
-        for sect_name in fnmatch.filter(self.sections(), section):
-            sect = self[sect_name]
-            add_opts = fnmatch.filter(sect.keys(), prefix + '_add_*')
-            del_opts = fnmatch.filter(sect.keys(), prefix + '_del_*')
-
-            # Remove the add/del options to cleanup the section
-            for opt in add_opts + del_opts:
-                del sect[opt]
+                sect[option] = '\n'.join(sorted(vals.keys()))
 
     def copy(self):
         """Create a new instance from this one"""

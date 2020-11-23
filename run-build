@@ -228,32 +228,6 @@ class ImageBuilder(object):
     BOOLEAN_ATTRS = ['force', 'dry_run', 'use_production_apps',
                      'use_production_ostree']
 
-    # Config options that will be merged together from multiple
-    # $prefix_add_* and $prefix_del_* options. This is a list of
-    # (section, prefix) tuples. The section can be a glob pattern.
-    CONFIG_MERGE_PREFIXES = [
-        ('buildroot', 'mounts'),
-        ('buildroot', 'packages'),
-        ('check', 'hooks'),
-        ('content', 'hooks'),
-        ('error', 'hooks'),
-        ('flatpak', 'locales'),
-        ('flatpak-remote-*', 'apps'),
-        ('flatpak-remote-*', 'runtimes'),
-        ('flatpak-remote-*', 'nosplit_apps'),
-        ('flatpak-remote-*', 'nosplit_runtimes'),
-        ('flatpak-remote-*', 'exclude'),
-        ('flatpak-remote-*', 'allow_extra_data'),
-        ('image', 'branding_subst_vars'),
-        ('image', 'hooks'),
-        ('image', 'icon_grid'),
-        ('image', 'settings'),
-        ('image', 'settings_locks'),
-        ('manifest', 'hooks'),
-        ('publish', 'hooks'),
-        ('split', 'hooks'),
-    ]
-
     def __getattr__(self, attr):
         """Proxy this object's attributes into the config object"""
         if attr in self.CONFIG_ATTRS:
@@ -420,7 +394,7 @@ class ImageBuilder(object):
         # Copy the configuration to the public instance and merge the
         # options.
         self._public_config = self.config.copy()
-        self.merge_config(self._public_config)
+        self._public_config.merge()
 
     def configure_private(self):
         """Build settings from private configuration files
@@ -442,7 +416,7 @@ class ImageBuilder(object):
             log.info('Loaded private configuration file %s', path)
 
         # Merge the key prefixes for the real configuration
-        self.merge_config()
+        self.config.merge()
 
     def check_value(self, section, option, value):
         # Sections and key names match the config files, with suffixes as
@@ -475,21 +449,6 @@ class ImageBuilder(object):
         for sect in schema.sections():
             for option, value in schema.items_no_default(sect):
                 self.check_value(sect, option, value)
-
-    def merge_config(self, config=None):
-        """Merge the options in the configuration
-
-        If config is None, the instance's config is used.
-        """
-        if config is None:
-            config = self.config
-        for section, prefix in self.CONFIG_MERGE_PREFIXES:
-            config.merge_option_prefix(section, prefix)
-        # clear the _add_* and _del_* options after merging, so they can be
-        # used for interpolation in the meantime regardless of order and where
-        # they are defined
-        for section, prefix in self.CONFIG_MERGE_PREFIXES:
-            config.clear_merged_options(section, prefix)
 
     def setenv(self, section, option, value):
         """Export config values as variable in EIB namespace

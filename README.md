@@ -190,27 +190,9 @@ configuration file to override all of the various `add` and `del`
 options from other files to provide the list exactly in the form it
 wants.
 
-The current merged options are:
-
-* `buildroot:mounts`
-* `buildroot:packages`
-* `check:hooks`
-* `content:hooks`
-* `error:hooks`
-* `flatpak:locales`
-* `flatpak-remote-*:apps`
-* `flatpak-remote-*:runtimes`
-* `flatpak-remote-*:nosplit_apps`
-* `flatpak-remote-*:nosplit_runtimes`
-* `image:hooks`
-* `image:icon_grid`
-* `image:settings`
-* `image:settings_locks`
-* `manifest:hooks`
-* `publish:hooks`
-* `split:hooks`
-
-See the `defaults.ini` file for a description of these options.
+The current merged options are defined in the `ImageConfigParser` class
+attribute `MERGED_OPTIONS` in the [eib](lib/eib.py) module. See the
+`defaults.ini` file for a description of these options.
 
 Accessing options
 -----------------
