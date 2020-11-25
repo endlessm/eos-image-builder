@@ -383,6 +383,22 @@ also clean up for subsequent builds.
 Testing
 =======
 
+Some parts of the image builder can be tested with [pytest][pytest-url].
+After installing pytest, run `pytest` (or `pytest-3` if `pytest` is for
+python 2) from the root of the checkout.
+
+Various options can be passed to `pytest` to control how the tests are
+run. See the pytest [usage][pytest-usage] documentation for details.
+When debugging test failures, the `--basetemp` option allows specifying
+the directory where each test's temporary directory will be stored. This
+can be helpful to examine the files generated during tests. Another
+useful option is `--log-cli-level=DEBUG`. Normally log messages are
+suppressed unless there's a test failure. This option prints the
+messages in the test output as they happen.
+
+[pytest-url]: https://docs.pytest.org/en/stable/
+[pytest-usage]: https://docs.pytest.org/en/stable/usage.html
+
 The default image builder configuration and execution options are setup
 for building production images on the Endless builders with access to
 all needed assets. However, when making changes on the image builder,
