@@ -3,6 +3,7 @@
 import eib
 import io
 import os
+import pytest
 from textwrap import dedent
 
 from ..util import SRCDIR
@@ -22,7 +23,7 @@ def test_missing(tmp_path, config):
     because config files for all attributes of the build
     (product/arch/etc) are read.
     """
-    assert config.read(tmp_path / 'missing') == []
+    assert not config.read_config_file(tmp_path / 'missing', 'missing')
     assert config.sections() == []
     assert get_combined_ini(config) == ''
 
@@ -46,7 +47,7 @@ def test_interpolation(tmp_path, config):
     h = ${c}
     i = ${d}
     """))
-    assert config.read(f) == [str(f)]
+    assert config.read_config_file(f, 'f')
 
     sect = config['a']
     assert sect['d'] == 'b'
@@ -77,8 +78,8 @@ def test_config_multiple(tmp_path, config):
       b
     """))
 
-    assert config.read(f1) == [str(f1)]
-    assert config.read(f2) == [str(f2)]
+    assert config.read_config_file(f1, 'f1')
+    assert config.read_config_file(f2, 'f2')
 
     assert config.sections() == ['a', 'b']
     assert config.options('a') == ['a', 'b', 'c']
@@ -166,19 +167,77 @@ def test_merged_pattern_section(config):
     assert b['opt'] == 'baz'
 
 
+def test_merged_namespace_errors(tmp_path, config):
+    a = tmp_path / 'a.ini'
+    b = tmp_path / 'b.ini'
+
+    # Bad namespace options
+    with pytest.raises(eib.ImageBuildError,
+                       match='namespace must be a non-empty string'):
+        config.read_config_file(a, None)
+    with pytest.raises(eib.ImageBuildError,
+                       match='namespace must be a non-empty string'):
+        config.read_config_file(a, '')
+
+    # Conflicting namespaces
+    config.read_config_file(a, 'test')
+    with pytest.raises(eib.ImageBuildError,
+                       match='namespace test is already used'):
+        config.read_config_file(b, 'test')
+
+
+def test_merged_namespaces(tmp_path, config):
+    config.MERGED_OPTIONS = [('sect', 'opt')]
+    expected_opts = set()
+
+    # Automatic namespacing
+    a = tmp_path / 'a.ini'
+    a.write_text(dedent("""\
+    [sect]
+    opt_add = foo
+    opt_del = bar
+    """))
+    assert config.read_config_file(a, 'a')
+    add_opt = 'opt_add_a'
+    del_opt = 'opt_del_a'
+    expected_opts.update({add_opt, del_opt})
+    assert set(config['sect']) == expected_opts
+    assert config['sect'][add_opt] == 'foo'
+    assert config['sect'][del_opt] == 'bar'
+
+    # Configuration defined namespacing
+    b = tmp_path / 'b.ini'
+    b.write_text(dedent("""\
+    [sect]
+    opt_add_test = bar
+    opt_del_test = foo
+    """))
+    assert config.read_config_file(b, 'b')
+    add_opt = 'opt_add_test'
+    del_opt = 'opt_del_test'
+    expected_opts.update({add_opt, del_opt})
+    assert set(config['sect']) == expected_opts
+    assert config['sect'][add_opt] == 'bar'
+    assert config['sect'][del_opt] == 'foo'
+
+    config.merge()
+    assert set(config['sect']) == {'opt'}
+    assert config['sect']['opt'] == ''
+
+
 def test_merged_files(tmp_path, config):
     """Test option merging from files"""
     config.MERGED_OPTIONS = [('sect', 'opt'), ('sect-*', 'opt')]
     a = tmp_path / 'a.ini'
     a.write_text(dedent("""\
     [sect]
-    opt_add_a =
+    opt_add =
       foo
       bar
       baz
 
     [sect-a]
-    opt_add_a =
+    opt_add =
       foo
       bar
 
@@ -189,33 +248,36 @@ def test_merged_files(tmp_path, config):
     b = tmp_path / 'b.ini'
     b.write_text(dedent("""\
     [sect]
-    opt_add_b =
+    opt_add =
       baz
 
     [sect-a]
-    opt_del_b = bar
+    opt_del = bar
 
     [sect-b]
-    opt_add_b = foo
+    opt_add = foo
     """))
 
     c = tmp_path / 'c.ini'
     c.write_text(dedent("""\
     [sect]
-    opt_del_c =
+    opt_del =
       bar
       baz
+
+    [sect-a]
+    opt_del = foo
     """))
 
-    assert config.read(a) == [str(a)]
-    assert config.read(b) == [str(b)]
-    assert config.read(c) == [str(c)]
+    assert config.read_config_file(a, 'a')
+    assert config.read_config_file(b, 'b')
+    assert config.read_config_file(c, 'c')
     config.merge()
 
     assert set(config['sect']) == {'opt'}
     assert config['sect']['opt'] == 'baz\nfoo'
     assert set(config['sect-a']) == {'opt'}
-    assert config['sect-a']['opt'] == 'foo'
+    assert config['sect-a']['opt'] == ''
     assert set(config['sect-b']) == {'opt'}
     assert config['sect-b']['opt'] == 'baz'
 
@@ -223,7 +285,7 @@ def test_merged_files(tmp_path, config):
 def test_defaults(builder_config):
     """Test defaults.ini can be loaded and resolved"""
     defaults = os.path.join(SRCDIR, 'config/defaults.ini')
-    assert builder_config.read(defaults) == [defaults]
+    assert builder_config.read_config_file(defaults, 'defaults')
     for sect in builder_config:
         # Make sure all the values can be resolved
         builder_config.items(sect)
@@ -240,5 +302,5 @@ def test_all_current():
                 continue
             path = os.path.join(cur, name)
             config = eib.ImageConfigParser()
-            assert config.read(path) == [path]
+            assert config.read_config_file(path, path.replace('/', '_'))
             assert get_combined_ini(config) != ''

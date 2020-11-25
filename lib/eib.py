@@ -110,8 +110,8 @@ class ImageConfigParser(configparser.ConfigParser):
     defaultsect = 'build'
 
     # Config options that will be merged together from multiple
-    # $prefix_add_* and $prefix_del_* options. This is a list of
-    # (section, prefix) tuples. The section can be a glob pattern.
+    # $prefix_add* and $prefix_del* options. This is a list of (section,
+    # prefix) tuples. The section can be a glob pattern.
     #
     # FIXME: This needs to be managed from the config itself for
     # flexibility.
@@ -142,6 +142,64 @@ class ImageConfigParser(configparser.ConfigParser):
         kwargs['interpolation'] = configparser.ExtendedInterpolation()
         kwargs['default_section'] = self.defaultsect
         super().__init__(*args, **kwargs)
+
+        self.namespaces = set()
+
+    def read_config_file(self, path, namespace):
+        """Read a single file into the configuration
+
+        The file does not need to exist. Returns True if the file was
+        read and False otherwise. The namespace parameter is used as a
+        suffix for merged options when one does not exist in the config
+        file and must be unique.
+        """
+        # Ensure the namespace is set and unique.
+        if not namespace:
+            raise ImageBuildError('namespace must be a non-empty string')
+        if namespace in self.namespaces:
+            raise ImageBuildError('namespace', namespace, 'is already used')
+        self.namespaces.add(namespace)
+
+        # Load this file into a normal ConfigParser instance without
+        # interpolation so that it can adjusted before merging it with
+        # the full configuration.
+        path = os.fspath(path)
+        logger.debug('Considering config file %s', path)
+        raw_config = configparser.ConfigParser(
+            interpolation=None, default_section=self.defaultsect)
+        if not raw_config.read(path, encoding='utf-8'):
+            return False
+
+        # Include a leading _ in the namespace suffix if needed.
+        suffix = namespace
+        if suffix[0] != '_':
+            suffix = '_' + suffix
+
+        for pattern, opt in self.MERGED_OPTIONS:
+            add_opt = opt + '_add'
+            del_opt = opt + '_del'
+
+            for sect in fnmatch.filter(raw_config.sections(), pattern):
+                section = raw_config[sect]
+
+                if add_opt in section:
+                    namespace_add_opt = add_opt + suffix
+                    logger.debug('Renaming %s option %s to %s', sect, add_opt,
+                                 namespace_add_opt)
+                    section[namespace_add_opt] = section[add_opt]
+                    del section[add_opt]
+
+                if del_opt in section:
+                    namespace_del_opt = del_opt + suffix
+                    logger.debug('Renaming %s option %s to %s', sect, del_opt,
+                                 namespace_del_opt)
+                    section[namespace_del_opt] = section[del_opt]
+                    del section[del_opt]
+
+        # Merge this configuration.
+        self.read_dict(raw_config)
+
+        return True
 
     def items_no_default(self, section, raw=False):
         """Return the items in a section without including defaults"""
@@ -187,7 +245,7 @@ class ImageConfigParser(configparser.ConfigParser):
             del self[section][option]
 
     def _merge_option(self, section_pattern, option):
-        """Merge multiple options named like <option>_add_* and <option>_del_*.
+        """Merge multiple options named like <option>_add* and <option>_del*.
         The original unmerged options are then deleted. If an option
         named <prefix> already exists, it is not changed.
 
@@ -200,8 +258,8 @@ class ImageConfigParser(configparser.ConfigParser):
         for section in fnmatch.filter(self.sections(), section_pattern):
             sect = self[section]
 
-            add_opts = fnmatch.filter(sect.keys(), option + '_add_*')
-            del_opts = fnmatch.filter(sect.keys(), option + '_del_*')
+            add_opts = fnmatch.filter(sect.keys(), option + '_add*')
+            del_opts = fnmatch.filter(sect.keys(), option + '_del*')
 
             # If the option already exists, it overrides the unmerged
             # variants

@@ -181,12 +181,33 @@ a single setting. Adding or removing items from the list is not possible
 with the features in the configuration parser.
 
 To allow some method of building these lists, the builder will take
-multiple options of the form `$prefix_add_*` and `$prefix_del_*` and
-merge them together into one option named `$prefix`. Values in the
-various `$prefix_add_*` options are added to a set, and then values in
-the various `$prefix_del_*` options are removed from the set. If the
-option `$prefix` already exists, it is not changed. This allows a
-configuration file to override all of the various `add` and `del`
+options of the form `<option>_add*` and `<option>_del*` and merge them
+together into one option named `<option>`. Each whitespace separated
+value in the `add` and `del` variants is counted to determine whether it
+will remain in the merged option value. A value found in `add` will have
+its count incremented while a value found in `del` will have its count
+decremented. If the final count is less than or equal to 0, it is
+removed from the merged value.
+
+Normally options loaded later in the configuration will override
+identically named options from earlier in the configuration. If an
+unmerged variant ends in `_add` or `_del`, a suffix based on the
+filesystem path will automatically be appended to make it unique. For
+instance, the option `packages_add` in `defaults.ini` will be converted
+to `packages_add_defaults`, and the option `apps_add` in
+`product/eos.ini` will be converted to `apps_add_product_eos`. These
+options can be interpolated in other parts of the configuration using
+the converted names.
+
+Configuration files in the system directory will additionally include
+`system` in the merged option. For example, the options `apps_del` in
+`/etc/eos-image-builder/config.ini` will be converted to
+`apps_del_system_config`. Alternatively, any unmerged option that
+contains a suffix after `add` or `del` will be left as is such as
+`apps_add_mandatory` in `defaults.ini`.
+
+If the option `<option>` already exists, it is not changed. This allows
+a configuration file to override all of the various `add` and `del`
 options from other files to provide the list exactly in the form it
 wants.
 

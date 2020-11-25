@@ -373,7 +373,9 @@ class ImageBuilder(object):
         2. Local private settings - $configdir/private.ini
         """
         # Default configuration
-        config_files = [os.path.join(self.configdir, 'defaults.ini')]
+        config_files = [
+            (os.path.join(self.configdir, 'defaults.ini'), 'defaults')
+        ]
 
         # Add per-attribute config directories
         config_attrs = ('product', 'branch', 'arch', 'platform',
@@ -381,7 +383,8 @@ class ImageBuilder(object):
         for attr in config_attrs:
             path = os.path.join(self.configdir, attr,
                                 getattr(self, attr) + '.ini')
-            config_files.append(path)
+            namespace = '_'.join((attr, getattr(self, attr)))
+            config_files.append((path, namespace))
 
         # Add combinations of per-attribute config directories
         for attr1, attr2 in itertools.combinations(config_attrs, 2):
@@ -389,17 +392,20 @@ class ImageBuilder(object):
                        getattr(self, attr2) + '.ini'
             path = os.path.join(self.configdir, attr1 + '-' + attr2,
                                 ini_name)
-            config_files.append(path)
+            namespace = '_'.join((attr1, attr2, getattr(self, attr1),
+                                  getattr(self, attr2)))
+            config_files.append((path, namespace))
 
         # Local configuration files
         config_files.extend([
-            os.path.join(self.sysconfdir, 'config.ini'),
-            os.path.join(self.configdir, 'local.ini'),
+            (os.path.join(self.sysconfdir, 'config.ini'), 'system_config'),
+            (os.path.join(self.configdir, 'local.ini'), 'local'),
         ])
 
         # Read the config files
-        for path in self.config.read(config_files, encoding='utf-8'):
-            log.info('Loaded configuration file %s', path)
+        for path, namespace in config_files:
+            if self.config.read_config_file(path, namespace):
+                log.info('Loaded configuration file %s', path)
 
         # Copy the configuration to the public instance and merge the
         # options.
@@ -408,11 +414,12 @@ class ImageBuilder(object):
 
         # Private configuration files
         private_config_files = [
-            os.path.join(self.sysconfdir, 'private.ini'),
-            os.path.join(self.configdir, 'private.ini'),
+            (os.path.join(self.sysconfdir, 'private.ini'), 'system_private'),
+            (os.path.join(self.configdir, 'private.ini'), 'private'),
         ]
-        for path in self.config.read(private_config_files, encoding='utf-8'):
-            log.info('Loaded private configuration file %s', path)
+        for path, namespace in private_config_files:
+            if self.config.read_config_file(path, namespace):
+                log.info('Loaded private configuration file %s', path)
 
         # Merge the key prefixes for the real configuration
         self.config.merge()
@@ -441,7 +448,7 @@ class ImageBuilder(object):
         """Check loaded configuration against schema for validity."""
         schema_file = os.path.join(self.configdir, 'schema.ini')
         schema = eib.ImageConfigParser()
-        schema.read(schema_file, encoding='utf-8')
+        schema.read_config_file(schema_file, 'schema')
 
         for option, value in schema.items(schema.defaultsect):
             self.check_value(schema.defaultsect, option, value)
