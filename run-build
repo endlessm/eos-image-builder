@@ -349,19 +349,29 @@ class ImageBuilder(object):
         self.deb_host_multiarch = multiarch.decode().strip()
 
     def configure(self):
-        """Build settings from configuration files"""
-        # Build up a list of config files to load. The order goes like so:
-        #
-        # 1. Default settings - $configdir/defaults.ini.
-        # 2. Product, branch, arch, platform and personality settings.
-        #    These are in $configdir subdirectories. For example,
-        #    $configdir/product/$product.ini.
-        # 3. Product, branch, etc combination settings from the
-        #    $configdir subdirectory. For example,
-        #    $configdir/product-personality/$product-$personality.ini.
-        # 4. System config settings - $sysconfdir/config.ini.
-        # 5. Local user settings - $configdir/local.ini.
+        """Build settings from configuration files
 
+        Read configuration files to build the instance settings. The
+        files loaded are:
+
+        1. Default settings - $configdir/defaults.ini.
+        2. Product, branch, arch, platform and personality settings.
+           These are in $configdir subdirectories. For example,
+           $configdir/product/$product.ini.
+        3. Product, branch, etc combination settings from the
+           $configdir subdirectory. For example,
+           $configdir/product-personality/$product-$personality.ini.
+        4. System config settings - $sysconfdir/config.ini.
+        5. Local user settings - $configdir/local.ini.
+
+        These settings will be displayed in the output merged
+        configuration file. Additional private configuration files are
+        read whose settings will not be displayed in the merged
+        configuration file. These files are:
+
+        1. System private settings - $sysconfdir/private.ini
+        2. Local private settings - $configdir/private.ini
+        """
         # Default configuration
         config_files = [os.path.join(self.configdir, 'defaults.ini')]
 
@@ -396,23 +406,12 @@ class ImageBuilder(object):
         self._public_config = self.config.copy()
         self._public_config.merge()
 
-    def configure_private(self):
-        """Build settings from private configuration files
-
-        Read additional private configuration files that will not be
-        displayed in the merged configuration file. There are 2 private
-        configuration files:
-
-        1. System private settings - $sysconfdir/private.ini
-        2. Local private settings - $configdir/private.ini
-        """
-        config_files = [
+        # Private configuration files
+        private_config_files = [
             os.path.join(self.sysconfdir, 'private.ini'),
             os.path.join(self.configdir, 'private.ini'),
         ]
-
-        # Read the config files
-        for path in self.config.read(config_files, encoding='utf-8'):
+        for path in self.config.read(private_config_files, encoding='utf-8'):
             log.info('Loaded private configuration file %s', path)
 
         # Merge the key prefixes for the real configuration
@@ -530,7 +529,6 @@ class ImageBuilder(object):
     def run(self):
         log.info('Configuring image build')
         self.configure()
-        self.configure_private()
         self.check_config()
         if self.show_config:
             # Just show the configuration without doing anything
