@@ -69,7 +69,7 @@ def test_setenv(make_builder, monkeypatch):
         m.setattr(os, 'environ', builder_env)
 
         cases = [
-            (None, 'opt', 'val', {'EIB_OPT': 'val'}),
+            ('build', 'opt', 'val', {'EIB_OPT': 'val'}),
             ('sect', 'opt', 'val', {'EIB_SECT_OPT': 'val'}),
             ('sect', 'opt', 'True', {'EIB_SECT_OPT': 'true'}),
             ('sect', 'opt', 'False', {'EIB_SECT_OPT': 'false'}),
@@ -210,9 +210,7 @@ def test_configure_variant(make_builder, product, branch, arch, platform,
     builder.check_config()
 
     # Make sure all values can be interpolated
-    for option, value in builder.config.items(builder.config.defaultsect):
-        logger.debug('build:%s = %s', option, value.replace('\n', ' '))
     for section in builder.config.sections():
-        for option, value in builder.config.items_no_default(section):
+        for option, value in builder.config.items(section):
             logger.debug('%s:%s = %s', section, option,
                          value.replace('\n', ' '))

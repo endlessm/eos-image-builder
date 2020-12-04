@@ -24,8 +24,8 @@ def test_missing(tmp_path, config):
     (product/arch/etc) are read.
     """
     assert not config.read_config_file(tmp_path / 'missing', 'missing')
-    assert config.sections() == []
-    assert get_combined_ini(config) == ''
+    assert config.sections() == ['build']
+    assert get_combined_ini(config) == '[build]\n\n'
 
 
 def test_interpolation(tmp_path, config):
@@ -43,7 +43,7 @@ def test_interpolation(tmp_path, config):
     d = ${a}
     e = ${a:a}
     f = ${build:a}
-    g = ${b}
+    g = ${build:b}
     h = ${c}
     i = ${d}
     """))
@@ -81,7 +81,7 @@ def test_config_multiple(tmp_path, config):
     assert config.read_config_file(f1, 'f1')
     assert config.read_config_file(f2, 'f2')
 
-    assert config.sections() == ['a', 'b']
+    assert config.sections() == ['build', 'a', 'b']
     assert config.options('a') == ['a', 'b', 'c']
     assert config.options('b') == ['a']
     assert config['a']['a'] == 'a'
@@ -90,6 +90,8 @@ def test_config_multiple(tmp_path, config):
     assert config['b']['a'] == 'a\nb'
 
     expected_combined = dedent("""\
+    [build]
+
     [a]
     a = a
     b = c

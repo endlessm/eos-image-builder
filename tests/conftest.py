@@ -30,7 +30,7 @@ def builder_config(config):
     This fills in the build section like ImageBuilder so that
     interpolation of full sections should succeed.
     """
-    config[config.defaultsect].update({
+    config[config.BUILD_SECTION].update({
         'product': 'eos',
         'branch': 'master',
         'arch': 'amd64',
@@ -66,7 +66,7 @@ def builder_config(config):
     })
 
     # Make sure only the intended settings from ImageBuilder are set
-    test_attrs = config.defaults().keys()
+    test_attrs = set(config[config.BUILD_SECTION])
     expected_attrs = set(run_build.ImageBuilder.CONFIG_ATTRS)
     assert test_attrs == expected_attrs
 

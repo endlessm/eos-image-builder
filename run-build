@@ -231,11 +231,11 @@ class ImageBuilder(object):
     def __getattr__(self, attr):
         """Proxy this object's attributes into the config object"""
         if attr in self.CONFIG_ATTRS:
-            # Proxy through to the config object's default section
+            # Proxy through to the config object's build section
             if attr in self.BOOLEAN_ATTRS:
-                return self.config.getboolean(self.config.defaultsect,
+                return self.config.getboolean(self.config.BUILD_SECTION,
                                               attr)
-            return self.config.get(self.config.defaultsect, attr)
+            return self.config.get(self.config.BUILD_SECTION, attr)
         else:
             # Chain up for normal attribute access
             return super().__getattribute__(attr)
@@ -243,11 +243,11 @@ class ImageBuilder(object):
     def __setattr__(self, attr, value):
         """Proxy the value to the config object"""
         if attr in self.CONFIG_ATTRS:
-            # Proxy through to the config object's default section
+            # Proxy through to the config object's build section
             if attr in self.BOOLEAN_ATTRS:
-                self.config.setboolean(None, attr, value)
+                self.config.setboolean(self.config.BUILD_SECTION, attr, value)
             else:
-                self.config.set(None, attr, value)
+                self.config.set(self.config.BUILD_SECTION, attr, value)
         else:
             # Chain up for normal attribute setting
             super().__setattr__(attr, value)
@@ -450,10 +450,8 @@ class ImageBuilder(object):
         schema = eib.ImageConfigParser()
         schema.read_config_file(schema_file, 'schema')
 
-        for option, value in schema.items(schema.defaultsect):
-            self.check_value(schema.defaultsect, option, value)
         for sect in schema.sections():
-            for option, value in schema.items_no_default(sect):
+            for option, value in schema.items(sect):
                 self.check_value(sect, option, value)
 
     def setenv(self, section, option, value):
@@ -462,12 +460,16 @@ class ImageBuilder(object):
         The variable name will be EIB_<SECTION>_<OPTION> with the
         section and option names uppercased. Shell-incompatible
         characters are converted to underscores.
+
+        As a special case, options from the build section do not have
+        the section name in the environment variable. For instance,
+        build:product will become EIB_PRODUCT.
         """
         # Convert boolean's to true/false to be handled easily in shell
         if value in ['True', 'False']:
             value = value.lower()
         var = 'EIB_'
-        if section:
+        if section != self.config.BUILD_SECTION:
             var += section.upper() + '_'
         var += option.upper()
 
@@ -481,10 +483,8 @@ class ImageBuilder(object):
     def set_environment(self):
         """Setup environment variables for stages and hooks"""
         # Build specific environment attributes.
-        for option, value in self.config.items(self.config.defaultsect):
-            self.setenv(None, option, value)
         for sect in self.config.sections():
-            for option, value in self.config.items_no_default(sect):
+            for option, value in self.config.items(sect):
                 self.setenv(sect, option, value)
 
     def prep_builddir(self):

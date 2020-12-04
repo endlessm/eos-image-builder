@@ -147,8 +147,8 @@ build.
 
 New configuration options should be added and documented in
 `defaults.ini`. See the existing file for options that are available to
-customize. Settings in the default `build` section are usually set in
-the `ImageBuilder` class as they're static across all builds.
+customize. Settings in the `build` section are usually set in the
+`ImageBuilder` class as they're static across all builds.
 
 Format
 ------
@@ -158,10 +158,7 @@ However, a form of interpolation is used to allow referring to other
 options. For instance, an option `foo` can use the value from an option
 `bar` by using `${bar}` in its value. If `bar` was in a different
 section, it can be referred to by prepending the other section in the
-form of `${other:bar}`. The `build` section is the default section. Any
-interpolation without an explicit section can fallback to a value in the
-`build` section. For example, if `bar` doesn't exist in the current
-section, it will also be looked for in the `build` section.
+form of `${other:bar}`.
 
 The INI file parsing is done using the `configparser` `python` module.
 The interpolation feature is provided by its `ExtendedInterpolation`

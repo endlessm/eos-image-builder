@@ -107,7 +107,7 @@ class ImageConfigParser(configparser.ConfigParser):
     """Configuration parser for the image builder. This uses configparser's
     ExtendedInterpolation to expand values like variables."""
 
-    defaultsect = 'build'
+    BUILD_SECTION = 'build'
 
     # Config options that will be merged together from multiple
     # $prefix_add* and $prefix_del* options. This is a list of (section,
@@ -140,8 +140,10 @@ class ImageConfigParser(configparser.ConfigParser):
 
     def __init__(self, *args, **kwargs):
         kwargs['interpolation'] = configparser.ExtendedInterpolation()
-        kwargs['default_section'] = self.defaultsect
         super().__init__(*args, **kwargs)
+
+        # Always add the build section
+        self.add_section(self.BUILD_SECTION)
 
         self.namespaces = set()
 
@@ -165,8 +167,7 @@ class ImageConfigParser(configparser.ConfigParser):
         # the full configuration.
         path = os.fspath(path)
         logger.debug('Considering config file %s', path)
-        raw_config = configparser.ConfigParser(
-            interpolation=None, default_section=self.defaultsect)
+        raw_config = configparser.ConfigParser(interpolation=None)
         if not raw_config.read(path, encoding='utf-8'):
             return False
 
@@ -200,27 +201,6 @@ class ImageConfigParser(configparser.ConfigParser):
         self.read_dict(raw_config)
 
         return True
-
-    def items_no_default(self, section, raw=False):
-        """Return the items in a section without including defaults"""
-        # This is a nasty hack to overcome the behavior of the normal
-        # items(). The default section needs to be merged in to resolve
-        # the interpolation, but we only want the keys from the section
-        # itself.
-        d = self.defaults().copy()
-        sect = self._sections[section]
-        d.update(sect)
-        if raw:
-            def value_getter(option):
-                return d[option]
-        else:
-            def value_getter(option):
-                return self._interpolation.before_get(self,
-                                                      section,
-                                                      option,
-                                                      d[option],
-                                                      d)
-        return [(option, value_getter(option)) for option in sect.keys()]
 
     def setboolean(self, section, option, value):
         """Convenience method to store boolean's in shell style
@@ -292,15 +272,11 @@ class ImageConfigParser(configparser.ConfigParser):
 
     def copy(self):
         """Create a new instance from this one"""
-        # Construct a dict to feed into a new instance's read_dict
+        # Build a dictionary with raw values rather than passing this
+        # instance directly into the new instance's read_dict method.
         data = OrderedDict()
-        data[self.defaultsect] = OrderedDict(self.items(self.defaultsect,
-                                                        raw=True))
         for sect in self.sections():
-            data[sect] = OrderedDict(self.items_no_default(sect,
-                                                           raw=True))
-
-        # Construct the new instance
+            data[sect] = OrderedDict(self.items(sect, raw=True))
         new_config = ImageConfigParser()
         new_config.read_dict(data)
         return new_config
