@@ -41,7 +41,6 @@ def builder_config(config):
         'series': 'master',
         'srcdir': SRCDIR,
         'cachedir': eib.CACHEDIR,
-        'configdir': '${srcdir}/config',
         'sysconfdir': eib.SYSCONFDIR,
         'build_version': '200101-000000',
         'deb_host_gnu_cpu': 'x86_64',
@@ -104,7 +103,7 @@ def make_builder(tmp_builder_config, tmp_builder_paths, mock_datetime):
         kwargs.setdefault('arch', 'amd64')
         kwargs.setdefault('platform', 'amd64')
         kwargs.setdefault('personality', 'base')
+        kwargs.setdefault('configdir', str(tmp_builder_config))
         builder = run_build.ImageBuilder(**kwargs)
-        builder.configdir = str(tmp_builder_config)
         return builder
     return _make_builder

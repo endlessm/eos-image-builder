@@ -219,7 +219,7 @@ class ImageBuilder(object):
     CONFIG_ATTRS = [
         'product', 'branch', 'arch', 'platform', 'personality',
         'force', 'dry_run', 'series', 'srcdir', 'cachedir',
-        'configdir', 'sysconfdir', 'build_version',
+        'sysconfdir', 'build_version',
         'deb_host_gnu_cpu', 'deb_host_multiarch',
         'use_production_apps', 'use_production_ostree',
     ]
@@ -259,7 +259,8 @@ class ImageBuilder(object):
                  show_apps_trim=0,
                  show_apps_group_by=None,
                  force=False, dry_run=False,
-                 use_production_apps=False, use_production_ostree=False):
+                 use_production_apps=False, use_production_ostree=False,
+                 configdir=None):
         # Create the config option first to allow the proxying between
         # it and this object's attributes.
         self.config = eib.ImageConfigParser()
@@ -312,13 +313,14 @@ class ImageBuilder(object):
                 # Assume platform neutral arch
                 self.platform = self.arch
 
-        # Load other common settings, but use the configparser
-        # interpolation syntax. This will allow the user to override
-        # things easily.
+        # Common paths
+        self.builddir = eib.BUILDDIR
+        self.configdir = configdir or os.path.join(SRCDIR, 'config')
+
+        # Load other common settings so they're availavle to use in
+        # configparser interpolation.
         self.srcdir = SRCDIR
         self.cachedir = eib.CACHEDIR
-        self.builddir = eib.BUILDDIR
-        self.configdir = '${srcdir}/config'
         self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.utcnow().strftime('%y%m%d-%H%M%S')
 
