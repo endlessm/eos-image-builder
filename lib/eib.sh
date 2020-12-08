@@ -159,7 +159,7 @@ eib_retry() {
 
   if (( i >= max_retries )); then
     echo "$@ failed ${max_retries} times; giving up"
-    exit 1
+    return 1
   fi
 }
 
