@@ -4,6 +4,7 @@ import eib
 import logging
 import os
 import pytest
+from textwrap import dedent
 
 from .util import SRCDIR, import_script
 
@@ -176,3 +177,116 @@ def test_configure_variant(make_builder, product, branch, arch, platform,
         for option, value in builder.config.items(section):
             logger.debug('%s:%s = %s', section, option,
                          value.replace('\n', ' '))
+
+
+def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
+    """Test loading of various config paths"""
+    expected_loaded = []
+    expected_not_loaded = []
+    expected_loaded_private = []
+    expected_packages = ''
+    expected_signing_key = ''
+
+    def _run_test():
+        caplog.clear()
+        builder = make_builder(configdir=str(configdir))
+        builder.configure()
+
+        for path in expected_loaded:
+            assert ('Loaded configuration file {}'.format(path)
+                    in caplog.text)
+        for path in expected_not_loaded:
+            assert ('Loaded configuration file {}'.format(path)
+                    not in caplog.text)
+        for path in expected_loaded_private:
+            assert ('Loaded private configuration file {}'.format(path)
+                    in caplog.text)
+        assert builder.config['buildroot']['packages'] == expected_packages
+        assert builder.config['image']['signing_key'] == expected_signing_key
+
+    configdir = tmp_path / 'config'
+
+    # Config defaults
+    defaults = configdir / 'defaults.ini'
+    defaults.parent.mkdir()
+    defaults.write_text(dedent("""\
+    [buildroot]
+    packages_add = a
+
+    [image]
+    signing_key = abcdefgh
+    """))
+    expected_loaded.append(defaults)
+    expected_packages = 'a'
+    expected_signing_key = 'abcdefgh'
+
+    _run_test()
+
+    # Product config
+    eos = configdir / 'product' / 'eos.ini'
+    eos.parent.mkdir(exist_ok=True)
+    eos.write_text(dedent("""\
+    [buildroot]
+    packages_add = b
+    packages_del = a
+    """))
+    expected_packages = 'b'
+    expected_loaded.append(eos)
+
+    other = configdir / 'product' / 'other.ini'
+    other.parent.mkdir(exist_ok=True)
+    other.write_text(dedent("""\
+    [buildroot]
+    packages_add = c
+    """))
+    expected_not_loaded.append(other)
+
+    _run_test()
+
+    # Product-arch config
+    eos_amd64 = configdir / 'product-arch' / 'eos-amd64.ini'
+    eos_amd64.parent.mkdir(exist_ok=True)
+    eos_amd64.write_text(dedent("""\
+    [buildroot]
+    packages_add = d e
+    """))
+    expected_loaded.append(eos_amd64)
+    expected_packages = 'b\nd\ne'
+
+    _run_test()
+
+    # System config file
+    sysconfig = tmp_builder_paths['SYSCONFDIR'] / 'config.ini'
+    sysconfig.parent.mkdir(exist_ok=True)
+    sysconfig.write_text(dedent("""\
+    [buildroot]
+    packages_add = f
+    """))
+    expected_loaded.append(sysconfig)
+    expected_packages = 'b\nd\ne\nf'
+
+    _run_test()
+
+    # Local checkout config
+    checkout = configdir / 'local.ini'
+    checkout.parent.mkdir(exist_ok=True)
+    checkout.write_text(dedent("""\
+    [buildroot]
+    packages = z
+    """))
+    expected_loaded.append(checkout)
+    expected_packages = 'z'
+
+    _run_test()
+
+    # System private config file
+    sysprivate = tmp_builder_paths['SYSCONFDIR'] / 'private.ini'
+    sysprivate.parent.mkdir(exist_ok=True)
+    sysprivate.write_text(dedent("""\
+    [image]
+    signing_key = 12345678
+    """))
+    expected_loaded_private.append(sysprivate)
+    expected_signing_key = '12345678'
+
+    _run_test()
