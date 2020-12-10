@@ -1,5 +1,6 @@
 # Tests for ImageBuilder class
 
+import configparser
 import eib
 import logging
 import os
@@ -189,7 +190,8 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
 
     def _run_test():
         caplog.clear()
-        builder = make_builder(configdir=str(configdir))
+        builder = make_builder(localdir=str(localdir),
+                               configdir=str(configdir))
         builder.configure()
 
         for path in expected_loaded:
@@ -205,6 +207,8 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
         assert builder.config['image']['signing_key'] == expected_signing_key
 
     configdir = tmp_path / 'config'
+    localdir = tmp_path / 'local'
+    local_configdir = localdir / 'config'
 
     # Config defaults
     defaults = configdir / 'defaults.ini'
@@ -219,6 +223,19 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     expected_loaded.append(defaults)
     expected_packages = 'a'
     expected_signing_key = 'abcdefgh'
+
+    _run_test()
+
+    # Local defaults
+    local_defaults = local_configdir / 'defaults.ini'
+    local_defaults.parent.mkdir(parents=True, exist_ok=True)
+    local_defaults.write_text(dedent("""\
+    [image]
+    signing_key = ijklmnop
+    """))
+    expected_loaded.append(local_defaults)
+    expected_packages = 'a'
+    expected_signing_key = 'ijklmnop'
 
     _run_test()
 
@@ -243,6 +260,23 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
 
     _run_test()
 
+    # Local personality
+    local_base = local_configdir / 'personality' / 'base.ini'
+    local_base.parent.mkdir(exist_ok=True)
+    local_base.write_text(dedent("""\
+    [buildroot]
+    packages_del = e
+    """))
+    expected_loaded.append(local_base)
+
+    local_other = local_configdir / 'personality' / 'other.ini'
+    local_other.parent.mkdir(exist_ok=True)
+    local_other.write_text(dedent("""\
+    [buildroot]
+    packages_add = g
+    """))
+    expected_not_loaded.append(local_other)
+
     # Product-arch config
     eos_amd64 = configdir / 'product-arch' / 'eos-amd64.ini'
     eos_amd64.parent.mkdir(exist_ok=True)
@@ -251,7 +285,7 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     packages_add = d e
     """))
     expected_loaded.append(eos_amd64)
-    expected_packages = 'b\nd\ne'
+    expected_packages = 'b\nd'
 
     _run_test()
 
@@ -263,7 +297,7 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     packages_add = f
     """))
     expected_loaded.append(sysconfig)
-    expected_packages = 'b\nd\ne\nf'
+    expected_packages = 'b\nd\nf'
 
     _run_test()
 
@@ -290,3 +324,54 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     expected_signing_key = '12345678'
 
     _run_test()
+
+
+def test_localdir(make_builder, tmp_path, tmp_builder_paths, monkeypatch,
+                  caplog):
+    """Test use of local settings directory"""
+    builder_env = {}
+    with monkeypatch.context() as m:
+        m.setattr(os, 'environ', builder_env)
+
+        # Build without localdir
+        builder = make_builder()
+        builder.configure()
+        builder.set_environment()
+        assert builder.localdir is None
+        assert 'localdir' not in builder.config['build']
+        assert 'EIB_LOCALDIR' not in os.environ
+
+        # Build with configuration referencing localdir should raise an
+        # exception
+        sysconfig = tmp_builder_paths['SYSCONFDIR'] / 'config.ini'
+        sysconfig.parent.mkdir(exist_ok=True)
+        sysconfig.write_text(dedent("""\
+        [image]
+        branding_desktop_logo = ${build:localdir}/data/desktop.png
+        """))
+        caplog.clear()
+        builder = make_builder()
+        builder.configure()
+        with pytest.raises(configparser.InterpolationMissingOptionError,
+                           match='Bad value substitution'):
+            builder.config['image']['branding_desktop_logo']
+
+        # Build with localdir provided
+        localdir = tmp_path / 'local'
+        defaults = localdir / 'config' / 'defaults.ini'
+        defaults.parent.mkdir(parents=True)
+        defaults.write_text(dedent("""\
+        [image]
+        signing_key = foobar
+        """))
+        caplog.clear()
+        builder = make_builder(localdir=str(localdir))
+        builder.configure()
+        builder.set_environment()
+        assert builder.localdir == str(localdir)
+        assert builder.config['build']['localdir'] == str(localdir)
+        assert os.environ['EIB_LOCALDIR'] == str(localdir)
+        assert 'Loaded configuration file {}'.format(defaults) in caplog.text
+        assert (builder.config['image']['branding_desktop_logo'] ==
+                str(localdir / 'data' / 'desktop.png'))
+        assert builder.config['image']['signing_key'] == 'foobar'

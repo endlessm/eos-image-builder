@@ -129,17 +129,25 @@ shown above. For instance, a branch and arch combination will always be
 specified in the form `branch-arch` rather than `arch-branch`. Likewise,
 this combination will come before a branch and platform combination.
 
-The image builder also supports host and checkout specific configuration
-with the following files read in this order:
+System specific configuration is then loaded from
+`/etc/eos-image-builder/config.ini`.
 
-  * System config settings - `/etc/eos-image-builder/config.ini`
-  * Local build settings - `config/local.ini`
+Next, a local tree of configuration can be loaded from
+`$localdir/config` if a local settings directory is specified with the
+`--localdir` option. The configuration loaded here is the same as in the
+`config` directory in the source tree. For example,
+`$localdir/config/defaults.ini` and
+`$localdir/config/branch/$branch.ini` will be loaded.
 
-Finally, there are 2 configuration files whose settings will be used
+For build specific settings, `config/local.ini` is then loaded from the
+source tree.
+
+Finally, there are 3 configuration files whose settings will be used
 during the build but not displayed in the saved configuration file:
 
   * System private settings - `/etc/eos-image-builder/private.ini`
-  * Local private settings - `config/private.ini`
+  * Local private settings = `$localdir/config/private.ini`
+  * Checkout private settings - `config/private.ini`
 
 None of these files are required to be present, but the `defaults.ini`
 file contains many settings that are expected throughout the core of the

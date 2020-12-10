@@ -298,6 +298,8 @@ def add_cli_options(argparser):
         kwargs['help'] += ' (default: {})'.format(kwargs['default'])
         return argparser.add_argument(*args, **kwargs)
 
+    argparser.add_argument('-d', '--localdir', help='local settings directory')
+
     add_argument('-p', '--product', default='eos',
                  help='product to build')
     argparser.add_argument('-a', '--arch', choices=SUPPORTED_ARCHES,

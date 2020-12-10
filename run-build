@@ -253,6 +253,7 @@ class ImageBuilder(object):
             super().__setattr__(attr, value)
 
     def __init__(self, product, branch, arch, platform, personality,
+                 localdir=None,
                  show_config=False,
                  show_apps=False,
                  show_apps_split=False,
@@ -316,6 +317,15 @@ class ImageBuilder(object):
         # Common paths
         self.builddir = eib.BUILDDIR
         self.configdir = configdir or os.path.join(SRCDIR, 'config')
+        if localdir:
+            self.localdir = os.path.abspath(localdir)
+            self.local_configdir = os.path.join(self.localdir, 'config')
+
+            # Expose the local directory in the configuration for use in
+            # interpolation
+            self.set_build_option('localdir', self.localdir)
+        else:
+            self.localdir = self.local_configdir = None
 
         # Load other common settings so they're availavle to use in
         # configparser interpolation.
@@ -335,21 +345,58 @@ class ImageBuilder(object):
                                              '-qDEB_HOST_MULTIARCH'])
         self.deb_host_multiarch = multiarch.decode().strip()
 
+    def _get_config_paths(self, dir_path, dir_ns):
+        config_files = []
+
+        # Default configuration
+        config_files.append((os.path.join(dir_path, 'defaults.ini'),
+                             dir_ns + 'defaults'))
+
+        # Add per-attribute config directories
+        config_attrs = ('product', 'branch', 'arch', 'platform',
+                        'personality')
+        for attr in config_attrs:
+            path = os.path.join(dir_path, attr,
+                                getattr(self, attr) + '.ini')
+            namespace = dir_ns + '_'.join((attr, getattr(self, attr)))
+            config_files.append((path, namespace))
+
+        # Add combinations of per-attribute config directories
+        for attr1, attr2 in itertools.combinations(config_attrs, 2):
+            ini_name = (getattr(self, attr1) + '-' +
+                        getattr(self, attr2) + '.ini')
+            path = os.path.join(dir_path, attr1 + '-' + attr2, ini_name)
+            namespace = (dir_ns +
+                         '_'.join((attr1, attr2, getattr(self, attr1),
+                                   getattr(self, attr2))))
+            config_files.append((path, namespace))
+
+        return config_files
+
     def configure(self):
         """Build settings from configuration files
 
         Read configuration files to build the instance settings. The
         files loaded are:
 
-        1. Default settings - $configdir/defaults.ini.
-        2. Product, branch, arch, platform and personality settings.
-           These are in $configdir subdirectories. For example,
-           $configdir/product/$product.ini.
-        3. Product, branch, etc combination settings from the
-           $configdir subdirectory. For example,
-           $configdir/product-personality/$product-$personality.ini.
-        4. System config settings - $sysconfdir/config.ini.
-        5. Local user settings - $configdir/local.ini.
+        1. In each of $srcdir/config:
+          a. Default settings - defaults.ini.
+          b. Product, branch, arch, platform and personality settings.
+             These are in config subdirectories. For example,
+             product/$product.ini.
+          c. Product, branch, etc combination settings from the config
+             subdirectories. For example,
+             product-personality/$product-$personality.ini.
+        2. System config settings - $sysconfdir/config.ini.
+        3. In $localdir/config if $localdir is provided:
+          a. Default settings - defaults.ini.
+          b. Product, branch, arch, platform and personality settings.
+             These are in config subdirectories. For example,
+             product/$product.ini.
+          c. Product, branch, etc combination settings from the config
+             subdirectories. For example,
+             product-personality/$product-$personality.ini.
+        4. Checkout settings - $srcdir/config/local.ini.
 
         These settings will be displayed in the output merged
         configuration file. Additional private configuration files are
@@ -357,37 +404,26 @@ class ImageBuilder(object):
         configuration file. These files are:
 
         1. System private settings - $sysconfdir/private.ini
-        2. Local private settings - $configdir/private.ini
+        2. Local private settings - $localdir/config/private.ini
+        3. Checkout private settings - $srcdir/config/private.ini
         """
-        # Default configuration
-        config_files = [
-            (os.path.join(self.configdir, 'defaults.ini'), 'defaults')
-        ]
+        # Source config directory
+        config_files = self._get_config_paths(self.configdir, '')
 
-        # Add per-attribute config directories
-        config_attrs = ('product', 'branch', 'arch', 'platform',
-                        'personality')
-        for attr in config_attrs:
-            path = os.path.join(self.configdir, attr,
-                                getattr(self, attr) + '.ini')
-            namespace = '_'.join((attr, getattr(self, attr)))
-            config_files.append((path, namespace))
+        # System configuration file
+        config_files.append(
+            (os.path.join(self.sysconfdir, 'config.ini'), 'system_config')
+        )
 
-        # Add combinations of per-attribute config directories
-        for attr1, attr2 in itertools.combinations(config_attrs, 2):
-            ini_name = getattr(self, attr1) + '-' + \
-                       getattr(self, attr2) + '.ini'
-            path = os.path.join(self.configdir, attr1 + '-' + attr2,
-                                ini_name)
-            namespace = '_'.join((attr1, attr2, getattr(self, attr1),
-                                  getattr(self, attr2)))
-            config_files.append((path, namespace))
+        # Local config directory
+        if self.local_configdir:
+            config_files += self._get_config_paths(self.local_configdir,
+                                                   'local_')
 
-        # Local configuration files
-        config_files.extend([
-            (os.path.join(self.sysconfdir, 'config.ini'), 'system_config'),
-            (os.path.join(self.configdir, 'local.ini'), 'local'),
-        ])
+        # Checkout configuration file
+        config_files.append(
+            (os.path.join(self.configdir, 'local.ini'), 'local')
+        )
 
         # Read the config files
         for path, namespace in config_files:
@@ -402,8 +438,15 @@ class ImageBuilder(object):
         # Private configuration files
         private_config_files = [
             (os.path.join(self.sysconfdir, 'private.ini'), 'system_private'),
-            (os.path.join(self.configdir, 'private.ini'), 'private'),
         ]
+        if self.local_configdir:
+            private_config_files.append(
+                (os.path.join(self.local_configdir, 'private.ini'),
+                 'local_private')
+            )
+        private_config_files.append(
+            (os.path.join(self.configdir, 'private.ini'), 'private')
+        )
         for path, namespace in private_config_files:
             if self.config.read_config_file(path, namespace):
                 log.info('Loaded private configuration file %s', path)
@@ -444,6 +487,10 @@ class ImageBuilder(object):
     def get_build_option(self, option, **kwargs):
         """Get an option from the configuration build section"""
         return self.config.get(self.config.BUILD_SECTION, option, **kwargs)
+
+    def set_build_option(self, option, value):
+        """Set an option in the configuration build section"""
+        return self.config.set(self.config.BUILD_SECTION, option, value)
 
     def setenv(self, section, option, value):
         """Export config values as variable in EIB namespace
@@ -600,6 +647,7 @@ def main():
                                arch=args.arch,
                                platform=args.platform,
                                personality=personality,
+                               localdir=args.localdir,
                                show_config=args.show_config,
                                show_apps=args.show_apps,
                                show_apps_split=args.split,
