@@ -306,3 +306,27 @@ def test_all_current():
             config = eib.ImageConfigParser()
             assert config.read_config_file(path, path.replace('/', '_'))
             assert get_combined_ini(config) != ''
+
+
+def test_environment_variables(config):
+    """Test environment variable handling"""
+    cases = [
+        ('build', 'opt', 'val', ('EIB_OPT', 'val')),
+        ('sect', 'opt', 'val', ('EIB_SECT_OPT', 'val')),
+        ('sect', 'opt', 'True', ('EIB_SECT_OPT', 'true')),
+        ('sect', 'opt', 'False', ('EIB_SECT_OPT', 'false')),
+        ('sect', 'opt', 'a\nb', ('EIB_SECT_OPT', 'a\nb')),
+        ('sect', 'opt-a', 'val', ('EIB_SECT_OPT_A', 'val')),
+        ('sect-1', 'opt-a', 'val', ('EIB_SECT_1_OPT_A', 'val')),
+    ]
+
+    for section, option, value, expected_env in cases:
+        if section not in config:
+            config.add_section(section)
+        config[section][option] = value
+        env = config.getenv(section, option)
+        assert env == expected_env
+
+    expected_environ = dict([case[3] for case in cases])
+    environ = config.get_environment()
+    assert environ == expected_environ

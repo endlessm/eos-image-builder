@@ -282,6 +282,47 @@ class ImageConfigParser(configparser.ConfigParser):
         new_config.read_dict(data)
         return new_config
 
+    def getenv(self, section, option):
+        """Get config value as variable in EIB namespace
+
+        The variable name will be EIB_<SECTION>_<OPTION> with the
+        section and option names uppercased. Shell-incompatible
+        characters are converted to underscores.
+
+        As a special case, options from the build section do not have
+        the section name in the environment variable. For instance,
+        build:product will become EIB_PRODUCT.
+
+        Returns a tuple of name and value.
+        """
+        value = self[section][option]
+
+        # Convert boolean values to true/false to be handled easily in
+        # shell
+        if value.lower() in ('true', 'false'):
+            value = value.lower()
+
+        # Construct the variable name
+        var = 'EIB_'
+        if section != self.BUILD_SECTION:
+            var += section.upper() + '_'
+        var += option.upper()
+
+        # Per POSIX, environment variable names compatible with shells
+        # only contain upper case letters, digits and underscores.
+        # Convert anything else to an underscore.
+        var = re.sub(r'[^A-Z0-9_]', '_', var)
+
+        return var, value
+
+    def get_environment(self):
+        """Get all environment variables for configuration"""
+        return dict([
+            self.getenv(sect, opt)
+            for sect in self.sections()
+            for opt in self.options(sect)
+        ])
+
 
 def recreate_dir(path):
     """Delete and recreate a directory"""

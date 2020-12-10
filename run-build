@@ -496,38 +496,14 @@ class ImageBuilder(object):
         """Set an option in the configuration build section"""
         return self.config.set(self.config.BUILD_SECTION, option, value)
 
-    def setenv(self, section, option, value):
-        """Export config values as variable in EIB namespace
-
-        The variable name will be EIB_<SECTION>_<OPTION> with the
-        section and option names uppercased. Shell-incompatible
-        characters are converted to underscores.
-
-        As a special case, options from the build section do not have
-        the section name in the environment variable. For instance,
-        build:product will become EIB_PRODUCT.
-        """
-        # Convert boolean's to true/false to be handled easily in shell
-        if value in ['True', 'False']:
-            value = value.lower()
-        var = 'EIB_'
-        if section != self.config.BUILD_SECTION:
-            var += section.upper() + '_'
-        var += option.upper()
-
-        # Per POSIX, environment variable names compatible with shells
-        # only contain upper case letters, digits and underscores.
-        # Convert anything else to an underscore.
-        var = re.sub(r'[^A-Z0-9_]', '_', var)
-
-        os.environ[var] = value
-
     def set_environment(self):
-        """Setup environment variables for stages and hooks"""
-        # Build specific environment attributes.
-        for sect in self.config.sections():
-            for option, value in self.config.items(sect):
-                self.setenv(sect, option, value)
+        """Set environment variables for stages and hooks
+
+        This updates the current environment with the configuration
+        provided environment variables.
+        """
+        log.info('Exporting configuration to environment')
+        os.environ.update(self.config.get_environment())
 
     def prep_builddir(self):
         """Cleanup the scratch space and prep for a new build"""
@@ -607,7 +583,6 @@ class ImageBuilder(object):
 
         log.info('Preparing build directory')
         self.prep_builddir()
-        log.info('Exporting configuration to environment')
         self.set_environment()
         self.create_tmp_config()
         self.create_tmp_full_config()

@@ -33,32 +33,6 @@ def test_config_attrs(make_builder):
         assert getattr(builder, attr) == expected_value
 
 
-def test_setenv(make_builder, monkeypatch):
-    builder = make_builder()
-
-    # ImageBuilder.setenv() directly manipulates os.environ, so override
-    # it to populate our own dictionary. However, use a context as
-    # monkeypatching os.environ can break pytest.
-    builder_env = {}
-    with monkeypatch.context() as m:
-        m.setattr(os, 'environ', builder_env)
-
-        cases = [
-            ('build', 'opt', 'val', {'EIB_OPT': 'val'}),
-            ('sect', 'opt', 'val', {'EIB_SECT_OPT': 'val'}),
-            ('sect', 'opt', 'True', {'EIB_SECT_OPT': 'true'}),
-            ('sect', 'opt', 'False', {'EIB_SECT_OPT': 'false'}),
-            ('sect', 'opt', 'a\nb', {'EIB_SECT_OPT': 'a\nb'}),
-            ('sect', 'opt-a', 'val', {'EIB_SECT_OPT_A': 'val'}),
-            ('sect-1', 'opt-a', 'val', {'EIB_SECT_1_OPT_A': 'val'}),
-        ]
-
-        for section, option, value, expected_environ in cases:
-            builder_env.clear()
-            builder.setenv(section, option, value)
-            assert os.environ == expected_environ
-
-
 def test_set_environment(make_builder, monkeypatch):
     builder = make_builder()
 
@@ -326,54 +300,49 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     _run_test()
 
 
-def test_localdir(make_builder, tmp_path, tmp_builder_paths, monkeypatch,
-                  caplog):
+def test_localdir(make_builder, tmp_path, tmp_builder_paths, caplog):
     """Test use of local settings directory"""
-    builder_env = {}
-    with monkeypatch.context() as m:
-        m.setattr(os, 'environ', builder_env)
+    # Build without localdir
+    builder = make_builder()
+    builder.configure()
+    environ = builder.config.get_environment()
+    assert builder.localdir is None
+    assert 'localdir' not in builder.config['build']
+    assert 'EIB_LOCALDIR' not in environ
 
-        # Build without localdir
-        builder = make_builder()
-        builder.configure()
-        builder.set_environment()
-        assert builder.localdir is None
-        assert 'localdir' not in builder.config['build']
-        assert 'EIB_LOCALDIR' not in os.environ
+    # Build with configuration referencing localdir should raise an
+    # exception
+    sysconfig = tmp_builder_paths['SYSCONFDIR'] / 'config.ini'
+    sysconfig.parent.mkdir(exist_ok=True)
+    sysconfig.write_text(dedent("""\
+    [image]
+    branding_desktop_logo = ${build:localdatadir}/desktop.png
+    """))
+    caplog.clear()
+    builder = make_builder()
+    builder.configure()
+    with pytest.raises(configparser.InterpolationMissingOptionError,
+                       match='Bad value substitution'):
+        builder.config['image']['branding_desktop_logo']
 
-        # Build with configuration referencing localdir should raise an
-        # exception
-        sysconfig = tmp_builder_paths['SYSCONFDIR'] / 'config.ini'
-        sysconfig.parent.mkdir(exist_ok=True)
-        sysconfig.write_text(dedent("""\
-        [image]
-        branding_desktop_logo = ${build:localdatadir}/desktop.png
-        """))
-        caplog.clear()
-        builder = make_builder()
-        builder.configure()
-        with pytest.raises(configparser.InterpolationMissingOptionError,
-                           match='Bad value substitution'):
-            builder.config['image']['branding_desktop_logo']
-
-        # Build with localdir provided
-        localdir = tmp_path / 'local'
-        defaults = localdir / 'config' / 'defaults.ini'
-        defaults.parent.mkdir(parents=True)
-        defaults.write_text(dedent("""\
-        [image]
-        signing_key = foobar
-        """))
-        caplog.clear()
-        builder = make_builder(localdir=str(localdir))
-        builder.configure()
-        builder.set_environment()
-        assert builder.localdir == str(localdir)
-        assert builder.config['build']['localdir'] == str(localdir)
-        assert builder.config['build']['localdatadir'] == str(localdir / 'data')
-        assert os.environ['EIB_LOCALDIR'] == str(localdir)
-        assert os.environ['EIB_LOCALDATADIR'] == str(localdir / 'data')
-        assert 'Loaded configuration file {}'.format(defaults) in caplog.text
-        assert (builder.config['image']['branding_desktop_logo'] ==
-                str(localdir / 'data' / 'desktop.png'))
-        assert builder.config['image']['signing_key'] == 'foobar'
+    # Build with localdir provided
+    localdir = tmp_path / 'local'
+    defaults = localdir / 'config' / 'defaults.ini'
+    defaults.parent.mkdir(parents=True)
+    defaults.write_text(dedent("""\
+    [image]
+    signing_key = foobar
+    """))
+    caplog.clear()
+    builder = make_builder(localdir=str(localdir))
+    builder.configure()
+    environ = builder.config.get_environment()
+    assert builder.localdir == str(localdir)
+    assert builder.config['build']['localdir'] == str(localdir)
+    assert builder.config['build']['localdatadir'] == str(localdir / 'data')
+    assert environ['EIB_LOCALDIR'] == str(localdir)
+    assert environ['EIB_LOCALDATADIR'] == str(localdir / 'data')
+    assert 'Loaded configuration file {}'.format(defaults) in caplog.text
+    assert (builder.config['image']['branding_desktop_logo'] ==
+            str(localdir / 'data' / 'desktop.png'))
+    assert builder.config['image']['signing_key'] == 'foobar'
