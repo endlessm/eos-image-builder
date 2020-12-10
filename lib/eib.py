@@ -414,12 +414,13 @@ def get_keyring(config):
                 logger.info('Importing GPG key %s', key)
                 subprocess.check_call(['gpg', '--batch', '--quiet',
                                        '--homedir', homedir,
-                                       '--keyring', keyring,
-                                       '--no-default-keyring',
                                        '--import', key])
 
-        # Set normal permissions for the keyring since gpg creates it 0600
-        os.chmod(keyring, 0o0644)
+            # Export all the keys as a normal PGP stream since newer
+            # gnupg imports to a keybox.
+            subprocess.check_call(['gpg', '--batch', '--quiet',
+                                   '--homedir', homedir,
+                                   '--export', '--output', keyring])
 
     return keyring
 
