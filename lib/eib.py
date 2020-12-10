@@ -30,6 +30,7 @@ import errno
 import fcntl
 import fnmatch
 import glob
+import itertools
 import json
 import logging
 import os
@@ -384,13 +385,21 @@ def create_keyring(config):
     keyring = config['build']['keyring']
 
     if not os.path.isfile(keyring):
-        keysdir = config['build']['keysdir']
-        if not os.path.isdir(keysdir):
-            raise ImageBuildError('No gpg keys directory at', keysdir)
+        keyspaths = [os.path.join(config['build']['datadir'], 'keys')]
+        if 'localdatadir' in config['build']:
+            keyspaths.append(os.path.join(config['build']['localdatadir'],
+                                          'keys'))
 
-        keys = glob.glob(os.path.join(keysdir, '*.asc'))
+        keysdirs = list(filter(os.path.isdir, keyspaths))
+        if len(keysdirs) == 0:
+            raise ImageBuildError('No gpg keys directories at',
+                                  ' or '.join(keyspaths))
+
+        keys = list(itertools.chain.from_iterable(
+            [glob.iglob(os.path.join(d, '*.asc')) for d in keysdirs]
+        ))
         if len(keys) == 0:
-            raise ImageBuildError('No gpg keys in', keysdir)
+            raise ImageBuildError('No gpg keys in', ' or '.join(keysdirs))
 
         # Use a temporary gpg homedir
         with tempfile.TemporaryDirectory(dir=config['build']['tmpdir'],
