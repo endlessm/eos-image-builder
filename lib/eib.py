@@ -380,11 +380,16 @@ def setup_logging():
     logging.basicConfig(level=level, format=log_format, datefmt=date_format)
 
 
-def create_keyring(config):
-    """Create the temporary GPG keyring if it doesn't exist"""
+def get_keyring(config):
+    """Get the path to the temporary GPG keyring
+
+    If it doesn't exist, it will be created.
+    """
     keyring = config['build']['keyring']
 
     if not os.path.isfile(keyring):
+        logger.info('Creating temporary GPG keyring %s', keyring)
+
         keyspaths = [os.path.join(config['build']['datadir'], 'keys')]
         if 'localdatadir' in config['build']:
             keyspaths.append(os.path.join(config['build']['localdatadir'],
@@ -406,15 +411,17 @@ def create_keyring(config):
                                          prefix='eib-keyring') as homedir:
             # Import the keys
             for key in keys:
+                logger.info('Importing GPG key %s', key)
                 subprocess.check_call(['gpg', '--batch', '--quiet',
                                        '--homedir', homedir,
                                        '--keyring', keyring,
                                        '--no-default-keyring',
                                        '--import', key])
 
-        # Set normal permissions for the keyring since gpg creates it
-        # 0600
+        # Set normal permissions for the keyring since gpg creates it 0600
         os.chmod(keyring, 0o0644)
+
+    return keyring
 
 
 def disk_usage(path):

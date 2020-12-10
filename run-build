@@ -57,7 +57,6 @@ class ImageBuildRoot(object):
         components = config['buildroot']['components'].split()
         packages = config['buildroot']['packages'].split()
         script = config['buildroot']['script']
-        keyring = config['build']['keyring']
         config_mounts = config['buildroot']['mounts'].split()
         aptcache_dir = config['buildroot']['aptcache_dir']
         aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
@@ -82,7 +81,7 @@ class ImageBuildRoot(object):
             required_mounts.append(config['build']['localdir'])
 
         # Make sure the keyring is created
-        eib.create_keyring(config)
+        keyring = eib.get_keyring(config)
 
         # Wipe the apt cache directory if it's grown too large.
         if os.path.exists(aptcache_dir):
@@ -612,9 +611,6 @@ class ImageBuilder(object):
         self.set_environment()
         self.create_tmp_config()
         self.create_tmp_full_config()
-        log.info('Creating temporary GPG keyring %s',
-                 self.get_build_option('keyring'))
-        eib.create_keyring(self.config)
 
         # Run the buildscript in a buildroot
         with ImageBuildRoot(self.builddir, self.config):
