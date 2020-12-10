@@ -328,6 +328,7 @@ class ImageBuilder(object):
             # Expose the local directory in the configuration for use in
             # interpolation
             self.set_build_option('localdir', self.localdir)
+            self.set_build_option('localdatadir', '${localdir}/data')
         else:
             self.localdir = self.local_configdir = None
 

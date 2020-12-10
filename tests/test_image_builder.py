@@ -347,7 +347,7 @@ def test_localdir(make_builder, tmp_path, tmp_builder_paths, monkeypatch,
         sysconfig.parent.mkdir(exist_ok=True)
         sysconfig.write_text(dedent("""\
         [image]
-        branding_desktop_logo = ${build:localdir}/data/desktop.png
+        branding_desktop_logo = ${build:localdatadir}/desktop.png
         """))
         caplog.clear()
         builder = make_builder()
@@ -370,7 +370,9 @@ def test_localdir(make_builder, tmp_path, tmp_builder_paths, monkeypatch,
         builder.set_environment()
         assert builder.localdir == str(localdir)
         assert builder.config['build']['localdir'] == str(localdir)
+        assert builder.config['build']['localdatadir'] == str(localdir / 'data')
         assert os.environ['EIB_LOCALDIR'] == str(localdir)
+        assert os.environ['EIB_LOCALDATADIR'] == str(localdir / 'data')
         assert 'Loaded configuration file {}'.format(defaults) in caplog.text
         assert (builder.config['image']['branding_desktop_logo'] ==
                 str(localdir / 'data' / 'desktop.png'))
