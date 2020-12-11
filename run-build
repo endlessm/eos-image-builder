@@ -496,14 +496,16 @@ class ImageBuilder(object):
         """Set an option in the configuration build section"""
         return self.config.set(self.config.BUILD_SECTION, option, value)
 
-    def set_environment(self):
-        """Set environment variables for stages and hooks
+    def get_environment(self):
+        """Get environment variables for stages and hooks
 
-        This updates the current environment with the configuration
-        provided environment variables.
+        Provide the current environment with the configuration provided
+        environment variables.
         """
         log.info('Exporting configuration to environment')
-        os.environ.update(self.config.get_environment())
+        env = os.environ.copy()
+        env.update(self.config.get_environment())
+        return env
 
     def prep_builddir(self):
         """Cleanup the scratch space and prep for a new build"""
@@ -583,18 +585,18 @@ class ImageBuilder(object):
 
         log.info('Preparing build directory')
         self.prep_builddir()
-        self.set_environment()
+        builder_env = self.get_environment()
         self.create_tmp_config()
         self.create_tmp_full_config()
 
         # Run the buildscript in a buildroot
         with ImageBuildRoot(self.builddir, self.config):
-              log.info('Running image buildscript')
-              chrootscript = os.path.join(self.get_build_option('helpersdir'),
-                                          'eib-chroot')
-              buildscript = os.path.join(self.srcdir, 'buildscript')
-              subprocess.check_call([chrootscript, self.builddir,
-                                     buildscript])
+            log.info('Running image buildscript')
+            chrootscript = os.path.join(self.get_build_option('helpersdir'),
+                                        'eib-chroot')
+            buildscript = os.path.join(self.srcdir, 'buildscript')
+            cmd = (chrootscript, self.builddir, buildscript)
+            subprocess.check_call(cmd, env=builder_env)
 
         # Unless this is a dry run, the output files have been published
         # and can be deleted.

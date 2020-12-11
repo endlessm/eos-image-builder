@@ -33,36 +33,29 @@ def test_config_attrs(make_builder):
         assert getattr(builder, attr) == expected_value
 
 
-def test_set_environment(make_builder, monkeypatch):
+def test_get_environment(make_builder):
     builder = make_builder()
 
-    # ImageBuilder.setenv() directly manipulates os.environ, so override
-    # it to populate our own dictionary. However, use a context as
-    # monkeypatching os.environ can break pytest.
-    builder_env = {}
-    with monkeypatch.context() as m:
-        m.setattr(os, 'environ', builder_env)
+    builder.config.add_section('sect')
+    builder.config['sect']['opt'] = 'a\n\tb'
 
-        builder.config.add_section('sect')
-        builder.config['sect']['opt'] = 'a\n\tb'
+    cases = [
+        ('EIB_PRODUCT', 'eos'),
+        ('EIB_BRANCH', 'master'),
+        ('EIB_ARCH', 'amd64'),
+        ('EIB_PLATFORM', 'amd64'),
+        ('EIB_PERSONALITY', 'base'),
+        ('EIB_SRCDIR', SRCDIR),
+        ('EIB_CACHEDIR', eib.CACHEDIR),
+        ('EIB_SYSCONFDIR', eib.SYSCONFDIR),
+        ('EIB_BUILD_VERSION', '000101-000000'),
+        ('EIB_SECT_OPT', 'a\n\tb'),
+    ]
 
-        cases = [
-            ('EIB_PRODUCT', 'eos'),
-            ('EIB_BRANCH', 'master'),
-            ('EIB_ARCH', 'amd64'),
-            ('EIB_PLATFORM', 'amd64'),
-            ('EIB_PERSONALITY', 'base'),
-            ('EIB_SRCDIR', SRCDIR),
-            ('EIB_CACHEDIR', eib.CACHEDIR),
-            ('EIB_SYSCONFDIR', eib.SYSCONFDIR),
-            ('EIB_BUILD_VERSION', '000101-000000'),
-            ('EIB_SECT_OPT', 'a\n\tb'),
-        ]
-
-        builder.set_environment()
-        for envvar, value in cases:
-            assert envvar in os.environ
-            assert os.environ[envvar] == value
+    environ = builder.get_environment()
+    for envvar, value in cases:
+        assert envvar in environ
+        assert environ[envvar] == value
 
 
 @pytest.mark.parametrize('branch,expected', [
