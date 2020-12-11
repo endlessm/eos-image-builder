@@ -21,6 +21,7 @@ chroot () {
 # Run hooks under customization/
 run_hooks() {
   local hook interpreter
+  local hooksdir="${EIB_HOOKSDIR:-${EIB_SRCDIR}/hooks}"
   local group=$1
   local install_root=$2
 
@@ -32,7 +33,7 @@ run_hooks() {
   local files=$(echo "${hooks}" | tr ' ' '\n' | sort)
 
   for hook in ${files}; do
-    local hookpath="${EIB_SRCDIR}"/hooks/${group}/${hook}
+    local hookpath="${hooksdir}/${group}/${hook}"
     if [ ! -f "${hookpath}" ]; then
       echo "Missing hook ${hookpath}!" >&2
       return 1
