@@ -85,6 +85,15 @@ def tmp_builder_paths(tmp_path, monkeypatch):
 
 
 @pytest.fixture
+def tmp_bindir(tmp_path, monkeypatch):
+    """Add a temporary bin directory to the beginning of PATH"""
+    bindir = tmp_path / 'bin'
+    bindir.mkdir()
+    monkeypatch.setenv('PATH', str(bindir), prepend=os.pathsep)
+    return bindir
+
+
+@pytest.fixture
 def mock_datetime(monkeypatch):
     """Mock datetime class with fixed utcnow"""
     class MockDatetime(datetime.datetime):

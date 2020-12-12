@@ -157,3 +157,97 @@ def test_sign_file(make_builder, builder_gpgdir, tmp_path):
     subprocess.check_call(
         ('gpgv', '--keyring', str(keyring), str(sig_file), str(test_file))
     )
+
+
+def test_run_hooks(make_builder, tmp_bindir, tmp_path):
+    """Test run_hooks"""
+    builder = make_builder()
+    builder.configure()
+    builder.config.add_section('test')
+    builder.config['build']['helpersdir'] = str(tmp_bindir)
+
+    # Provide an eib-chroot that does basically nothing
+    eib_chroot = tmp_bindir / 'eib-chroot'
+    eib_chroot.touch(mode=0o777)
+    eib_chroot.write_text(dedent("""\
+    #!/bin/bash -ex
+    echo In eib-chroot
+    shift
+    exec "$@"
+    """))
+
+    hooksdir = tmp_path / 'hooks'
+    test_hooksdir = hooksdir / 'test'
+    test_hooksdir.mkdir(parents=True)
+    hook_name = '50-test'
+    hook_path = test_hooksdir / hook_name
+    chroot_hook_name = '50-test.chroot'
+    chroot_hook_path = test_hooksdir / chroot_hook_name
+
+    env = {
+        'EIB_HOOKSDIR': str(hooksdir),
+    }
+
+    # Running hooks for a group where the hooks variable is unset or
+    # empty should succed with no hooks run
+    output = run_lib_output(builder, 'run_hooks test', env=env)
+    assert 'Run hook' not in output
+    builder.config['test']['hooks'] = ''
+    output = run_lib_output(builder, 'run_hooks test', env=env)
+    assert 'Run hook' not in output
+
+    # Missing hook should fail
+    builder.config['test']['hooks'] = str(hook_name)
+    proc = run_lib(builder, 'run_hooks test', env=env, check=False)
+    assert proc.returncode != 0
+    assert 'Missing hook' in proc.stderr.decode('utf-8')
+
+    # Non-executable sourced hook. This should be run in a subshell of
+    # the the main bash process.
+    hook_path.write_text(dedent("""\
+    echo BASH_SUBSHELL=$BASH_SUBSHELL
+    """))
+    hook_path.chmod(0o644)
+    builder.config['test']['hooks'] = str(hook_name)
+    output = run_lib_output(builder, 'run_hooks test', env=env)
+    assert 'BASH_SUBSHELL=1' in output
+
+    # Executable hook
+    hook_path.write_text(dedent("""\
+    #!/usr/bin/env python3
+    print('In python')
+    """))
+    hook_path.chmod(0o755)
+    builder.config['test']['hooks'] = str(hook_name)
+    output = run_lib_output(builder, 'run_hooks test', env=env)
+    assert 'In python' in output
+
+    # A chroot hook without the specifying the root in the run_hooks
+    # call will be skipped.
+    chroot_hook_path.touch(mode=0o644)
+    builder.config['test']['hooks'] = str(chroot_hook_name)
+    output = run_lib_output(builder, 'run_hooks test', env=env)
+    assert 'Skipping hook, no chroot available' in output
+
+    # Non-executable chroot hook. This should be run in bash and would
+    # fail if the BASH_VERSION variable isn't set.
+    chroot_hook_path.write_text(dedent("""\
+    test -v BASH_VERSION
+    echo "In bash"
+    """))
+    chroot_hook_path.chmod(0o644)
+    builder.config['test']['hooks'] = str(chroot_hook_name)
+    output = run_lib_output(builder, 'run_hooks test /', env=env)
+    assert 'In eib-chroot' in output
+    assert 'In bash' in output
+
+    # Executable chroot hook
+    chroot_hook_path.write_text(dedent("""\
+    #!/usr/bin/env python3
+    print('In python')
+    """))
+    chroot_hook_path.chmod(0o755)
+    builder.config['test']['hooks'] = str(chroot_hook_name)
+    output = run_lib_output(builder, 'run_hooks test /', env=env)
+    assert 'In eib-chroot' in output
+    assert 'In python' in output
