@@ -295,7 +295,11 @@ Customization
 The core of EIB is just a wrapper. The real content of the output is
 defined by customization scripts found under hooks/. These scripts have
 access to environment variables and library functions allowing them to
-integrate correctly with the core.
+integrate correctly with the core. If a local settings directory is
+provided with the `--localdir` option, hooks in the `$localdir/hooks`
+directory are preferred to those in the checkout's `hooks` directory.
+This allows providing both custom hooks as well as overriding existing
+hooks.
 
 The scripts to run are organized under `hooks/GROUP` where `GROUP` is a
 group of hooks run by a particular stage. The hooks to run are managed

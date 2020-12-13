@@ -251,3 +251,85 @@ def test_run_hooks(make_builder, tmp_bindir, tmp_path):
     output = run_lib_output(builder, 'run_hooks test /', env=env)
     assert 'In eib-chroot' in output
     assert 'In python' in output
+
+
+def test_local_hooks(make_builder, tmp_path):
+    """Test run_hooks with localdir hooks"""
+    # Populate local and source hooks
+    hooksdir = tmp_path / 'hooks'
+    test_hooksdir = hooksdir / 'test'
+    test_hooksdir.mkdir(parents=True)
+    localdir = tmp_path / 'local'
+    localhooksdir = localdir / 'hooks'
+    test_localhooksdir = localhooksdir / 'test'
+    test_localhooksdir.mkdir(parents=True)
+    hook_name = '50-test'
+    hook_path = test_hooksdir / hook_name
+    hook_path.write_text(dedent("""\
+    echo source hook
+    """))
+    hook_path.chmod(0o644)
+    local_hook_path = test_localhooksdir / hook_name
+    local_hook_path.write_text(dedent("""\
+    echo local hook
+    """))
+    local_hook_path.chmod(0o644)
+
+    env = {
+        'EIB_HOOKSDIR': str(hooksdir),
+    }
+
+    # With no local directory specified, the source hook should be run
+    builder = make_builder()
+    builder.configure()
+    builder.config.add_section('test')
+    builder.config['test']['hooks'] = str(hook_name)
+    output = run_lib_output(builder, 'run_hooks test', env=env)
+    assert 'source hook' in output
+
+    # With local directory specified, the local hook should be run
+    builder = make_builder(localdir=str(localdir))
+    builder.configure()
+    builder.config.add_section('test')
+    builder.config['test']['hooks'] = str(hook_name)
+    output = run_lib_output(builder, 'run_hooks test', env=env)
+    assert 'local hook' in output
+
+    # With only the hook in the local directory, the local hook should
+    # still run
+    hook_path.unlink()
+    builder = make_builder(localdir=str(localdir))
+    builder.configure()
+    builder.config.add_section('test')
+    builder.config['test']['hooks'] = str(hook_name)
+    output = run_lib_output(builder, 'run_hooks test', env=env)
+    assert 'local hook' in output
+
+    # With only the hook in the local directory but no local directory
+    # specified, no hook should be run
+    builder = make_builder()
+    builder.configure()
+    builder.config.add_section('test')
+    builder.config['test']['hooks'] = str(hook_name)
+    proc = run_lib(builder, 'run_hooks test', env=env, check=False)
+    assert proc.returncode != 0
+    assert 'Missing hook' in proc.stderr.decode('utf-8')
+
+    # With neither hook available, it should fail whether a local
+    # directory is supplied or not
+    local_hook_path.unlink()
+    builder = make_builder()
+    builder.configure()
+    builder.config.add_section('test')
+    builder.config['test']['hooks'] = str(hook_name)
+    proc = run_lib(builder, 'run_hooks test', env=env, check=False)
+    assert proc.returncode != 0
+    assert 'Missing hook' in proc.stderr.decode('utf-8')
+
+    builder = make_builder(localdir=str(localdir))
+    builder.configure()
+    builder.config.add_section('test')
+    builder.config['test']['hooks'] = str(hook_name)
+    proc = run_lib(builder, 'run_hooks test', env=env, check=False)
+    assert proc.returncode != 0
+    assert 'Missing hook' in proc.stderr.decode('utf-8')
