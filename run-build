@@ -77,6 +77,10 @@ class ImageBuildRoot(object):
             config['build']['srcdir'],
         ]
 
+        # Include local settings directory if provided
+        if 'localdir' in config['build']:
+            required_mounts.append(config['build']['localdir'])
+
         # Make sure the keyring is created
         eib.create_keyring(config)
 
