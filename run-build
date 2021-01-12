@@ -57,7 +57,6 @@ class ImageBuildRoot(object):
         components = config['buildroot']['components'].split()
         packages = config['buildroot']['packages'].split()
         script = config['buildroot']['script']
-        keyring = config['build']['keyring']
         config_mounts = config['buildroot']['mounts'].split()
         aptcache_dir = config['buildroot']['aptcache_dir']
         aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
@@ -77,8 +76,12 @@ class ImageBuildRoot(object):
             config['build']['srcdir'],
         ]
 
+        # Include local settings directory if provided
+        if 'localdir' in config['build']:
+            required_mounts.append(config['build']['localdir'])
+
         # Make sure the keyring is created
-        eib.create_keyring(config)
+        keyring = eib.get_keyring(config)
 
         # Wipe the apt cache directory if it's grown too large.
         if os.path.exists(aptcache_dir):
@@ -216,52 +219,26 @@ class ImageBuildRoot(object):
 
 class ImageBuilder(object):
     # Attributes to be exported to environment
-    CONFIG_ATTRS = ['product', 'branch', 'arch', 'platform',
-                    'personality', 'force', 'dry_run', 'series',
-                    'srcdir', 'datadir', 'helpersdir', 'cachedir',
-                    'tmpdir', 'contentdir', 'outrootdir', 'outdir',
-                    'configdir', 'sysconfdir', 'build_version',
-                    'outversion', 'tmpconfig', 'tmpfullconfig',
-                    'baselib', 'deb_host_gnu_cpu', 'deb_host_multiarch',
-                    'ssh_options', 'keysdir', 'keyring', 'manifestdir',
-                    'use_production_apps', 'use_production_ostree']
-    BOOLEAN_ATTRS = ['force', 'dry_run', 'use_production_apps',
-                     'use_production_ostree']
-
-    # Config options that will be merged together from multiple
-    # $prefix_add_* and $prefix_del_* options. This is a list of
-    # (section, prefix) tuples. The section can be a glob pattern.
-    CONFIG_MERGE_PREFIXES = [
-        ('buildroot', 'mounts'),
-        ('buildroot', 'packages'),
-        ('check', 'hooks'),
-        ('content', 'hooks'),
-        ('error', 'hooks'),
-        ('flatpak', 'locales'),
-        ('flatpak-remote-*', 'apps'),
-        ('flatpak-remote-*', 'runtimes'),
-        ('flatpak-remote-*', 'nosplit_apps'),
-        ('flatpak-remote-*', 'nosplit_runtimes'),
-        ('flatpak-remote-*', 'exclude'),
-        ('flatpak-remote-*', 'allow_extra_data'),
-        ('image', 'branding_subst_vars'),
-        ('image', 'hooks'),
-        ('image', 'icon_grid'),
-        ('image', 'settings'),
-        ('image', 'settings_locks'),
-        ('manifest', 'hooks'),
-        ('publish', 'hooks'),
-        ('split', 'hooks'),
+    CONFIG_ATTRS = [
+        'product', 'branch', 'arch', 'platform', 'personality',
+        'force', 'dry_run', 'series', 'srcdir', 'cachedir',
+        'sysconfdir', 'build_version',
+        'deb_host_gnu_cpu', 'deb_host_multiarch',
+        'use_production_apps', 'use_production_ostree',
+    ]
+    BOOLEAN_ATTRS = [
+        'force', 'dry_run',
+        'use_production_apps', 'use_production_ostree',
     ]
 
     def __getattr__(self, attr):
         """Proxy this object's attributes into the config object"""
         if attr in self.CONFIG_ATTRS:
-            # Proxy through to the config object's default section
+            # Proxy through to the config object's build section
             if attr in self.BOOLEAN_ATTRS:
-                return self.config.getboolean(self.config.defaultsect,
+                return self.config.getboolean(self.config.BUILD_SECTION,
                                               attr)
-            return self.config.get(self.config.defaultsect, attr)
+            return self.config.get(self.config.BUILD_SECTION, attr)
         else:
             # Chain up for normal attribute access
             return super().__getattribute__(attr)
@@ -269,23 +246,25 @@ class ImageBuilder(object):
     def __setattr__(self, attr, value):
         """Proxy the value to the config object"""
         if attr in self.CONFIG_ATTRS:
-            # Proxy through to the config object's default section
+            # Proxy through to the config object's build section
             if attr in self.BOOLEAN_ATTRS:
-                self.config.setboolean(None, attr, value)
+                self.config.setboolean(self.config.BUILD_SECTION, attr, value)
             else:
-                self.config.set(None, attr, value)
+                self.config.set(self.config.BUILD_SECTION, attr, value)
         else:
             # Chain up for normal attribute setting
             super().__setattr__(attr, value)
 
     def __init__(self, product, branch, arch, platform, personality,
+                 localdir=None,
                  show_config=False,
                  show_apps=False,
                  show_apps_split=False,
                  show_apps_trim=0,
                  show_apps_group_by=None,
                  force=False, dry_run=False,
-                 use_production_apps=False, use_production_ostree=False):
+                 use_production_apps=False, use_production_ostree=False,
+                 configdir=None):
         # Create the config option first to allow the proxying between
         # it and this object's attributes.
         self.config = eib.ImageConfigParser()
@@ -338,30 +317,26 @@ class ImageBuilder(object):
                 # Assume platform neutral arch
                 self.platform = self.arch
 
-        # Load other common settings, but use the configparser
-        # interpolation syntax. This will allow the user to override
-        # things easily.
-        self.srcdir = SRCDIR
-        self.datadir = '${srcdir}/data'
-        self.helpersdir = '${srcdir}/helpers'
-        self.cachedir = eib.CACHEDIR
+        # Common paths
         self.builddir = eib.BUILDDIR
-        self.tmpdir = '${cachedir}/tmp'
-        self.contentdir = '${cachedir}/content'
-        self.outrootdir = '${tmpdir}/out'
-        self.outdir = '${outrootdir}/${personality}'
-        self.configdir = '${srcdir}/config'
+        self.configdir = configdir or os.path.join(SRCDIR, 'config')
+        if localdir:
+            self.localdir = os.path.abspath(localdir)
+            self.local_configdir = os.path.join(self.localdir, 'config')
+
+            # Expose the local directory in the configuration for use in
+            # interpolation
+            self.set_build_option('localdir', self.localdir)
+            self.set_build_option('localdatadir', '${localdir}/data')
+        else:
+            self.localdir = self.local_configdir = None
+
+        # Load other common settings so they're availavle to use in
+        # configparser interpolation.
+        self.srcdir = SRCDIR
+        self.cachedir = eib.CACHEDIR
         self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.utcnow().strftime('%y%m%d-%H%M%S')
-        self.outversion = '${product}-${branch}-${arch}-${platform}.${build_version}.${personality}'
-        self.tmpconfig = '${tmpdir}/config.ini'
-        self.tmpfullconfig = '${tmpdir}/fullconfig.ini'
-        self.baselib = '${srcdir}/lib/eib.sh'
-        self.ssh_options = \
-            '-i ${sysconfdir}/ssh-key.pem -o StrictHostKeyChecking=no'
-        self.keysdir = '${datadir}/keys'
-        self.keyring = '${tmpdir}/eib-keyring.gpg'
-        self.manifestdir = '${tmpdir}/manifest'
 
         # Pull in dpkg-architecture settings that are needed for the
         # installation of flatpak bundles.
@@ -374,75 +349,114 @@ class ImageBuilder(object):
                                              '-qDEB_HOST_MULTIARCH'])
         self.deb_host_multiarch = multiarch.decode().strip()
 
-    def configure(self):
-        """Build settings from configuration files"""
-        # Build up a list of config files to load. The order goes like so:
-        #
-        # 1. Default settings - $configdir/defaults.ini.
-        # 2. Product, branch, arch, platform and personality settings.
-        #    These are in $configdir subdirectories. For example,
-        #    $configdir/product/$product.ini.
-        # 3. Product, branch, etc combination settings from the
-        #    $configdir subdirectory. For example,
-        #    $configdir/product-personality/$product-$personality.ini.
-        # 4. System config settings - $sysconfdir/config.ini.
-        # 5. Local user settings - $configdir/local.ini.
+    def _get_config_paths(self, dir_path, dir_ns):
+        config_files = []
 
         # Default configuration
-        config_files = [os.path.join(self.configdir, 'defaults.ini')]
+        config_files.append((os.path.join(dir_path, 'defaults.ini'),
+                             dir_ns + 'defaults'))
 
         # Add per-attribute config directories
         config_attrs = ('product', 'branch', 'arch', 'platform',
                         'personality')
         for attr in config_attrs:
-            path = os.path.join(self.configdir, attr,
+            path = os.path.join(dir_path, attr,
                                 getattr(self, attr) + '.ini')
-            config_files.append(path)
+            namespace = dir_ns + '_'.join((attr, getattr(self, attr)))
+            config_files.append((path, namespace))
 
         # Add combinations of per-attribute config directories
         for attr1, attr2 in itertools.combinations(config_attrs, 2):
-            ini_name = getattr(self, attr1) + '-' + \
-                       getattr(self, attr2) + '.ini'
-            path = os.path.join(self.configdir, attr1 + '-' + attr2,
-                                ini_name)
-            config_files.append(path)
+            ini_name = (getattr(self, attr1) + '-' +
+                        getattr(self, attr2) + '.ini')
+            path = os.path.join(dir_path, attr1 + '-' + attr2, ini_name)
+            namespace = (dir_ns +
+                         '_'.join((attr1, attr2, getattr(self, attr1),
+                                   getattr(self, attr2))))
+            config_files.append((path, namespace))
 
-        # Local configuration files
-        config_files.extend([
-            os.path.join(self.sysconfdir, 'config.ini'),
-            os.path.join(self.configdir, 'local.ini'),
-        ])
+        return config_files
+
+    def configure(self):
+        """Build settings from configuration files
+
+        Read configuration files to build the instance settings. The
+        files loaded are:
+
+        1. In each of $srcdir/config:
+          a. Default settings - defaults.ini.
+          b. Product, branch, arch, platform and personality settings.
+             These are in config subdirectories. For example,
+             product/$product.ini.
+          c. Product, branch, etc combination settings from the config
+             subdirectories. For example,
+             product-personality/$product-$personality.ini.
+        2. System config settings - $sysconfdir/config.ini.
+        3. In $localdir/config if $localdir is provided:
+          a. Default settings - defaults.ini.
+          b. Product, branch, arch, platform and personality settings.
+             These are in config subdirectories. For example,
+             product/$product.ini.
+          c. Product, branch, etc combination settings from the config
+             subdirectories. For example,
+             product-personality/$product-$personality.ini.
+        4. Checkout settings - $srcdir/config/local.ini.
+
+        These settings will be displayed in the output merged
+        configuration file. Additional private configuration files are
+        read whose settings will not be displayed in the merged
+        configuration file. These files are:
+
+        1. System private settings - $sysconfdir/private.ini
+        2. Local private settings - $localdir/config/private.ini
+        3. Checkout private settings - $srcdir/config/private.ini
+        """
+        # Source config directory
+        config_files = self._get_config_paths(self.configdir, '')
+
+        # System configuration file
+        config_files.append(
+            (os.path.join(self.sysconfdir, 'config.ini'), 'system_config')
+        )
+
+        # Local config directory
+        if self.local_configdir:
+            config_files += self._get_config_paths(self.local_configdir,
+                                                   'local_')
+
+        # Checkout configuration file
+        config_files.append(
+            (os.path.join(self.configdir, 'local.ini'), 'local')
+        )
 
         # Read the config files
-        for path in self.config.read(config_files, encoding='utf-8'):
-            log.info('Loaded configuration file %s', path)
+        for path, namespace in config_files:
+            if self.config.read_config_file(path, namespace):
+                log.info('Loaded configuration file %s', path)
 
         # Copy the configuration to the public instance and merge the
         # options.
         self._public_config = self.config.copy()
-        self.merge_config(self._public_config)
+        self._public_config.merge()
 
-    def configure_private(self):
-        """Build settings from private configuration files
-
-        Read additional private configuration files that will not be
-        displayed in the merged configuration file. There are 2 private
-        configuration files:
-
-        1. System private settings - $sysconfdir/private.ini
-        2. Local private settings - $configdir/private.ini
-        """
-        config_files = [
-            os.path.join(self.sysconfdir, 'private.ini'),
-            os.path.join(self.configdir, 'private.ini'),
+        # Private configuration files
+        private_config_files = [
+            (os.path.join(self.sysconfdir, 'private.ini'), 'system_private'),
         ]
-
-        # Read the config files
-        for path in self.config.read(config_files, encoding='utf-8'):
-            log.info('Loaded private configuration file %s', path)
+        if self.local_configdir:
+            private_config_files.append(
+                (os.path.join(self.local_configdir, 'private.ini'),
+                 'local_private')
+            )
+        private_config_files.append(
+            (os.path.join(self.configdir, 'private.ini'), 'private')
+        )
+        for path, namespace in private_config_files:
+            if self.config.read_config_file(path, namespace):
+                log.info('Loaded private configuration file %s', path)
 
         # Merge the key prefixes for the real configuration
-        self.merge_config()
+        self.config.merge()
 
     def check_value(self, section, option, value):
         # Sections and key names match the config files, with suffixes as
@@ -468,59 +482,30 @@ class ImageBuilder(object):
         """Check loaded configuration against schema for validity."""
         schema_file = os.path.join(self.configdir, 'schema.ini')
         schema = eib.ImageConfigParser()
-        schema.read(schema_file, encoding='utf-8')
+        schema.read_config_file(schema_file, 'schema')
 
-        for option, value in schema.items(schema.defaultsect):
-            self.check_value(schema.defaultsect, option, value)
         for sect in schema.sections():
-            for option, value in schema.items_no_default(sect):
+            for option, value in schema.items(sect):
                 self.check_value(sect, option, value)
 
-    def merge_config(self, config=None):
-        """Merge the options in the configuration
+    def get_build_option(self, option, **kwargs):
+        """Get an option from the configuration build section"""
+        return self.config.get(self.config.BUILD_SECTION, option, **kwargs)
 
-        If config is None, the instance's config is used.
+    def set_build_option(self, option, value):
+        """Set an option in the configuration build section"""
+        return self.config.set(self.config.BUILD_SECTION, option, value)
+
+    def get_environment(self):
+        """Get environment variables for stages and hooks
+
+        Provide the current environment with the configuration provided
+        environment variables.
         """
-        if config is None:
-            config = self.config
-        for section, prefix in self.CONFIG_MERGE_PREFIXES:
-            config.merge_option_prefix(section, prefix)
-        # clear the _add_* and _del_* options after merging, so they can be
-        # used for interpolation in the meantime regardless of order and where
-        # they are defined
-        for section, prefix in self.CONFIG_MERGE_PREFIXES:
-            config.clear_merged_options(section, prefix)
-
-    def setenv(self, section, option, value):
-        """Export config values as variable in EIB namespace
-
-        The variable name will be EIB_<SECTION>_<OPTION> with the
-        section and option names uppercased. Shell-incompatible
-        characters are converted to underscores.
-        """
-        # Convert boolean's to true/false to be handled easily in shell
-        if value in ['True', 'False']:
-            value = value.lower()
-        var = 'EIB_'
-        if section:
-            var += section.upper() + '_'
-        var += option.upper()
-
-        # Per POSIX, environment variable names compatible with shells
-        # only contain upper case letters, digits and underscores.
-        # Convert anything else to an underscore.
-        var = re.sub(r'[^A-Z0-9_]', '_', var)
-
-        os.environ[var] = value
-
-    def set_environment(self):
-        """Setup environment variables for stages and hooks"""
-        # Build specific environment attributes.
-        for option, value in self.config.items(self.config.defaultsect):
-            self.setenv(None, option, value)
-        for sect in self.config.sections():
-            for option, value in self.config.items_no_default(sect):
-                self.setenv(sect, option, value)
+        log.info('Exporting configuration to environment')
+        env = os.environ.copy()
+        env.update(self.config.get_environment())
+        return env
 
     def prep_builddir(self):
         """Cleanup the scratch space and prep for a new build"""
@@ -545,33 +530,38 @@ class ImageBuilder(object):
         # Cleanup files from previous build
         log.info('Recreating build specific temporary directories')
         eib.recreate_dir(self.builddir)
-        eib.recreate_dir(self.tmpdir)
-        eib.recreate_dir(self.manifestdir)
+        eib.recreate_dir(self.get_build_option('tmpdir'))
+        eib.recreate_dir(self.get_build_option('manifestdir'))
         eib.recreate_dir(ostree_co_dir)
 
         # Create the content directory
-        os.makedirs(self.contentdir, exist_ok=True)
+        os.makedirs(self.get_build_option('contentdir'), exist_ok=True)
 
     def create_tmp_config(self):
         """Take the merged public configuration and output it to a single file
         in the tmp directory.
         """
-        with open(self.tmpconfig, 'w') as out:
-            out.write('# Configuration for %s\n' % self.outversion)
+        tmpconfig = self.get_build_option('tmpconfig')
+        log.info('Output merged configuration file to %s', tmpconfig)
+        with open(tmpconfig, 'w') as out:
+            out.write('# Configuration for %s\n'
+                      % self.get_build_option('outversion'))
             self._public_config.write(out)
 
     def create_tmp_full_config(self):
         """Take the merged full configuration and output it to a single file in
         the tmp directory.
         """
-        with open(self.tmpfullconfig, 'w') as out:
-            out.write('# Full configuration for %s\n' % self.outversion)
+        tmpfullconfig = self.get_build_option('tmpfullconfig')
+        log.info('Output full merged configuration file to %s', tmpfullconfig)
+        with open(tmpfullconfig, 'w') as out:
+            out.write('# Full configuration for %s\n'
+                      % self.get_build_option('outversion'))
             self.config.write(out)
 
     def run(self):
         log.info('Configuring image build')
         self.configure()
-        self.configure_private()
         self.check_config()
         if self.show_config:
             # Just show the configuration without doing anything
@@ -595,29 +585,25 @@ class ImageBuilder(object):
 
         log.info('Preparing build directory')
         self.prep_builddir()
-        log.info('Exporting configuration to environment')
-        self.set_environment()
-        log.info('Output merged configuration file to %s', self.tmpconfig)
+        builder_env = self.get_environment()
         self.create_tmp_config()
-        log.info('Output full merged configuration file to %s',
-                 self.tmpfullconfig)
         self.create_tmp_full_config()
-        log.info('Creating temporary GPG keyring %s', self.keyring)
-        eib.create_keyring(self.config)
 
         # Run the buildscript in a buildroot
         with ImageBuildRoot(self.builddir, self.config):
-              log.info('Running image buildscript')
-              chrootscript = os.path.join(self.helpersdir, 'eib-chroot')
-              buildscript = os.path.join(self.srcdir, 'buildscript')
-              subprocess.check_call([chrootscript, self.builddir,
-                                     buildscript])
+            log.info('Running image buildscript')
+            chrootscript = os.path.join(self.get_build_option('helpersdir'),
+                                        'eib-chroot')
+            buildscript = os.path.join(self.srcdir, 'buildscript')
+            cmd = (chrootscript, self.builddir, buildscript)
+            subprocess.check_call(cmd, env=builder_env)
 
         # Unless this is a dry run, the output files have been published
         # and can be deleted.
         if not self.dry_run:
-            log.info('Cleaning up output in %s', self.outrootdir)
-            shutil.rmtree(self.outrootdir, ignore_errors=True)
+            outrootdir = self.get_build_option('outrootdir')
+            log.info('Cleaning up output in %s', outrootdir)
+            shutil.rmtree(outrootdir, ignore_errors=True)
 
 def main():
     aparser = ArgumentParser(description='Build and publish images for Endless')
@@ -639,6 +625,7 @@ def main():
                                arch=args.arch,
                                platform=args.platform,
                                personality=personality,
+                               localdir=args.localdir,
                                show_config=args.show_config,
                                show_apps=args.show_apps,
                                show_apps_split=args.split,

@@ -1,0 +1,341 @@
+# Tests for ImageBuilder class
+
+import configparser
+import eib
+import logging
+import os
+import pytest
+from textwrap import dedent
+
+from .util import SRCDIR, import_script
+
+run_build = import_script('run_build', os.path.join(SRCDIR, 'run-build'))
+
+logger = logging.getLogger(__name__)
+
+
+def test_config_attrs(make_builder):
+    builder = make_builder()
+    cases = [
+        ('product', 'eos', 'eos'),
+        ('branch', 'master', 'master'),
+        ('arch', 'amd64', 'amd64'),
+        ('platform', 'amd64', 'amd64'),
+        ('personality', 'base', 'base'),
+        ('srcdir', SRCDIR, SRCDIR),
+        ('cachedir', eib.CACHEDIR, eib.CACHEDIR),
+        ('sysconfdir', eib.SYSCONFDIR, eib.SYSCONFDIR),
+        ('build_version', '000101-000000', '000101-000000'),
+    ]
+    for attr, expected_raw, expected_value in cases:
+        assert builder.config.get('build', attr, raw=True) == expected_raw
+        assert builder.config['build'][attr] == expected_value
+        assert getattr(builder, attr) == expected_value
+
+
+def test_get_environment(make_builder):
+    builder = make_builder()
+
+    builder.config.add_section('sect')
+    builder.config['sect']['opt'] = 'a\n\tb'
+
+    cases = [
+        ('EIB_PRODUCT', 'eos'),
+        ('EIB_BRANCH', 'master'),
+        ('EIB_ARCH', 'amd64'),
+        ('EIB_PLATFORM', 'amd64'),
+        ('EIB_PERSONALITY', 'base'),
+        ('EIB_SRCDIR', SRCDIR),
+        ('EIB_CACHEDIR', eib.CACHEDIR),
+        ('EIB_SYSCONFDIR', eib.SYSCONFDIR),
+        ('EIB_BUILD_VERSION', '000101-000000'),
+        ('EIB_SECT_OPT', 'a\n\tb'),
+    ]
+
+    environ = builder.get_environment()
+    for envvar, value in cases:
+        assert envvar in environ
+        assert environ[envvar] == value
+
+
+@pytest.mark.parametrize('branch,expected', [
+    ('master', 'master'), ('eos3.8', 'eos3'), ('eos3', 'eos3'),
+    ('eos2.4', 'eos2'),
+])
+def test_series(make_builder, branch, expected):
+    builder = make_builder(branch=branch)
+    assert builder.series == expected
+
+
+@pytest.mark.parametrize('arch,platform,expected', [
+    ('amd64', 'nexthw', 'nexthw'), ('amd64', None, 'amd64'),
+    ('arm64', 'rpi4', 'rpi4'), ('arm64', None, 'arm64'),
+    ('i386', 'i386', 'i386'), ('i386', None, 'i386'),
+    ('armhf', 'ec100', 'ec100'), ('armhf', None, 'odroidu2'),
+])
+def test_platform(make_builder, arch, platform, expected):
+    builder = make_builder(arch=arch, platform=platform)
+    assert builder.platform == expected
+
+
+def test_bad_arch(make_builder):
+    with pytest.raises(eib.ImageBuildError,
+                       match='Architecture.*not supported'):
+        make_builder(arch='notanarch')
+
+
+@pytest.mark.parametrize('arch,expected_gnu_cpu,expected_multiarch', [
+    ('amd64', 'x86_64', 'x86_64-linux-gnu'),
+    ('arm64', 'aarch64', 'aarch64-linux-gnu'),
+    ('i386', 'i686', 'i386-linux-gnu'),
+    ('armhf', 'arm', 'arm-linux-gnueabihf'),
+])
+def test_arch_details(make_builder, arch, expected_gnu_cpu,
+                      expected_multiarch):
+    builder = make_builder(arch=arch)
+    assert builder.deb_host_gnu_cpu == expected_gnu_cpu
+    assert builder.deb_host_multiarch == expected_multiarch
+
+
+# Build test variants. This is ideally the same as the release image
+# variants. Configurations with master and the latest stable branch are
+# tested.
+STABLE_BRANCH = sorted(
+    filter(lambda b: b != 'master',
+           map(lambda c: c.replace('.ini', ''),
+               os.listdir(os.path.join(SRCDIR, 'config/branch'))))
+)[-1]
+RELEASE_TARGETS = [
+    'eos-amd64-amd64-base',
+    'eos-amd64-amd64-en',
+    'eos-amd64-amd64-es',
+    'eos-amd64-amd64-fr',
+    'eos-amd64-amd64-pt_BR',
+    'eos-arm64-rpi4-base',
+    'eos-arm64-rpi4-en',
+    'eos-arm64-pinebookpro-base',
+    'eos-arm64-pinebookpro-en',
+    'eos-arm64-vim2-base',
+    'eos-arm64-vim2-en',
+    'eos-arm64-libretechcc-base',
+    'eos-arm64-libretechcc-en',
+    'eosinstaller-amd64-amd64-base',
+]
+TEST_VARIANTS = []
+for target in RELEASE_TARGETS:
+    product, arch, platform, personality = target.split('-')
+    TEST_VARIANTS += [
+        (product, 'master', arch, platform, personality),
+        (product, STABLE_BRANCH, arch, platform, personality),
+    ]
+
+
+@pytest.mark.parametrize('product,branch,arch,platform,personality',
+                         TEST_VARIANTS)
+def test_configure_variant(make_builder, product, branch, arch, platform,
+                           personality):
+    """Ensure variant configuration can be read, merged and validated"""
+    builder = make_builder(product=product, branch=branch, arch=arch,
+                           platform=platform, personality=personality)
+    builder.configure()
+    builder.check_config()
+
+    # Make sure all values can be interpolated
+    for section in builder.config.sections():
+        for option, value in builder.config.items(section):
+            logger.debug('%s:%s = %s', section, option,
+                         value.replace('\n', ' '))
+
+
+def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
+    """Test loading of various config paths"""
+    expected_loaded = []
+    expected_not_loaded = []
+    expected_loaded_private = []
+    expected_packages = ''
+    expected_signing_key = ''
+
+    def _run_test():
+        caplog.clear()
+        builder = make_builder(localdir=str(localdir),
+                               configdir=str(configdir))
+        builder.configure()
+
+        for path in expected_loaded:
+            assert ('Loaded configuration file {}'.format(path)
+                    in caplog.text)
+        for path in expected_not_loaded:
+            assert ('Loaded configuration file {}'.format(path)
+                    not in caplog.text)
+        for path in expected_loaded_private:
+            assert ('Loaded private configuration file {}'.format(path)
+                    in caplog.text)
+        assert builder.config['buildroot']['packages'] == expected_packages
+        assert builder.config['image']['signing_key'] == expected_signing_key
+
+    configdir = tmp_path / 'config'
+    localdir = tmp_path / 'local'
+    local_configdir = localdir / 'config'
+
+    # Config defaults
+    defaults = configdir / 'defaults.ini'
+    defaults.parent.mkdir()
+    defaults.write_text(dedent("""\
+    [buildroot]
+    packages_add = a
+
+    [image]
+    signing_key = abcdefgh
+    """))
+    expected_loaded.append(defaults)
+    expected_packages = 'a'
+    expected_signing_key = 'abcdefgh'
+
+    _run_test()
+
+    # Local defaults
+    local_defaults = local_configdir / 'defaults.ini'
+    local_defaults.parent.mkdir(parents=True, exist_ok=True)
+    local_defaults.write_text(dedent("""\
+    [image]
+    signing_key = ijklmnop
+    """))
+    expected_loaded.append(local_defaults)
+    expected_packages = 'a'
+    expected_signing_key = 'ijklmnop'
+
+    _run_test()
+
+    # Product config
+    eos = configdir / 'product' / 'eos.ini'
+    eos.parent.mkdir(exist_ok=True)
+    eos.write_text(dedent("""\
+    [buildroot]
+    packages_add = b
+    packages_del = a
+    """))
+    expected_packages = 'b'
+    expected_loaded.append(eos)
+
+    other = configdir / 'product' / 'other.ini'
+    other.parent.mkdir(exist_ok=True)
+    other.write_text(dedent("""\
+    [buildroot]
+    packages_add = c
+    """))
+    expected_not_loaded.append(other)
+
+    _run_test()
+
+    # Local personality
+    local_base = local_configdir / 'personality' / 'base.ini'
+    local_base.parent.mkdir(exist_ok=True)
+    local_base.write_text(dedent("""\
+    [buildroot]
+    packages_del = e
+    """))
+    expected_loaded.append(local_base)
+
+    local_other = local_configdir / 'personality' / 'other.ini'
+    local_other.parent.mkdir(exist_ok=True)
+    local_other.write_text(dedent("""\
+    [buildroot]
+    packages_add = g
+    """))
+    expected_not_loaded.append(local_other)
+
+    # Product-arch config
+    eos_amd64 = configdir / 'product-arch' / 'eos-amd64.ini'
+    eos_amd64.parent.mkdir(exist_ok=True)
+    eos_amd64.write_text(dedent("""\
+    [buildroot]
+    packages_add = d e
+    """))
+    expected_loaded.append(eos_amd64)
+    expected_packages = 'b\nd'
+
+    _run_test()
+
+    # System config file
+    sysconfig = tmp_builder_paths['SYSCONFDIR'] / 'config.ini'
+    sysconfig.parent.mkdir(exist_ok=True)
+    sysconfig.write_text(dedent("""\
+    [buildroot]
+    packages_add = f
+    """))
+    expected_loaded.append(sysconfig)
+    expected_packages = 'b\nd\nf'
+
+    _run_test()
+
+    # Local checkout config
+    checkout = configdir / 'local.ini'
+    checkout.parent.mkdir(exist_ok=True)
+    checkout.write_text(dedent("""\
+    [buildroot]
+    packages = z
+    """))
+    expected_loaded.append(checkout)
+    expected_packages = 'z'
+
+    _run_test()
+
+    # System private config file
+    sysprivate = tmp_builder_paths['SYSCONFDIR'] / 'private.ini'
+    sysprivate.parent.mkdir(exist_ok=True)
+    sysprivate.write_text(dedent("""\
+    [image]
+    signing_key = 12345678
+    """))
+    expected_loaded_private.append(sysprivate)
+    expected_signing_key = '12345678'
+
+    _run_test()
+
+
+def test_localdir(make_builder, tmp_path, tmp_builder_paths, caplog):
+    """Test use of local settings directory"""
+    # Build without localdir
+    builder = make_builder()
+    builder.configure()
+    environ = builder.config.get_environment()
+    assert builder.localdir is None
+    assert 'localdir' not in builder.config['build']
+    assert 'EIB_LOCALDIR' not in environ
+
+    # Build with configuration referencing localdir should raise an
+    # exception
+    sysconfig = tmp_builder_paths['SYSCONFDIR'] / 'config.ini'
+    sysconfig.parent.mkdir(exist_ok=True)
+    sysconfig.write_text(dedent("""\
+    [image]
+    branding_desktop_logo = ${build:localdatadir}/desktop.png
+    """))
+    caplog.clear()
+    builder = make_builder()
+    builder.configure()
+    with pytest.raises(configparser.InterpolationMissingOptionError,
+                       match='Bad value substitution'):
+        builder.config['image']['branding_desktop_logo']
+
+    # Build with localdir provided
+    localdir = tmp_path / 'local'
+    defaults = localdir / 'config' / 'defaults.ini'
+    defaults.parent.mkdir(parents=True)
+    defaults.write_text(dedent("""\
+    [image]
+    signing_key = foobar
+    """))
+    caplog.clear()
+    builder = make_builder(localdir=str(localdir))
+    builder.configure()
+    environ = builder.config.get_environment()
+    assert builder.localdir == str(localdir)
+    assert builder.config['build']['localdir'] == str(localdir)
+    assert builder.config['build']['localdatadir'] == str(localdir / 'data')
+    assert environ['EIB_LOCALDIR'] == str(localdir)
+    assert environ['EIB_LOCALDATADIR'] == str(localdir / 'data')
+    assert 'Loaded configuration file {}'.format(defaults) in caplog.text
+    assert (builder.config['image']['branding_desktop_logo'] ==
+            str(localdir / 'data' / 'desktop.png'))
+    assert builder.config['image']['signing_key'] == 'foobar'

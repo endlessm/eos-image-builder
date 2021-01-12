@@ -21,6 +21,8 @@ chroot () {
 # Run hooks under customization/
 run_hooks() {
   local hook interpreter
+  local hooksdir="${EIB_HOOKSDIR:-${EIB_SRCDIR}/hooks}"
+  local -a hooksdirs
   local group=$1
   local install_root=$2
 
@@ -31,10 +33,28 @@ run_hooks() {
   eval local hooks="\${EIB_${group^^}_HOOKS}"
   local files=$(echo "${hooks}" | tr ' ' '\n' | sort)
 
+  # If a local settings directory is provided, look there first
+  if [ -n "$EIB_LOCALDIR" ]; then
+    hooksdirs+=("${EIB_LOCALDIR}/hooks")
+  fi
+  hooksdirs+=("${hooksdir}")
+
   for hook in ${files}; do
-    local hookpath="${EIB_SRCDIR}"/hooks/${group}/${hook}
-    if [ ! -f "${hookpath}" ]; then
-      echo "Missing hook ${hookpath}!" >&2
+    local d
+    local found
+    local hookpath
+
+    found=false
+    for d in "${hooksdirs[@]}"; do
+      hookpath="${d}/${group}/${hook}"
+      if [ -f "${hookpath}" ]; then
+        found=true
+        break
+      fi
+    done
+
+    if ! "${found}"; then
+      echo "Missing hook ${hook} not found in ${hooksdirs[*]}" >&2
       return 1
     fi
 
@@ -146,19 +166,26 @@ eib_fix_boot_checksum() {
   "${deploy}"/usr/sbin/amlogic-fix-spl-checksum "${disk}"
 }
 
-# Work around transient failures
+# Work around transient failures. The EIB_RETRY_ATTEMPTS and
+# EIB_RETRY_INTERVAL environment variables can be used to change the
+# defaults of 10 attempts with 1 second sleeps between attempts.
 eib_retry() {
-  local subcommand=${1:?No subcommand supplied to ${FUNCNAME}}
   local i=0
-  local max_retries=10
+  local max_retries=${EIB_RETRY_ATTEMPTS:-10}
+  local interval=${EIB_RETRY_INTERVAL:-1}
+
+  if [ $# -eq 0 ]; then
+    echo "error: No command supplied to ${FUNCNAME}" >&2
+    return 1
+  fi
 
   while ! "$@" && (( ++i < max_retries )) ; do
-    echo "$@ failed; retrying..."
-    sleep 1
+    echo "$@ failed; retrying..." >&2
+    sleep "$interval"
   done
 
   if (( i >= max_retries )); then
-    echo "$@ failed ${max_retries} times; giving up"
+    echo "$@ failed ${max_retries} times; giving up" >&2
     return 1
   fi
 }

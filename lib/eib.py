@@ -30,6 +30,7 @@ import errno
 import fcntl
 import fnmatch
 import glob
+import itertools
 import json
 import logging
 import os
@@ -107,33 +108,100 @@ class ImageConfigParser(configparser.ConfigParser):
     """Configuration parser for the image builder. This uses configparser's
     ExtendedInterpolation to expand values like variables."""
 
-    defaultsect = 'build'
+    BUILD_SECTION = 'build'
+
+    # Config options that will be merged together from multiple
+    # $prefix_add* and $prefix_del* options. This is a list of (section,
+    # prefix) tuples. The section can be a glob pattern.
+    #
+    # FIXME: This needs to be managed from the config itself for
+    # flexibility.
+    MERGED_OPTIONS = [
+        ('buildroot', 'mounts'),
+        ('buildroot', 'packages'),
+        ('check', 'hooks'),
+        ('content', 'hooks'),
+        ('error', 'hooks'),
+        ('flatpak', 'locales'),
+        ('flatpak-remote-*', 'apps'),
+        ('flatpak-remote-*', 'runtimes'),
+        ('flatpak-remote-*', 'nosplit_apps'),
+        ('flatpak-remote-*', 'nosplit_runtimes'),
+        ('flatpak-remote-*', 'exclude'),
+        ('flatpak-remote-*', 'allow_extra_data'),
+        ('image', 'branding_subst_vars'),
+        ('image', 'hooks'),
+        ('image', 'icon_grid'),
+        ('image', 'settings'),
+        ('image', 'settings_locks'),
+        ('manifest', 'hooks'),
+        ('publish', 'hooks'),
+        ('split', 'hooks'),
+    ]
 
     def __init__(self, *args, **kwargs):
         kwargs['interpolation'] = configparser.ExtendedInterpolation()
-        kwargs['default_section'] = self.defaultsect
         super().__init__(*args, **kwargs)
 
-    def items_no_default(self, section, raw=False):
-        """Return the items in a section without including defaults"""
-        # This is a nasty hack to overcome the behavior of the normal
-        # items(). The default section needs to be merged in to resolve
-        # the interpolation, but we only want the keys from the section
-        # itself.
-        d = self.defaults().copy()
-        sect = self._sections[section]
-        d.update(sect)
-        if raw:
-            def value_getter(option):
-                return d[option]
-        else:
-            def value_getter(option):
-                return self._interpolation.before_get(self,
-                                                      section,
-                                                      option,
-                                                      d[option],
-                                                      d)
-        return [(option, value_getter(option)) for option in sect.keys()]
+        # Always add the build section
+        self.add_section(self.BUILD_SECTION)
+
+        self.namespaces = set()
+
+    def read_config_file(self, path, namespace):
+        """Read a single file into the configuration
+
+        The file does not need to exist. Returns True if the file was
+        read and False otherwise. The namespace parameter is used as a
+        suffix for merged options when one does not exist in the config
+        file and must be unique.
+        """
+        # Ensure the namespace is set and unique.
+        if not namespace:
+            raise ImageBuildError('namespace must be a non-empty string')
+        if namespace in self.namespaces:
+            raise ImageBuildError('namespace', namespace, 'is already used')
+        self.namespaces.add(namespace)
+
+        # Load this file into a normal ConfigParser instance without
+        # interpolation so that it can adjusted before merging it with
+        # the full configuration.
+        path = os.fspath(path)
+        logger.debug('Considering config file %s', path)
+        raw_config = configparser.ConfigParser(interpolation=None)
+        if not raw_config.read(path, encoding='utf-8'):
+            return False
+
+        # Include a leading _ in the namespace suffix if needed.
+        suffix = namespace
+        if suffix[0] != '_':
+            suffix = '_' + suffix
+
+        for pattern, opt in self.MERGED_OPTIONS:
+            add_opt = opt + '_add'
+            del_opt = opt + '_del'
+
+            for sect in fnmatch.filter(raw_config.sections(), pattern):
+                section = raw_config[sect]
+
+                if add_opt in section:
+                    namespace_add_opt = add_opt + suffix
+                    logger.debug('Renaming %s option %s to %s', sect, add_opt,
+                                 namespace_add_opt)
+                    section[namespace_add_opt] = section[add_opt]
+                    del section[add_opt]
+
+                if del_opt in section:
+                    namespace_del_opt = del_opt + suffix
+                    logger.debug('Renaming %s option %s to %s', sect, del_opt,
+                                 namespace_del_opt)
+                    section[namespace_del_opt] = section[del_opt]
+                    del section[del_opt]
+
+        # Merge this configuration.
+        self.read_dict(raw_config)
+
+        return True
 
     def setboolean(self, section, option, value):
         """Convenience method to store boolean's in shell style
@@ -146,64 +214,114 @@ class ImageConfigParser(configparser.ConfigParser):
             value = 'false'
         self.set(section, option, value)
 
-    def merge_option_prefix(self, section, prefix):
-        """Merge multiple options named like <prefix>_add_* and
-        <prefix>_del_*. The original options can be deleted later
-        with the clear_merged_options function. If an option named
-        <prefix> already exists, it is not changed.
+    def merge(self):
+        """Merge the options in the configuration"""
+        unmerged_options = []
+        for section, option in self.MERGED_OPTIONS:
+            unmerged_options += self._merge_option(section, option)
+
+        # Delete the unmerged options
+        for section, option in unmerged_options:
+            logger.debug('Deleting unmerged option %s %s', section, option)
+            del self[section][option]
+
+    def _merge_option(self, section_pattern, option):
+        """Merge multiple options named like <option>_add* and <option>_del*.
+        The original unmerged options are then deleted. If an option
+        named <prefix> already exists, it is not changed.
 
         The section can be a glob pattern to merge options in similarly
         named sections.
-        """
-        for sect_name in fnmatch.filter(self.sections(), section):
-            sect = self[sect_name]
-            add_opts = fnmatch.filter(sect.keys(), prefix + '_add_*')
-            del_opts = fnmatch.filter(sect.keys(), prefix + '_del_*')
 
-            # If the prefix doesn't exist, merge together the add and
-            # del options and set it.
-            if prefix not in sect:
+        This function is a generator yielding unmerged (section, option)
+        tuples.
+        """
+        for section in fnmatch.filter(self.sections(), section_pattern):
+            sect = self[section]
+
+            add_opts = fnmatch.filter(sect.keys(), option + '_add*')
+            del_opts = fnmatch.filter(sect.keys(), option + '_del*')
+
+            # If the option already exists, it overrides the unmerged
+            # variants
+            if option in sect:
+                logger.debug('Keeping merged option %s %s', section, option)
+                for opt in add_opts + del_opts:
+                    logger.debug('Ignoring unmerged option %s %s', section,
+                                 opt)
+                    yield (section, opt)
+            else:
                 add_vals = Counter()
                 for opt in add_opts:
+                    logger.debug('Adding %s %s values from %s', section,
+                                 option, opt)
                     add_vals.update(sect[opt].split())
+                    yield (section, opt)
+
                 del_vals = Counter()
                 for opt in del_opts:
+                    logger.debug('Removing %s %s values from %s', section,
+                                 option, opt)
                     del_vals.update(sect[opt].split())
+                    yield (section, opt)
 
-                # Set the prefix to the difference of the counters.
+                # Set the option to the difference of the counters.
                 # Merge the values together with newlines like they were
                 # in the original configuration.
                 vals = add_vals - del_vals
-                sect[prefix] = '\n'.join(sorted(vals.keys()))
-
-    def clear_merged_options(self, section, prefix):
-        """Clear the <prefix>_add_* and <prefix>_del_* options left by
-        the merge operation in merge_option_prefix. Called once all merges
-        have been done in order to allow the intermediate values to be used
-        for interpolation."""
-        for sect_name in fnmatch.filter(self.sections(), section):
-            sect = self[sect_name]
-            add_opts = fnmatch.filter(sect.keys(), prefix + '_add_*')
-            del_opts = fnmatch.filter(sect.keys(), prefix + '_del_*')
-
-            # Remove the add/del options to cleanup the section
-            for opt in add_opts + del_opts:
-                del sect[opt]
+                sect[option] = '\n'.join(sorted(vals.keys()))
 
     def copy(self):
         """Create a new instance from this one"""
-        # Construct a dict to feed into a new instance's read_dict
+        # Build a dictionary with raw values rather than passing this
+        # instance directly into the new instance's read_dict method.
         data = OrderedDict()
-        data[self.defaultsect] = OrderedDict(self.items(self.defaultsect,
-                                                        raw=True))
         for sect in self.sections():
-            data[sect] = OrderedDict(self.items_no_default(sect,
-                                                           raw=True))
-
-        # Construct the new instance
+            data[sect] = OrderedDict(self.items(sect, raw=True))
         new_config = ImageConfigParser()
         new_config.read_dict(data)
         return new_config
+
+    def getenv(self, section, option):
+        """Get config value as variable in EIB namespace
+
+        The variable name will be EIB_<SECTION>_<OPTION> with the
+        section and option names uppercased. Shell-incompatible
+        characters are converted to underscores.
+
+        As a special case, options from the build section do not have
+        the section name in the environment variable. For instance,
+        build:product will become EIB_PRODUCT.
+
+        Returns a tuple of name and value.
+        """
+        value = self[section][option]
+
+        # Convert boolean values to true/false to be handled easily in
+        # shell
+        if value.lower() in ('true', 'false'):
+            value = value.lower()
+
+        # Construct the variable name
+        var = 'EIB_'
+        if section != self.BUILD_SECTION:
+            var += section.upper() + '_'
+        var += option.upper()
+
+        # Per POSIX, environment variable names compatible with shells
+        # only contain upper case letters, digits and underscores.
+        # Convert anything else to an underscore.
+        var = re.sub(r'[^A-Z0-9_]', '_', var)
+
+        return var, value
+
+    def get_environment(self):
+        """Get all environment variables for configuration"""
+        return dict([
+            self.getenv(sect, opt)
+            for sect in self.sections()
+            for opt in self.options(sect)
+        ])
 
 
 def recreate_dir(path):
@@ -221,6 +339,8 @@ def add_cli_options(argparser):
     def add_argument(*args, **kwargs):
         kwargs['help'] += ' (default: {})'.format(kwargs['default'])
         return argparser.add_argument(*args, **kwargs)
+
+    argparser.add_argument('-d', '--localdir', help='local settings directory')
 
     add_argument('-p', '--product', default='eos',
                  help='product to build')
@@ -301,33 +421,49 @@ def setup_logging():
     logging.basicConfig(level=level, format=log_format, datefmt=date_format)
 
 
-def create_keyring(config):
-    """Create the temporary GPG keyring if it doesn't exist"""
+def get_keyring(config):
+    """Get the path to the temporary GPG keyring
+
+    If it doesn't exist, it will be created.
+    """
     keyring = config['build']['keyring']
 
     if not os.path.isfile(keyring):
-        keysdir = config['build']['keysdir']
-        if not os.path.isdir(keysdir):
-            raise ImageBuildError('No gpg keys directory at', keysdir)
+        logger.info('Creating temporary GPG keyring %s', keyring)
 
-        keys = glob.glob(os.path.join(keysdir, '*.asc'))
+        keyspaths = [os.path.join(config['build']['datadir'], 'keys')]
+        if 'localdatadir' in config['build']:
+            keyspaths.append(os.path.join(config['build']['localdatadir'],
+                                          'keys'))
+
+        keysdirs = list(filter(os.path.isdir, keyspaths))
+        if len(keysdirs) == 0:
+            raise ImageBuildError('No gpg keys directories at',
+                                  ' or '.join(keyspaths))
+
+        keys = list(itertools.chain.from_iterable(
+            [glob.iglob(os.path.join(d, '*.asc')) for d in keysdirs]
+        ))
         if len(keys) == 0:
-            raise ImageBuildError('No gpg keys in', keysdir)
+            raise ImageBuildError('No gpg keys in', ' or '.join(keysdirs))
 
         # Use a temporary gpg homedir
         with tempfile.TemporaryDirectory(dir=config['build']['tmpdir'],
                                          prefix='eib-keyring') as homedir:
             # Import the keys
             for key in keys:
+                logger.info('Importing GPG key %s', key)
                 subprocess.check_call(['gpg', '--batch', '--quiet',
                                        '--homedir', homedir,
-                                       '--keyring', keyring,
-                                       '--no-default-keyring',
                                        '--import', key])
 
-        # Set normal permissions for the keyring since gpg creates it
-        # 0600
-        os.chmod(keyring, 0o0644)
+            # Export all the keys as a normal PGP stream since newer
+            # gnupg imports to a keybox.
+            subprocess.check_call(['gpg', '--batch', '--quiet',
+                                   '--homedir', homedir,
+                                   '--export', '--output', keyring])
+
+    return keyring
 
 
 def disk_usage(path):

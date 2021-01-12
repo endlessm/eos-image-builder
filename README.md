@@ -129,17 +129,25 @@ shown above. For instance, a branch and arch combination will always be
 specified in the form `branch-arch` rather than `arch-branch`. Likewise,
 this combination will come before a branch and platform combination.
 
-The image builder also supports host and checkout specific configuration
-with the following files read in this order:
+System specific configuration is then loaded from
+`/etc/eos-image-builder/config.ini`.
 
-  * System config settings - `/etc/eos-image-builder/config.ini`
-  * Local build settings - `config/local.ini`
+Next, a local tree of configuration can be loaded from
+`$localdir/config` if a local settings directory is specified with the
+`--localdir` option. The configuration loaded here is the same as in the
+`config` directory in the source tree. For example,
+`$localdir/config/defaults.ini` and
+`$localdir/config/branch/$branch.ini` will be loaded.
 
-Finally, there are 2 configuration files whose settings will be used
+For build specific settings, `config/local.ini` is then loaded from the
+source tree.
+
+Finally, there are 3 configuration files whose settings will be used
 during the build but not displayed in the saved configuration file:
 
   * System private settings - `/etc/eos-image-builder/private.ini`
-  * Local private settings - `config/private.ini`
+  * Local private settings = `$localdir/config/private.ini`
+  * Checkout private settings - `config/private.ini`
 
 None of these files are required to be present, but the `defaults.ini`
 file contains many settings that are expected throughout the core of the
@@ -147,8 +155,8 @@ build.
 
 New configuration options should be added and documented in
 `defaults.ini`. See the existing file for options that are available to
-customize. Settings in the default `build` section are usually set in
-the `ImageBuilder` class as they're static across all builds.
+customize. Settings in the `build` section are usually set in the
+`ImageBuilder` class as they're static across all builds.
 
 Format
 ------
@@ -158,10 +166,7 @@ However, a form of interpolation is used to allow referring to other
 options. For instance, an option `foo` can use the value from an option
 `bar` by using `${bar}` in its value. If `bar` was in a different
 section, it can be referred to by prepending the other section in the
-form of `${other:bar}`. The `build` section is the default section. Any
-interpolation without an explicit section can fallback to a value in the
-`build` section. For example, if `bar` doesn't exist in the current
-section, it will also be looked for in the `build` section.
+form of `${other:bar}`.
 
 The INI file parsing is done using the `configparser` `python` module.
 The interpolation feature is provided by its `ExtendedInterpolation`
@@ -181,36 +186,39 @@ a single setting. Adding or removing items from the list is not possible
 with the features in the configuration parser.
 
 To allow some method of building these lists, the builder will take
-multiple options of the form `$prefix_add_*` and `$prefix_del_*` and
-merge them together into one option named `$prefix`. Values in the
-various `$prefix_add_*` options are added to a set, and then values in
-the various `$prefix_del_*` options are removed from the set. If the
-option `$prefix` already exists, it is not changed. This allows a
-configuration file to override all of the various `add` and `del`
+options of the form `<option>_add*` and `<option>_del*` and merge them
+together into one option named `<option>`. Each whitespace separated
+value in the `add` and `del` variants is counted to determine whether it
+will remain in the merged option value. A value found in `add` will have
+its count incremented while a value found in `del` will have its count
+decremented. If the final count is less than or equal to 0, it is
+removed from the merged value.
+
+Normally options loaded later in the configuration will override
+identically named options from earlier in the configuration. If an
+unmerged variant ends in `_add` or `_del`, a suffix based on the
+filesystem path will automatically be appended to make it unique. For
+instance, the option `packages_add` in `defaults.ini` will be converted
+to `packages_add_defaults`, and the option `apps_add` in
+`product/eos.ini` will be converted to `apps_add_product_eos`. These
+options can be interpolated in other parts of the configuration using
+the converted names.
+
+Configuration files in the system directory will additionally include
+`system` in the merged option. For example, the options `apps_del` in
+`/etc/eos-image-builder/config.ini` will be converted to
+`apps_del_system_config`. Alternatively, any unmerged option that
+contains a suffix after `add` or `del` will be left as is such as
+`apps_add_mandatory` in `defaults.ini`.
+
+If the option `<option>` already exists, it is not changed. This allows
+a configuration file to override all of the various `add` and `del`
 options from other files to provide the list exactly in the form it
 wants.
 
-The current merged options are:
-
-* `buildroot:mounts`
-* `buildroot:packages`
-* `check:hooks`
-* `content:hooks`
-* `error:hooks`
-* `flatpak:locales`
-* `flatpak-remote-*:apps`
-* `flatpak-remote-*:runtimes`
-* `flatpak-remote-*:nosplit_apps`
-* `flatpak-remote-*:nosplit_runtimes`
-* `image:hooks`
-* `image:icon_grid`
-* `image:settings`
-* `image:settings_locks`
-* `manifest:hooks`
-* `publish:hooks`
-* `split:hooks`
-
-See the `defaults.ini` file for a description of these options.
+The current merged options are defined in the `ImageConfigParser` class
+attribute `MERGED_OPTIONS` in the [eib](lib/eib.py) module. See the
+`defaults.ini` file for a description of these options.
 
 Accessing options
 -----------------
@@ -287,7 +295,11 @@ Customization
 The core of EIB is just a wrapper. The real content of the output is
 defined by customization scripts found under hooks/. These scripts have
 access to environment variables and library functions allowing them to
-integrate correctly with the core.
+integrate correctly with the core. If a local settings directory is
+provided with the `--localdir` option, hooks in the `$localdir/hooks`
+directory are preferred to those in the checkout's `hooks` directory.
+This allows providing both custom hooks as well as overriding existing
+hooks.
 
 The scripts to run are organized under `hooks/GROUP` where `GROUP` is a
 group of hooks run by a particular stage. The hooks to run are managed
@@ -400,6 +412,22 @@ also clean up for subsequent builds.
 
 Testing
 =======
+
+Some parts of the image builder can be tested with [pytest][pytest-url].
+After installing pytest, run `pytest` (or `pytest-3` if `pytest` is for
+python 2) from the root of the checkout.
+
+Various options can be passed to `pytest` to control how the tests are
+run. See the pytest [usage][pytest-usage] documentation for details.
+When debugging test failures, the `--basetemp` option allows specifying
+the directory where each test's temporary directory will be stored. This
+can be helpful to examine the files generated during tests. Another
+useful option is `--log-cli-level=DEBUG`. Normally log messages are
+suppressed unless there's a test failure. This option prints the
+messages in the test output as they happen.
+
+[pytest-url]: https://docs.pytest.org/en/stable/
+[pytest-usage]: https://docs.pytest.org/en/stable/usage.html
 
 The default image builder configuration and execution options are setup
 for building production images on the Endless builders with access to

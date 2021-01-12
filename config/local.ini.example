@@ -47,8 +47,8 @@ apps =
 # configuration by using the _add_/_del_ merged settings. The above
 # install option would need to be commented out for these to take
 # effect.
-#apps_add_local = org.my.App
-#apps_del_local = com.endlessm.resume
+#apps_add = org.my.App
+#apps_del = com.endlessm.resume
 
 # Testing for apps to be removed when creating the split disk. As with
 # the install option, this overrides all settings but could use the
