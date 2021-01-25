@@ -58,9 +58,11 @@ def get_keyring_ids(keyring):
     """Get the public key IDs from a GPG keyring"""
     # gpg insists on creating a homedir, so appease it
     with tempfile.TemporaryDirectory() as homedir:
+        # --show-keys would be more convenient, but that's only
+        # --available in newer gnupg
         output = subprocess.check_output(
-            ('gpg', '--homedir', homedir, '--show-keys', '--with-colons',
-             keyring)
+            ('gpg', '--homedir', homedir, '--list-keys', '--with-colons',
+             '--no-default-keyring', '--keyring', keyring)
         )
     for line in output.decode('utf-8').splitlines():
         parts = line.split(':')
