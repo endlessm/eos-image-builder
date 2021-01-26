@@ -374,8 +374,6 @@ def add_cli_options(argparser):
         help='group apps by their "nature" (locale-specific, generic or '
              'runtime) or by the "runtime" they use (default)')
 
-    argparser.add_argument('-f', '--force', action='store_true',
-                           help='run build even when no new assets found')
     argparser.add_argument('-n', '--dry-run', action='store_true',
                            help="don't publish images")
     argparser.add_argument('--debug', action='store_true',

@@ -247,13 +247,13 @@ class ImageBuilder(object):
     # Attributes to be exported to environment
     CONFIG_ATTRS = [
         'product', 'branch', 'arch', 'platform', 'personality',
-        'force', 'dry_run', 'series', 'srcdir', 'cachedir',
+        'dry_run', 'series', 'srcdir', 'cachedir',
         'sysconfdir', 'build_version',
         'deb_host_gnu_cpu', 'deb_host_multiarch',
         'use_production_ostree',
     ]
     BOOLEAN_ATTRS = [
-        'force', 'dry_run', 'use_production_ostree',
+        'dry_run', 'use_production_ostree',
     ]
 
     def __getattr__(self, attr):
@@ -287,7 +287,7 @@ class ImageBuilder(object):
                  show_apps_split=False,
                  show_apps_trim=0,
                  show_apps_group_by=None,
-                 force=False, dry_run=False,
+                 dry_run=False,
                  use_production_ostree=False,
                  configdir=None):
         # Create the config option first to allow the proxying between
@@ -301,7 +301,6 @@ class ImageBuilder(object):
         self.show_apps_split = show_apps_split
         self.show_apps_trim = show_apps_trim
         self.show_apps_group_by = show_apps_group_by
-        self.force = force
         self.dry_run = dry_run
         self.use_production_ostree = use_production_ostree
 
@@ -652,7 +651,6 @@ def main():
                                show_apps_split=args.split,
                                show_apps_trim=args.trim,
                                show_apps_group_by=args.group_by,
-                               force=args.force,
                                dry_run=args.dry_run,
                                use_production_ostree=args.use_production_ostree)
         builder.run()
