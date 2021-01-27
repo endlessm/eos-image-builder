@@ -383,16 +383,6 @@ def add_cli_options(argparser):
     argparser.add_argument('--use-production-ostree', action='store_true',
                            help="use production ostree repos rather than staging")
 
-    checkout = argparser.add_argument_group('options for checkouts')
-    checkout.add_argument('--build-from-tag',
-                          help="use an eos-image-builder tag rather than the latest branch")
-    checkout_bool = checkout.add_mutually_exclusive_group()
-    checkout_bool.add_argument('--checkout', action='store_true', default=None,
-                               help='copy the git repo to the build directory')
-    checkout_bool.add_argument('--no-checkout', dest='checkout',
-                               action='store_false', default=None,
-                               help='use current checkout for build')
-
     add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,
                  help='time in seconds to acquire lock before '
                       'exiting')
