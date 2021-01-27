@@ -385,8 +385,6 @@ def add_cli_options(argparser):
                            help="enable slightly more verbose logging")
     argparser.add_argument('--use-production', action='store_true',
                            help="use production ostree/flatpak repos rather than staging (deprecated)")
-    argparser.add_argument('--use-production-apps', action='store_true',
-                           help="use production flatpak repos rather than staging")
     argparser.add_argument('--use-production-ostree', action='store_true',
                            help="use production ostree repos rather than staging")
 

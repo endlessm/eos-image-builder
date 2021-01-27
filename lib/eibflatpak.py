@@ -155,7 +155,6 @@ class FlatpakRemote(object):
         self.manager = manager
         self.installation = manager.installation
         self.arch = manager.arch
-        self.use_production = manager.use_production
         self.enable_p2p_updates = manager.enable_p2p_updates
 
         self.name = name
@@ -200,12 +199,6 @@ class FlatpakRemote(object):
         # Make sure URL configured
         if not self.url:
             raise FlatpakError('No URL defined for remote', self.name)
-
-        # Adjust URL for production usage
-        if self.deploy_url and self.use_production:
-            logger.info('Using production URL %s for %s',
-                        self.deploy_url, self.name)
-            self.url = self.deploy_url
 
         # If the deploy URL isn't set, use the pull URL
         if not self.deploy_url:
@@ -521,10 +514,6 @@ class FlatpakManager(object):
         if self.locales:
             logger.info('Using flatpak locales %s',
                         ' '.join(self.locales))
-
-        # See if production flatpaks should be used
-        self.use_production = self.config.getboolean(
-            'build', 'use_production_apps', fallback=False)
 
         # See if collection IDs should be set
         self.enable_p2p_updates = self.config.getboolean(

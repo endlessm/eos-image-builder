@@ -224,11 +224,10 @@ class ImageBuilder(object):
         'force', 'dry_run', 'series', 'srcdir', 'cachedir',
         'sysconfdir', 'build_version',
         'deb_host_gnu_cpu', 'deb_host_multiarch',
-        'use_production_apps', 'use_production_ostree',
+        'use_production_ostree',
     ]
     BOOLEAN_ATTRS = [
-        'force', 'dry_run',
-        'use_production_apps', 'use_production_ostree',
+        'force', 'dry_run', 'use_production_ostree',
     ]
 
     def __getattr__(self, attr):
@@ -263,7 +262,7 @@ class ImageBuilder(object):
                  show_apps_trim=0,
                  show_apps_group_by=None,
                  force=False, dry_run=False,
-                 use_production_apps=False, use_production_ostree=False,
+                 use_production_ostree=False,
                  configdir=None):
         # Create the config option first to allow the proxying between
         # it and this object's attributes.
@@ -278,7 +277,6 @@ class ImageBuilder(object):
         self.show_apps_group_by = show_apps_group_by
         self.force = force
         self.dry_run = dry_run
-        self.use_production_apps = use_production_apps
         self.use_production_ostree = use_production_ostree
 
         # Config instance without private settings
@@ -578,8 +576,6 @@ class ImageBuilder(object):
                               sys.stdout)
             return
 
-        if self.use_production_apps:
-            log.info('Using production flatpak repo for apps')
         if self.use_production_ostree:
             log.info('Using production ostree repo')
 
@@ -611,7 +607,6 @@ def main():
     args = aparser.parse_args()
 
     if args.use_production:
-        args.use_production_apps = True
         args.use_production_ostree = True
 
     if args.debug:
@@ -633,7 +628,6 @@ def main():
                                show_apps_group_by=args.group_by,
                                force=args.force,
                                dry_run=args.dry_run,
-                               use_production_apps=args.use_production_apps,
                                use_production_ostree=args.use_production_ostree)
         builder.run()
 
