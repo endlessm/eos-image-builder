@@ -346,8 +346,8 @@ def add_cli_options(argparser):
                                 '(default: host architecture)')
     argparser.add_argument('--platform',
                            help='platform to build (default: depends on arch)')
-    add_argument('-P', '--personalities', default='base',
-                 help='personalities to build')
+    add_argument('-P', '--personality', default='base',
+                 help='personality to build')
 
     info = argparser.add_argument_group(
         'informational modes',

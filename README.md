@@ -242,14 +242,14 @@ grouped by their runtime, along with compressed and uncompressed size estimates
 for each app and runtime.
 
 ```
-# ./eos-image-builder --show-apps --product eos --personalities pt_BR eos3.4
+# ./eos-image-builder --show-apps --product eos --personality pt_BR eos3.4
 ```
 
 If you want to group by regional-personality-specific vs generic vs runtime
 instead, use `--group-by nature`:
 
 ```
-# ./eos-image-builder --show-apps --group-by nature --product eos --personalities pt_BR eos3.4
+# ./eos-image-builder --show-apps --group-by nature --product eos --personality pt_BR eos3.4
 ```
 
 If you are trying to reduce the compressed image size by, say, 300 MB, you can
@@ -258,7 +258,7 @@ apps to remove. (Hint: for images with a size limit, the number to use is in
 the image build log.)
 
 ```
-# ./eos-image-builder --show-apps --trim 300000000 --product eos --personalities pt_BR eos3.4
+# ./eos-image-builder --show-apps --trim 300000000 --product eos --personality pt_BR eos3.4
 ```
 
 Execution
@@ -278,7 +278,7 @@ Options available:
 
 * `--product`: specify product to build (eos, eosnonfree, eosdev)
 * `--platform`: specify a sub-architecture to build (ec100, odroidu2)
-* `--personalities`: specify image personaities to build (base, en)
+* `--personality`: specify image personality to build (base, en)
 * `--dry-run`: perform a build, but do not publish the results
 
 Customization

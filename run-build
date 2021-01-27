@@ -639,21 +639,20 @@ def main():
 
     eib.setup_logging()
 
-    for personality in args.personalities.strip().split():
-        builder = ImageBuilder(product=args.product,
-                               branch=args.branch,
-                               arch=args.arch,
-                               platform=args.platform,
-                               personality=personality,
-                               localdir=args.localdir,
-                               show_config=args.show_config,
-                               show_apps=args.show_apps,
-                               show_apps_split=args.split,
-                               show_apps_trim=args.trim,
-                               show_apps_group_by=args.group_by,
-                               dry_run=args.dry_run,
-                               use_production_ostree=args.use_production_ostree)
-        builder.run()
+    builder = ImageBuilder(product=args.product,
+                           branch=args.branch,
+                           arch=args.arch,
+                           platform=args.platform,
+                           personality=args.personality,
+                           localdir=args.localdir,
+                           show_config=args.show_config,
+                           show_apps=args.show_apps,
+                           show_apps_split=args.split,
+                           show_apps_trim=args.trim,
+                           show_apps_group_by=args.group_by,
+                           dry_run=args.dry_run,
+                           use_production_ostree=args.use_production_ostree)
+    builder.run()
 
 if __name__ == '__main__':
     main()
