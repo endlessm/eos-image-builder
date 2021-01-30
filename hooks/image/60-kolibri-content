@@ -1,0 +1,51 @@
+# Populate the Kolibri home directory
+
+if [ "${EIB_IMAGE_KOLIBRI_CONTENT}" != "true" ]; then
+  exit 0
+fi
+
+# Needs to be kept in sync with hooks/image/61-kolibri-content-install
+KOLIBRI_CONTENT_DIR="${EIB_CONTENTDIR}/kolibri-content"
+mkdir -p "${KOLIBRI_CONTENT_DIR}"
+
+venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
+python3 -m venv ${venv_dir}
+source ${venv_dir}/bin/activate
+
+pip install kolibri==${EIB_IMAGE_KOLIBRI_CONTENT_APP_VERSION}
+
+export KOLIBRI_HOME="${KOLIBRI_CONTENT_DIR}"
+
+# Disable use of symlinks so we can install the data on filesystems that do not
+# support them (exFAT).
+cat << EOF > "${KOLIBRI_HOME}"/options.ini
+[Deployment]
+STATIC_USE_SYMLINKS = 0
+EOF
+
+kolibri plugin enable kolibri.plugins.app
+
+kolibri manage importchannel network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_ENDLESS_KEY}
+
+for channel_id in ${EIB_IMAGE_KOLIBRI_CONTENT_EXTRA_CHANNELS}; do
+  kolibri manage importchannel network ${channel_id}
+done
+
+kolibri manage importchannel network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_EOS_HELP}
+kolibri manage importcontent --node_ids 3b909a18242c48208dbc49d06bc48162,6e8f60c6b9c841969853d48f4eff22cf network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_EOS_HELP}
+python3 "${EIB_HELPERSDIR}"/kolibri-pick-content-from-channel ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_ENDLESS_KEY} --ignore-channel=${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_EOS_HELP}
+kolibri manage deletechannel ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_ENDLESS_KEY}
+
+position=1
+for channel_id in ${EIB_IMAGE_KOLIBRI_CONTENT_EXTRA_CHANNELS}; do
+  kolibri manage setchannelposition ${channel_id} ${position} || true
+  let position=position+1
+done
+
+kolibri manage importchannel network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_EOS_HELP}
+kolibri manage importcontent --node_ids 3b909a18242c48208dbc49d06bc48162,6e8f60c6b9c841969853d48f4eff22cf network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_EOS_HELP}
+
+# Empty the user database, and ensure that each instance of this image has a
+# unique Facility ID.
+# <https://kolibri.readthedocs.io/en/latest/install/provision.html#prepare-the-kolibri-folder-for-copying>
+(echo yes; echo yes) | kolibri manage deprovision
