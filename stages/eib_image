@@ -332,66 +332,21 @@ create_image() {
       ;;
   esac
 
-  local readahead_size="$EIB_TMPDIR/readahead-size"
-  local readahead_files=
-  local root_size_kib=
-
-  if [[ "$EIB_IMAGE_REORDER" == true && -e "$readahead_size" ]]; then
-    # Created by hooks/image/50-readahead, if run.  Initially create the
-    # filesystem with just enough space to hold files used during first boot,
-    # with some extra for filesystem overhead and to reduce fragmentation.
-    readahead_files="$EIB_TMPDIR/readahead-files.txt"
-    if [[ ! -e "$readahead_files" ]]; then
-      echo "$readahead_size exists but $readahead_files does not" >&2
-      return 1
-    fi
-
-    root_size_kib=$(( $(cat "$readahead_size") * 12 / 10240 ))
-  fi
-
-  mke2fs -t ext4 -O ${ext4_opts} -m1 -L ostree -T default \
-    ${root_loop} $root_size_kib
+  mke2fs -t ext4 -O ${ext4_opts} -m1 -L ostree -T default ${root_loop}
   mkdir -p "${ROOT}"
   eib_mount ${root_loop} "${ROOT}"
-
-  if [[ "$readahead_files" ]]; then
-    # First, copy only files used during boot process. This ensures they are
-    # mostly contiguous at the start of the partition.
-    rsync -aHAX --files-from="$readahead_files" \
-      "${EIB_OSTREE_CHECKOUT}/" "${ROOT}/"
-    if [[ -n "$ESP" && -d "$ESP" ]]; then
-      echo "Files in the ESP should not be in readahead, but $ESP exists" >&2
-      return 1
-    fi
-
-    # Now grow the filesystem to the full size of the partition
-    eib_umount "$ROOT"
-
-    e2fsck -f -p "$root_loop"
-    resize2fs "$root_loop"
-
-    # Once more for luck!
-    e2fsck -f -p "$root_loop"
-    eib_mount ${root_loop} "${ROOT}"
-  fi
 
   if [ -n "$ESP" ]; then
       mkdir -p "${ESP}"
       eib_mount ${esp_loop} "${ESP}"
   fi
 
-  # Copy the remaining files -- or all files, if we have no readahead file --
-  # preserving attributes, timestamps, hardlinks, etc.
+  # Copy all the files, preserving attributes, timestamps, hardlinks, etc.
   #
-  # We expect that many files in the readahead set have at least one other
-  # hardlink (in the ostree repo), so need to take care to preserve those
-  # hardlinks and not to move the file later in the disk in the process.
   # --no-inc-recursive makes rsync scan the whole tree to find hardlinks before
   # copying, and its use in combination with -H is documented to do what we
-  # want. This appears to work correctly, based on running debugfs's
-  # dump_extents and stat on each file in the readahead set after the first and
-  # second passes.
-  rsync -aHAX --update --no-inc-recursive "${EIB_OSTREE_CHECKOUT}/" "${ROOT}/"
+  # want.
+  rsync -aHAX --no-inc-recursive "${EIB_OSTREE_CHECKOUT}/" "${ROOT}/"
 
   eib_write_version_xattr "${ROOT}"
 
