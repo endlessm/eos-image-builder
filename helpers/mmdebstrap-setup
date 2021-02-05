@@ -1,0 +1,35 @@
+#!/bin/bash -e
+
+# mmdebstrap setup hook
+
+ROOT=${1:?No root directory supplied}
+
+for var in BUILDROOT_KEYRING BUILDROOT_APT_CACHE; do
+    if [ ! -v "$var" ]; then
+        echo "error: Required variable $var not set" >&2
+        exit 1
+    fi
+done
+
+# Prefer packages from Endless.
+mkdir -p "$ROOT/etc/apt/preferences.d"
+cat > "$ROOT/etc/apt/preferences.d/endless.pref" <<"EOF"
+Package: *
+Pin: release o=Endless
+Pin-Priority: 700
+EOF
+
+# Point apt to our generated keyring instead of using the host's trusted
+# keys.
+if [ -z "$BUILDROOT_KEYRING" ]; then
+    echo "error: BUILDROOT_KEYRING is not set" >&2
+    exit 1
+fi
+mkdir -p "$ROOT/etc/apt/apt.conf.d"
+cat > "$ROOT/etc/apt/apt.conf.d/99keyring" <<EOF
+Dir::Etc::Trusted "$BUILDROOT_KEYRING";
+Dir::Etc::TrustedParts "";
+EOF
+
+# Populate the apt cache from the persistent cache.
+rsync -a --exclude=/partial "$BUILDROOT_APT_CACHE/" /var/cache/apt/archives/

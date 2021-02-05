@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+# mmdebstrap cleanup hook
+
+ROOT=${1:?No root directory supplied}
+
+for var in BUILDROOT_APT_CACHE; do
+    if [ ! -v "$var" ]; then
+        echo "error: Required variable $var not set" >&2
+        exit 1
+    fi
+done
+
+# Remove the temporary keyring path overrides
+rm -f "$ROOT/etc/apt/apt.conf.d/99keyring"
+
+# Update the persistent apt cache
+rsync -a --exclude=/partial /var/cache/apt/archives/ "$BUILDROOT_APT_CACHE/"
