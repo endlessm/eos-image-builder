@@ -102,9 +102,9 @@ class ImageBuildRoot(object):
         }
         sources = dedent('''\
         deb {url} {codename} {components}
-        deb http://deb.debian.org/debian {base} main
-        deb http://deb.debian.org/debian {base}-updates main
-        deb http://security.debian.org {base}-security main
+        deb http://deb.debian.org/debian {base} main contrib non-free
+        deb http://deb.debian.org/debian {base}-updates main contrib non-free
+        deb http://security.debian.org {base}-security main contrib non-free
         '''.format(**sources_args))
 
         sources_path = os.path.join(config['build']['tmpdir'],
