@@ -32,13 +32,6 @@ goals of speed and flexibility.
 The build process is divided into several stages, detailed below. An
 invocation can run some or all of these stages.
 
-check_update stage
-------------------
-
-This stage does not perform image building, but is used to determine if
-an image build is required. If it exits successfully, no image build is
-needed.
-
 ostree stage
 ------------
 
@@ -249,14 +242,14 @@ grouped by their runtime, along with compressed and uncompressed size estimates
 for each app and runtime.
 
 ```
-# ./eos-image-builder --show-apps --product eos --personalities pt_BR eos3.4
+# ./eos-image-builder --show-apps --product eos --personality pt_BR eos3.4
 ```
 
 If you want to group by regional-personality-specific vs generic vs runtime
 instead, use `--group-by nature`:
 
 ```
-# ./eos-image-builder --show-apps --group-by nature --product eos --personalities pt_BR eos3.4
+# ./eos-image-builder --show-apps --group-by nature --product eos --personality pt_BR eos3.4
 ```
 
 If you are trying to reduce the compressed image size by, say, 300 MB, you can
@@ -265,7 +258,7 @@ apps to remove. (Hint: for images with a size limit, the number to use is in
 the image build log.)
 
 ```
-# ./eos-image-builder --show-apps --trim 300000000 --product eos --personalities pt_BR eos3.4
+# ./eos-image-builder --show-apps --trim 300000000 --product eos --personality pt_BR eos3.4
 ```
 
 Execution
@@ -285,8 +278,7 @@ Options available:
 
 * `--product`: specify product to build (eos, eosnonfree, eosdev)
 * `--platform`: specify a sub-architecture to build (ec100, odroidu2)
-* `--personalities`: specify image personaities to build (base, en)
-* `--force`: perform a build even if the update check says it's not needed
+* `--personality`: specify image personality to build (base, en)
 * `--dry-run`: perform a build, but do not publish the results
 
 Customization
@@ -322,25 +314,6 @@ Scripts are executed in lexical order and the convention is to prefix
 them with a two-digit number to make the order explicit. Each script
 should be succinct - we prefer to have a decent number of small-ish
 scripts, rather than having a small number of huge bash rambles.
-
-check_update customization
---------------------------
-
-The check_update stage calls the `check` customization hooks. The
-intention is to determine facts about the current build and compare them
-to facts from the previous build. At the beginning of the stage, the
-published configuration and manifest from the previous build are
-downloaded. These are stored at `${EIB_TMPDIR}/latest/config.ini` and
-`${EIB_TMPDIR}/latest/manifest.json`, respectively. Hooks can use the
-information in these files to gather information from the previous
-build.
-
-Hooks signal that an update is needed by exiting with a special error
-code. This is available in `eib.sh` from the environment variable
-`EIB_CHECK_EXIT_BUILD_NEEDED`. Python hooks can access this code from
-the `eib` module attribute `CHECK_EXIT_BUILD_NEEDED`. If no update is
-needed, then the hooks should exit successfully. Other exit codes are
-treated as errors and the build is aborted.
 
 ostree customization
 --------------------
@@ -440,12 +413,7 @@ First, `eos-image-builder` provides options that are more appropriate
 for testing. The `-n` or `--dry-run` option will skip publishing of the
 completed image. This not only keeps the test image from being
 published, but it avoids likely authentication errors with other Endless
-services. The `-f` or `--force` option can be used to ignore the result
-of the `check_update` stage. Since that stage will make the build exit
-early if it determines that a build is not needed, `--force` will ensure
-that the build is always performed. Of course, if testing of the
-`check_update` functionality is desired, then `--force` should not be
-used.
+services.
 
 Next, `config/local.ini` can be used to change the image configuration
 in various ways that make a local build more likely to succeed. Since

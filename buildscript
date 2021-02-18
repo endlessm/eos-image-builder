@@ -25,6 +25,11 @@ cd "${EIB_SRCDIR}"
 export PATH="${EIB_SRCDIR}/stages:${PATH}"
 export PYTHONPATH="${EIB_SRCDIR}/lib${PYTHONPATH:+:$PYTHONPATH}"
 
+# If the localdir has a lib directory, prepend that to the python path
+if [ -n "${EIB_LOCALDIR}" ] && [ -d "${EIB_LOCALDIR}/lib" ]; then
+  PYTHONPATH="${EIB_LOCALDIR}/lib:${PYTHONPATH}"
+fi
+
 # Use our helper script for git access over ssh
 export GIT_SSH="${EIB_HELPERSDIR}/git-ssh"
 
@@ -35,18 +40,6 @@ export AWS_SHARED_CREDENTIALS_FILE="${EIB_SYSCONFDIR}/aws-credentials"
 
 exec > >(tee "${EIB_TMPDIR}"/build.txt)
 exec 2>&1
-
-# Check if build needed unless forced
-if [ "${EIB_FORCE}" != true ]; then
-  if eib_check_update; then
-    # Exit early
-    exit 0
-  else
-    # See if this was a real error
-    ret=$?
-    [ $ret -eq $EIB_CHECK_EXIT_BUILD_NEEDED ] || exit $ret
-  fi
-fi
 
 # Real build stages
 eib_ostree

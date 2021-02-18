@@ -58,9 +58,6 @@ SUPPORTED_ARCHES = [
     'armhf'
 ]
 
-# Exit code indicating new build needed rather than error
-CHECK_EXIT_BUILD_NEEDED = 90
-
 # Python normally catches SIGINT and converts it to the
 # KeyboardInterrupt exception. Unfortunately, if some code is blocking
 # the main thread (e.g, OSTree.Repo.pull), the exception can't be
@@ -349,8 +346,8 @@ def add_cli_options(argparser):
                                 '(default: host architecture)')
     argparser.add_argument('--platform',
                            help='platform to build (default: depends on arch)')
-    add_argument('-P', '--personalities', default='base',
-                 help='personalities to build')
+    add_argument('-P', '--personality', default='base',
+                 help='personality to build')
 
     info = argparser.add_argument_group(
         'informational modes',
@@ -377,8 +374,6 @@ def add_cli_options(argparser):
         help='group apps by their "nature" (locale-specific, generic or '
              'runtime) or by the "runtime" they use (default)')
 
-    argparser.add_argument('-f', '--force', action='store_true',
-                           help='run build even when no new assets found')
     argparser.add_argument('-n', '--dry-run', action='store_true',
                            help="don't publish images")
     argparser.add_argument('--debug', action='store_true',
@@ -387,16 +382,6 @@ def add_cli_options(argparser):
                            help="use production ostree/flatpak repos rather than staging (deprecated)")
     argparser.add_argument('--use-production-ostree', action='store_true',
                            help="use production ostree repos rather than staging")
-
-    checkout = argparser.add_argument_group('options for checkouts')
-    checkout.add_argument('--build-from-tag',
-                          help="use an eos-image-builder tag rather than the latest branch")
-    checkout_bool = checkout.add_mutually_exclusive_group()
-    checkout_bool.add_argument('--checkout', action='store_true', default=None,
-                               help='copy the git repo to the build directory')
-    checkout_bool.add_argument('--no-checkout', dest='checkout',
-                               action='store_false', default=None,
-                               help='use current checkout for build')
 
     add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,
                  help='time in seconds to acquire lock before '
@@ -492,17 +477,6 @@ def retry(func, *args, max_retries=3, timeout=1, **kwargs):
             # Show the traceback so the error isn't hidden
             logger.warning('Retrying attempt %d', retry, exc_info=True)
             time.sleep(timeout)
-
-
-def latest_manifest_data():
-    """Read the downloaded manifest.json from the latest build"""
-    path = os.path.join(os.environ['EIB_TMPDIR'], 'latest',
-                        'manifest.json')
-    if not os.path.exists(path):
-        raise ImageBuildError('Could not find latest manifest.json at',
-                              path)
-    with open(path) as f:
-        return json.load(f)
 
 
 def get_config(path=None):

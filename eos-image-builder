@@ -88,27 +88,5 @@ with open(eib.LOCKFILE, 'a+') as lf:
     # safe.
     set_close_on_exec(lf.fileno())
 
-    # Setup the real builder to run
-    os.chdir(MYDIR)
-
-    # If requested or running on jenkins, make a copy of this repo so
-    # the code doesn't change while the builder is running.
-    if args.checkout or (args.checkout is None and 'JENKINS_HOME' in os.environ):
-        # Make a copy of the repo to use. A real git repo is needed
-        # since the build later queries the current commit.
-        srcdir = os.path.join(eib.CACHEDIR, 'src')
-        if os.path.isdir(srcdir):
-            shutil.rmtree(srcdir)
-        os.makedirs(eib.CACHEDIR, exist_ok=True)
-        shutil.copytree(MYDIR, srcdir, symlinks=True)
-        os.chdir(srcdir)
-
-        # Checkout the appropriate branch or tag
-        if args.build_from_tag:
-            subprocess.check_call(['git', 'checkout', 'tags/' + args.build_from_tag])
-        else:
-            subprocess.check_call(['git', 'checkout', 'origin/' + args.branch])
-        subprocess.check_call(['git', 'clean', '-xdf'])
-
-    # Run the real builder
-    subprocess.check_call(['./run-build'] + sys.argv[1:])
+    # Run the real builder from the checkout
+    subprocess.check_call(['./run-build'] + sys.argv[1:], cwd=MYDIR)

@@ -7,8 +7,6 @@
 # all options are available to be changed. See defaults.ini for
 # descriptions of the options.
 
-[check]
-
 [image]
 # Skip GPG signing of the completed image files since the default key ID
 # isn't available. Alternatively, the key ID for any private key in the

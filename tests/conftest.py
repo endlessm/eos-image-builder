@@ -37,7 +37,6 @@ def builder_config(config):
         'arch': 'amd64',
         'platform': 'amd64',
         'personality': 'base',
-        'force': 'false',
         'dry_run': 'false',
         'series': 'master',
         'srcdir': SRCDIR,
