@@ -49,7 +49,6 @@ class ImageBuildRoot(object):
     """
     def __init__(self, builddir, config):
         self.builddir = builddir
-        self.mounts = []
 
         # Get the config parameters
         arch = config['buildroot']['arch']
@@ -187,59 +186,14 @@ class ImageBuildRoot(object):
             with open(mount_path, 'w'):
                 pass
         subprocess.check_call(['mount', '--bind', path, mount_path])
-        self.mounts.append(mount_path)
-
-    def umount(self, target):
-        """Unmount one path in the build directory"""
-        if not os.path.isabs(target):
-            raise eib.ImageBuildError('Buildroot mount target', target,
-                                      'is not an absolute path')
-        # Prepend the build directory if needed
-        if not target.startswith(self.builddir + '/'):
-            target = self.builddir + target
-        if target not in self.mounts:
-            raise eib.ImageBuildError(target, 'is not mounted in',
-                                      self.builddir)
-        log.info('Unmounting %s', target)
-        subprocess.check_call(['umount', target])
-        self.mounts.remove(target)
-
-    def umount_all(self, continue_on_errors=False):
-        """Unmount all paths in the build directory"""
-        umount_error = False
-        for index in reversed(range(len(self.mounts))):
-            mnt = self.mounts[index]
-            log.info('Unmounting %s', mnt)
-            ret = subprocess.call(['umount', mnt])
-            if ret == 0:
-                self.mounts.pop(index)
-            else:
-                umount_error = True
-                if not continue_on_errors:
-                    break
-
-        # Still fail even if asked to continue through errors
-        if umount_error:
-            raise eib.ImageBuildError('Could not unmount all filesystems '
-                                      'under', self.builddir)
-
-    def killall(self):
-        """Kill all processes running in the build directory"""
-        log.info('Killing all processes in %s', self.builddir)
-        eib.kill_root_processes(self.builddir)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc, value, tb):
-        # Try to kill any running processes but ignore errors so that
-        # unmounting still happens
-        try:
-            self.killall()
-        except:
-            log.exception('Failed to kill running processes')
+        # Kill all processes and unmount all filesystems
+        eib.cleanup_root(self.builddir)
 
-        self.umount_all(continue_on_errors=True)
         log.info('Removing buildroot %s', self.builddir)
         shutil.rmtree(self.builddir)
 
