@@ -647,8 +647,7 @@ def delete_root_loops(root):
 def unmount_root_filesystems(root):
     """Unmount all filesystems in root path
 
-    Finds all filesystems mounted within root (but not root itself) and
-    unmounts them.
+    Finds all filesystems mounted within root and unmounts them.
     """
     # Re-read the mount table after every unmount in case there
     # are aliased mounts
@@ -660,18 +659,11 @@ def unmount_root_filesystems(root):
         # Operate on the mounts backwards to unmount submounts first
         for line in reversed(mounts):
             mountdir = line.split()[4]
-            # Search for mounts that begin with $dir/. The trailing / is
-            # added for 2 reasons.
-            #
-            # 1. It makes sure that $dir itself is not matched. If
-            # someone has mounted the build directory itself, that was
-            # probably done intentionally and wasn't done by the
-            # builder.
-            #
-            # 2. It ensures that only paths below $dir are matched and
-            # not $dir-backup or anything else that begins with the same
-            # characters.
-            if mountdir.startswith(root + '/'):
+            # Search for mount on root or that begin with root/. The
+            # trailing / is added to ensure that only paths below $dir
+            # are matched and not $dir-backup or anything else that
+            # begins with the same characters.
+            if mountdir == root or mountdir.startswith(root + '/'):
                 path = mountdir
                 break
 
@@ -688,9 +680,6 @@ def unmount_root_filesystems(root):
 
         logger.info('Unmounting %s', path)
         subprocess.check_call(['umount', path])
-
-    # Finally, delete any loops backed by the root itself
-    delete_root_loops(root)
 
 
 def cleanup_root(root):
