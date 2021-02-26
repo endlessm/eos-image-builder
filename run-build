@@ -137,6 +137,14 @@ class ImageBuildRoot(object):
         )
         subprocess.check_call(buildroot_cmd, env=buildroot_env)
 
+        # Make the buildroot a private mount point. This ensures that
+        # mounts from the host that happen during the build don't
+        # propagate into our bind mounts. Some tools also expect / to be
+        # a private mount like it would be on the host.
+        subprocess.check_call(['mount', '--bind', self.builddir,
+                               self.builddir])
+        subprocess.check_call(['mount', '--make-private', self.builddir])
+
         # Mount all the desired paths. Sort the list of needed mounts so
         # the shortest paths (parents) come before longer paths
         # (children). Avoid superfluous mounts when a parent on the same
