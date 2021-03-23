@@ -13,6 +13,7 @@ python3 -m venv ${venv_dir}
 source ${venv_dir}/bin/activate
 
 pip install kolibri==${EIB_IMAGE_KOLIBRI_CONTENT_APP_VERSION}
+pip install kolibri-app-desktop-xdg-plugin==${EIB_IMAGE_KOLIBRI_CONTENT_APP_DESKTOP_XDG_PLUGIN_VERSION}
 
 export KOLIBRI_HOME="${KOLIBRI_CONTENT_DIR}"
 
@@ -24,6 +25,7 @@ STATIC_USE_SYMLINKS = 0
 EOF
 
 kolibri plugin enable kolibri.plugins.app
+kolibri plugin enable kolibri_app_desktop_xdg_plugin
 
 kolibri manage importchannel network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_ENDLESS_KEY}
 
