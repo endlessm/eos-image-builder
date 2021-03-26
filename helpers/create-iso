@@ -89,6 +89,15 @@ AUTORUN_INF
   local squash_asc="${DIR_IMAGES_ENDLESS}/${EIB_OUTVERSION}.squash.asc"
   sign_file "$squash" "$squash_asc"
 
+  # Generate checksums so the files can be validated without GPG.
+  local img_checksum="${DIR_IMAGES_ENDLESS}/${EIB_OUTVERSION}.img.sha256"
+  local boot_zip_checksum="${DIR_IMAGES_ENDLESS}/${EIB_OUTVERSION}.boot.zip.sha256"
+  local squash_checksum="${DIR_IMAGES_ENDLESS}/${EIB_OUTVERSION}.squash.sha256"
+  sha256sum "$img" | awk '{printf "%s", $1}' > "$img_checksum" &
+  sha256sum "$boot_zip" | awk '{printf "%s", $1}' > "$boot_zip_checksum" &
+  sha256sum "$squash" | awk '{printf "%s", $1}' > "$squash_checksum" &
+  wait
+
   # Construct ESP
   unzip -q -d "${DIR_EFI}" "${boot_zip}" "EFI/*"
   local DIR_EFI_SIZE=$(du -s "${DIR_EFI}" | cut -f1)
