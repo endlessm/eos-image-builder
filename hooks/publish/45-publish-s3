@@ -2,6 +2,11 @@
 # rsyncing to the server so that it doesn't begin to sync that build to
 # S3 concurrently.
 
+if [ -z "${EIB_PUBLISH_S3_BUCKET}" ]; then
+    echo "S3 bucket not set; skipping publishing"
+    exit 0
+fi
+
 src="${EIB_OUTDIR}"
 dest="s3://${EIB_PUBLISH_S3_BUCKET}/${EIB_PUBLISH_PATH}"
 region="${EIB_PUBLISH_S3_REGION}"
