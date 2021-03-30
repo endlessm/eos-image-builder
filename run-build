@@ -582,7 +582,7 @@ class ImageBuilder(object):
             subprocess.check_call(cmd, env=builder_env)
 
         log.info('Built assets available in %s',
-                 self.get_build_option('outrootdir'))
+                 self.get_build_option('outdir'))
 
 def main():
     aparser = ArgumentParser(description='Build and publish images for Endless')

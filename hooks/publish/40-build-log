@@ -1,2 +1,2 @@
-# Copy the temporary build log to this personality's outdir
+# Copy the temporary build log to the output directory
 cp "${EIB_TMPDIR}"/build.txt "$(eib_outfile build.txt)"
