@@ -402,17 +402,20 @@ EOF
             local uboot_spi_zip="$(eib_outfile uboot-spi.zip)"
             zip "${uboot_spi_zip}" "${DEPLOY}"/usr/lib/u-boot/chromebook_jerry/u-boot.SPI
             sign_file "${uboot_spi_zip}" &
+            checksum_file "${uboot_spi_zip}" &
 
             # Generate manifest information
             local uboot_spi_zip_name=$(basename "${uboot_spi_zip}")
             local uboot_spi_zip_size=$(stat -c "%s" "${uboot_spi_zip}")
             local uboot_spi_zip_signature="${uboot_spi_zip_name}.asc"
+            local uboot_spi_zip_checksum="${uboot_spi_zip_name}.sha256"
             cat >> "${img_manifest}" <<EOF
     "uboot-spi": {
       "file": "${uboot_spi_zip_name}",
       "compressed_size": ${uboot_spi_zip_size},
       "compression_type": "zip",
-      "signature": "${uboot_spi_zip_signature}"
+      "signature": "${uboot_spi_zip_signature}",
+      "checksum": "${uboot_spi_zip_checksum}"
     },
 EOF
           fi
@@ -584,17 +587,20 @@ EOF
         (cd "${boot_zip_dir}" && zip "${boot_zip}" -r *)
         rm -r "${boot_zip_dir}"
         sign_file "${boot_zip}" &
+        checksum_file "${boot_zip}" &
 
         # Generate manifest information
         local boot_zip_name=$(basename "${boot_zip}")
         local boot_zip_size=$(stat -c "%s" "${boot_zip}")
         local boot_zip_signature="${boot_zip_name}.asc"
+        local boot_zip_checksum="${boot_zip_name}.sha256"
         cat >> "${img_manifest}" <<EOF
     "boot": {
       "file": "${boot_zip_name}",
       "compressed_size": ${boot_zip_size},
       "compression_type": "zip",
-      "signature": "${boot_zip_signature}"
+      "signature": "${boot_zip_signature}",
+      "checksum": "${boot_zip_checksum}"
     },
 EOF
       elif [[ "${EIB_IMAGE_SDBOOT}" == "true" ]]; then
@@ -639,9 +645,12 @@ EOF
   # Cleanup devices
   cleanup_devices
 
-  # Sign uncompressed image (used when installing from a live image)
+  # Sign and checksum uncompressed image (used when installing from a
+  # live image)
   local img_asc="$(eib_outfile img.asc)"
+  local img_csum="$(eib_outfile img.sha256)"
   sign_file "${img}" "${img_asc}" &
+  checksum_file "${img}" "${img_csum}" &
 
   # Publish uncompressed file size.
   local img_extracted_size=$(stat -c "%s" "${img}")
@@ -650,21 +659,24 @@ EOF
   # Compress image file.
   eib_compress_image "${img}" "${outfile}"
 
-  # Sign compressed image (used to verify download)
+  # Sign and checksum compressed image (used to verify download)
   sign_file ${outfile} &
+  checksum_file ${outfile} &
 
   # Copy ostree, package and config info to the output directory.
   cp "${EIB_TMPDIR}"/ostree.txt "$(eib_outfile ostree.txt)"
   cp "${EIB_TMPDIR}"/packages.txt "$(eib_outfile packages.txt)"
   cp "${EIB_TMPDIR}"/config.ini "$(eib_outfile config.ini)"
 
-  # Create ISO if required. This requires the uncompressed image, its
-  # signature, and the signature for boot.zip. In theory we could `wait` only
-  # for those two signatures and allow compressing the image and signing it to
-  # happen in parallel with creating the ISO.
+  # Create ISO if required. This requires the uncompressed image,
+  # boot.zip and eheir associated checksums and signatures. In theory we
+  # could `wait` only for the checksums and signatures and allow
+  # compressing the image and signing it to happen in parallel with
+  # creating the ISO.
   if [[ "${EIB_IMAGE_ISO}" = "true" && "$EIB_IMAGE_BOOT_ZIP" = "true" ]]; then
     "${EIB_HELPERSDIR}"/create-iso "${version}" "$(eib_outfile iso)" \
-      "${img}" "${boot_zip}" "${img_asc}" "${boot_zip}.asc"
+      "${img}" "${boot_zip}" "${img_csum}" "${boot_zip}.sha256" "${img_asc}" \
+      "${boot_zip}.asc"
   fi
 
   # Create VM image if required
@@ -683,10 +695,11 @@ EOF
   # This expects to have an ISO image for eos-write-live-image.
   if [[ "${EIB_IMAGE_USB}" = "true" && "${EIB_IMAGE_ISO}" = "true" && "${EIB_IMAGE_BOOT_ZIP}" = "true" ]]; then
     "${EIB_HELPERSDIR}"/create-usb-image "${version}" "$(eib_outfile usb.img)" \
-      "$(eib_outfile iso)" "${boot_zip}" "${img_asc}" "${boot_zip}.asc"
+      "$(eib_outfile iso)" "${boot_zip}" "${img_csum}" "${boot_zip}.sha256" \
+      "${img_asc}" "${boot_zip}.asc"
   fi
 
-  # Await sign_file subprocesses
+  # Await signing and checksumming subprocesses
   wait
 
   # Remove uncompressed image
@@ -696,13 +709,15 @@ EOF
   local img_name=$(basename "${outfile}")
   local img_compressed_size=$(stat -c "%s" "${outfile}")
   local img_signature="${img_name}.asc"
+  local img_checksum="${img_name}.sha256"
   cat >> "${img_manifest}" <<EOF
     "full": {
       "file": "${img_name}",
       "extracted_size": ${img_extracted_size},
       "compressed_size": ${img_compressed_size},
       "compression_type": "${EIB_IMAGE_COMPRESSION}",
-      "signature": "${img_signature}"
+      "signature": "${img_signature}",
+      "checksum": "${img_checksum}"
     }
   }
 }
