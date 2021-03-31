@@ -84,19 +84,6 @@ def test_bad_arch(make_builder):
         make_builder(arch='notanarch')
 
 
-@pytest.mark.parametrize('arch,expected_gnu_cpu,expected_multiarch', [
-    ('amd64', 'x86_64', 'x86_64-linux-gnu'),
-    ('arm64', 'aarch64', 'aarch64-linux-gnu'),
-    ('i386', 'i686', 'i386-linux-gnu'),
-    ('armhf', 'arm', 'arm-linux-gnueabihf'),
-])
-def test_arch_details(make_builder, arch, expected_gnu_cpu,
-                      expected_multiarch):
-    builder = make_builder(arch=arch)
-    assert builder.deb_host_gnu_cpu == expected_gnu_cpu
-    assert builder.deb_host_multiarch == expected_multiarch
-
-
 # Build test variants. This is ideally the same as the release image
 # variants. Configurations with master and the latest stable branch are
 # tested.

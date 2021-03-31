@@ -71,7 +71,6 @@ Known to work on Debian Jessie (8) and Ubuntu Trusty (14.04). Required
 packages:
 
  * mmdebstrap
- * dpkg-dev (for dpkg-architecture)
  * e2fsprogs (for chattr)
  * git
  * gnupg

@@ -43,8 +43,6 @@ def builder_config(config):
         'cachedir': eib.CACHEDIR,
         'sysconfdir': eib.SYSCONFDIR,
         'build_version': '200101-000000',
-        'deb_host_gnu_cpu': 'x86_64',
-        'deb_host_multiarch': 'x86_64-linux-gnu',
         'use_production_ostree': 'false'
     })
 
