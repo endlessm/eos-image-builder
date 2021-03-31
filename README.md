@@ -67,13 +67,9 @@ build log to the image server.
 Setup
 =====
 
-Known to work on Debian Jessie (8) and Ubuntu Trusty (14.04). Required
-packages:
+Known to work on Debian Buster (10) and newer. Required packages:
 
  * mmdebstrap
- * dpkg-dev (for dpkg-architecture)
- * e2fsprogs (for chattr)
- * git
  * gnupg
  * python3
 

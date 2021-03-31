@@ -211,7 +211,6 @@ class ImageBuilder(object):
         'product', 'branch', 'arch', 'platform', 'personality',
         'dry_run', 'series', 'srcdir', 'cachedir',
         'sysconfdir', 'build_version',
-        'deb_host_gnu_cpu', 'deb_host_multiarch',
         'use_production_ostree',
     ]
     BOOLEAN_ATTRS = [
@@ -322,17 +321,6 @@ class ImageBuilder(object):
         self.cachedir = eib.CACHEDIR
         self.sysconfdir = eib.SYSCONFDIR
         self.build_version = datetime.datetime.utcnow().strftime('%y%m%d-%H%M%S')
-
-        # Pull in dpkg-architecture settings that are needed for the
-        # installation of flatpak bundles.
-        gnu_cpu = subprocess.check_output(['dpkg-architecture',
-                                           '-a' + self.arch,
-                                           '-qDEB_HOST_GNU_CPU'])
-        self.deb_host_gnu_cpu = gnu_cpu.decode().strip()
-        multiarch = subprocess.check_output(['dpkg-architecture',
-                                             '-a' + self.arch,
-                                             '-qDEB_HOST_MULTIARCH'])
-        self.deb_host_multiarch = multiarch.decode().strip()
 
     def _get_config_paths(self, dir_path, dir_ns):
         config_files = []
