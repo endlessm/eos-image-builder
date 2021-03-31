@@ -503,9 +503,11 @@ class FlatpakManager(object):
         self.install_refs = None
 
         # Get architecture from generic flatpak section, falling back to
-        # default arch for host
-        self.arch = self.config.get('flatpak', 'arch',
-                                    fallback=Flatpak.get_default_arch())
+        # default arch for host. The config default is an empty string,
+        # so the direct fallback mechanism doesn't work.
+        self.arch = self.config.get('flatpak', 'arch', fallback=None)
+        if not self.arch:
+            self.arch = Flatpak.get_default_arch()
         logger.info('Using flatpak arch %s', self.arch)
 
         # Get locales configuration from generic flatpak section
