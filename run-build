@@ -581,12 +581,8 @@ class ImageBuilder(object):
             cmd = (chrootscript, self.builddir, buildscript)
             subprocess.check_call(cmd, env=builder_env)
 
-        # Unless this is a dry run, the output files have been published
-        # and can be deleted.
-        if not self.dry_run:
-            outrootdir = self.get_build_option('outrootdir')
-            log.info('Cleaning up output in %s', outrootdir)
-            shutil.rmtree(outrootdir, ignore_errors=True)
+        log.info('Built assets available in %s',
+                 self.get_build_option('outdir'))
 
 def main():
     aparser = ArgumentParser(description='Build and publish images for Endless')

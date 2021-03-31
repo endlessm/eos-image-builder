@@ -653,7 +653,7 @@ EOF
   # Sign compressed image (used to verify download)
   sign_file ${outfile} &
 
-  # Copy ostree, package and config info to per-personality outdir.
+  # Copy ostree, package and config info to the output directory.
   cp "${EIB_TMPDIR}"/ostree.txt "$(eib_outfile ostree.txt)"
   cp "${EIB_TMPDIR}"/packages.txt "$(eib_outfile packages.txt)"
   cp "${EIB_TMPDIR}"/config.ini "$(eib_outfile config.ini)"

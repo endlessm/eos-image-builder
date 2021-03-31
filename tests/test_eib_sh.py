@@ -49,7 +49,7 @@ def test_eib_outfile(make_builder, variant):
                            platform=platform,
                            personality=personality)
     builder.configure()
-    expected_outdir = os.path.join(eib.CACHEDIR, 'tmp', 'out', personality)
+    expected_outdir = os.path.join(eib.CACHEDIR, 'tmp', 'out')
     expected_outversion = '{}-{}-{}-{}.{}.{}'.format(
         product, branch, arch, platform,
         builder.config['build']['build_version'], personality

@@ -6,6 +6,3 @@
 [ "${EIB_DRY_RUN}" = true ] && exit 0
 
 run_hooks publish
-
-# Cleanup local output no longer needed to save space.
-rm -rf "${EIB_OUTDIR}"

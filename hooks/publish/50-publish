@@ -1,5 +1,10 @@
 # Publish full image directory
 
+if [ -z "${EIB_IMAGE_UPLOAD_API_HOST}" ]; then
+  echo "Upload host not set; skipping publishing"
+  exit 0
+fi
+
 srcdir="${EIB_OUTDIR}"
 destdir="${EIB_IMAGE_DESTDIR}"
 
