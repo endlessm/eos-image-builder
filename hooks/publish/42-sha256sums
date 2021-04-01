@@ -1,7 +1,13 @@
-# Create a SHA256SUMS{,.gpg} file of the entire directory, useful for
-# verifying downloads when using machinectl. sha256sum needs to be run in the
-# right directory so that it outputs appropriate relative paths.
+# Create a SHA256SUMS{,.gpg} file consisting of all the individual
+# checksum files. This is useful for verifying downloads when using
+# machinectl. Some of the checksums are created for files that are
+# embedded in other images, so make sure the original file exists.
 pushd "${EIB_OUTDIR}"
-sha256sum * > SHA256SUMS
+for checksum in *.sha256; do
+    asset=${checksum%.sha256}
+    if [ -f "${asset}" ]; then
+        awk "{print \$1 \"  ${asset}\"}" "${checksum}"
+    fi
+done > SHA256SUMS
 popd
 sign_file "${EIB_OUTDIR}/SHA256SUMS" "${EIB_OUTDIR}/SHA256SUMS.gpg"

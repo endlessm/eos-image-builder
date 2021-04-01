@@ -13,6 +13,10 @@ create_iso() {
   shift
   local boot_zip=${1:?No boot.zip supplied to $FUNCNAME}
   shift
+  local img_csum=${1:?No image checksum supplied to $FUNCNAME}
+  shift
+  local boot_zip_csum=${1:?No boot.zip checksum supplied to $FUNCNAME}
+  shift
 
   local ISO_TMPDIR="$EIB_TMPDIR/iso"
   local DIR_EFI="$ISO_TMPDIR/efi"
@@ -22,6 +26,9 @@ create_iso() {
   mkdir -p "$DIR_EFI" "$DIR_ESP" "$DIR_IMAGES_ENDLESS"
 
   ln "$boot_zip" "${DIR_IMAGES_ENDLESS}/$(basename "$boot_zip")"
+  ln "$img_csum" "${DIR_IMAGES_ENDLESS}/$(basename "$img_csum")"
+  ln "$boot_zip_csum" "${DIR_IMAGES_ENDLESS}/$(basename "$boot_zip_csum")"
+
   # Link img.asc, boot.zip.asc into ISO tree if they exist. During manual
   # testing, the GPG key may not be available in which case no signatures will
   # be generated -- allow that here.
@@ -87,7 +94,10 @@ AUTORUN_INF
   # generate split images.
 
   local squash_asc="${DIR_IMAGES_ENDLESS}/${EIB_OUTVERSION}.squash.asc"
-  sign_file "$squash" "$squash_asc"
+  local squash_csum="${DIR_IMAGES_ENDLESS}/${EIB_OUTVERSION}.squash.sha256"
+  sign_file "$squash" "$squash_asc" &
+  checksum_file "$squash" "$squash_csum" &
+  wait
 
   # Construct ESP
   unzip -q -d "${DIR_EFI}" "${boot_zip}" "EFI/*"
@@ -148,13 +158,16 @@ AUTORUN_INF
     fi
   fi
 
-  # Sign ISO
-  sign_file "${iso}"
+  # Sign and checksum ISO
+  sign_file "${iso}" &
+  checksum_file "${iso}" &
+  wait
 
   # Generate ISO manifest information
   local iso_name=$(basename "${iso}")
   local iso_compressed_size=$(stat -c "%s" "${iso}")
   local iso_signature=$(basename "${iso}.asc")
+  local iso_checksum=$(basename "${iso}.sha256")
 
   cat > "${EIB_MANIFESTDIR}"/iso.json <<EOF
 {
@@ -164,7 +177,8 @@ AUTORUN_INF
       "extracted_size": ${img_size},
       "compressed_size": ${iso_compressed_size},
       "compression_type": "iso+squashfs",
-      "signature": "${iso_signature}"
+      "signature": "${iso_signature}",
+      "checksum": "${iso_checksum}"
     }
   }
 }

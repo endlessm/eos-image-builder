@@ -14,13 +14,16 @@ create_ovf_zip() {
 
   # Generate .zip and .zip.size containing the total uncompressed size
   "${EIB_HELPERSDIR}"/generate-ovf-files --cpus 1 --memory 2048 --extra-storage 10 ${img} ${ovfzip}
-  sign_file ${ovfzip}
+  sign_file ${ovfzip} &
+  checksum_file ${ovfzip} &
+  wait
 
   # Generate OVF manifest information
   local ovf_name=$(basename "${ovfzip}")
   local ovf_uncompressed_size=$(cat "${ovfzip}.size")
   local ovf_compressed_size=$(stat -c "%s" "${ovfzip}")
   local ovf_signature=$(basename "${ovfzip}.asc")
+  local ovf_checksum=$(basename "${ovfzip}.sha256")
 
   cat > "${EIB_MANIFESTDIR}"/ovf.json <<EOF
 {
@@ -30,7 +33,8 @@ create_ovf_zip() {
       "extracted_size": ${ovf_uncompressed_size},
       "compressed_size": ${ovf_compressed_size},
       "compression_type": "zip",
-      "signature": "${ovf_signature}"
+      "signature": "${ovf_signature}",
+      "checksum": "${ovf_checksum}"
     }
   }
 }

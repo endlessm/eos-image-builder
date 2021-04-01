@@ -42,13 +42,17 @@ create_usb_image() {
   shift
   local out_img=${1:?No target filename ${FUNCNAME}}
   shift
-  local src_img=${1:?No src_img supplied to ${FUNCNAME}}
+  local src_img=${1:?No source image supplied to ${FUNCNAME}}
   shift
   local boot_zip=${1:?No boot.zip supplied to ${FUNCNAME}}
   shift
-  local src_img_asc=${1:?No boot.zip supplied to ${FUNCNAME}}
+  local src_img_csum=${1:?No image checksum supplied to ${FUNCNAME}}
   shift
-  local boot_zip_asc=${1:?No boot.zip supplied to ${FUNCNAME}}
+  local boot_zip_csum=${1:?No boot.zip checksum supplied to ${FUNCNAME}}
+  shift
+  local src_img_asc=${1:?No image signature supplied to ${FUNCNAME}}
+  shift
+  local boot_zip_asc=${1:?No boot.zip signature supplied to ${FUNCNAME}}
   shift
 
   local src_img_name=$(basename "${src_img}")
@@ -57,11 +61,13 @@ create_usb_image() {
   local downloads_dir="${EIB_CONTENTDIR}/create-usb-image-downloads"
   mkdir -p "${downloads_dir}"
 
-  # eos-write-live-image expects to find img.asc, boot.zip, and boot.zip.asc
-  # in the same directory as $src_img, so create a temporary directory with
-  # all of these files.
+  # eos-write-live-image expects to find the image, boot.zip and
+  # associated signatures and checksums in the same directory, so create
+  # a temporary directory with all of these files.
   mkdir -p "${create_usb_image_tmp_dir}"
-  ln -sf "${src_img}" "${src_img_asc}" "${boot_zip}" "${boot_zip_asc}" -t "${create_usb_image_tmp_dir}"
+  ln -sf -t "${create_usb_image_tmp_dir}" \
+    "${src_img}" "${src_img_csum}" "${src_img_asc}" \
+    "${boot_zip}" "${boot_zip_csum}" "${boot_zip_asc}"
 
   # Copy Windows launcher
   download_file "${launcher_url}" "${downloads_dir}/Endless Launcher.exe"
@@ -93,14 +99,20 @@ create_usb_image() {
 
   cleanup_devices
 
-  sign_file "${out_img}"
+  sign_file "${out_img}" &
+  checksum_file "${out_img}" &
   local out_img_size=$(stat -c "%s" "${out_img}")
-  local out_img_signature=$(basename "${out_img}.asc")
 
   local out_zimg="${out_img}.${EIB_IMAGE_COMPRESSION}"
-  eib_compress_image "${out_img}" "${out_zimg}"
-  sign_file "${out_zimg}"
+  eib_compress_image "${out_img}" "${out_zimg}" &
+  wait
+
+  sign_file "${out_zimg}" &
+  checksum_file "${out_zimg}" &
   local out_zimg_size=$(stat -c "%s" "${out_zimg}")
+  local out_zimg_signature=$(basename "${out_zimg}.asc")
+  local out_zimg_checksum=$(basename "${out_zimg}.sha256")
+  wait
 
   # Remove uncompressed image.
   rm -f "${out_img}"
@@ -114,7 +126,8 @@ create_usb_image() {
       "extracted_size": ${out_img_size},
       "compressed_size": ${out_zimg_size},
       "compression_type": "${EIB_IMAGE_COMPRESSION}",
-      "signature": "${out_img_signature}"
+      "signature": "${out_zimg_signature}",
+      "checksum": "${out_zimg_checksum}"
     }
   }
 }

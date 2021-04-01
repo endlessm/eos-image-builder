@@ -1,6 +1,7 @@
 # Tests for eib.sh
 
 import eib
+import hashlib
 import os
 import pytest
 import subprocess
@@ -157,6 +158,40 @@ def test_sign_file(make_builder, builder_gpgdir, tmp_path):
     subprocess.check_call(
         ('gpgv', '--keyring', str(keyring), str(sig_file), str(test_file))
     )
+
+
+def test_checksum_file(make_builder, tmp_path):
+    builder = make_builder()
+    builder.configure()
+
+    test_file = tmp_path / 'test'
+    contents = b'test\n'
+    test_file.write_bytes(contents)
+    test_csum = test_file.with_suffix('.sha256')
+    expected_checksum = hashlib.sha256(contents).hexdigest()
+
+    # No file supplied is an error
+    proc = run_lib(builder, 'checksum_file', check=False)
+    assert proc.returncode != 0
+    assert 'No file supplied' in proc.stderr.decode('utf-8')
+
+    # Null file supplied is an error
+    proc = run_lib(builder, 'checksum_file ""', check=False)
+    assert proc.returncode != 0
+    assert 'No file supplied' in proc.stderr.decode('utf-8')
+
+    # Sign a file with the default output and verify it
+    script = 'checksum_file {}'.format(test_file)
+    run_lib(builder, script)
+    assert test_csum.exists()
+    assert test_csum.read_text() == expected_checksum + '\n'
+
+    # Sign a file with a specified output and verify it
+    csum_file = tmp_path / 'checksum'
+    script = 'checksum_file {} {}'.format(test_file, csum_file)
+    run_lib(builder, script)
+    assert csum_file.exists()
+    assert csum_file.read_text() == expected_checksum + '\n'
 
 
 def test_run_hooks(make_builder, tmp_bindir, tmp_path):

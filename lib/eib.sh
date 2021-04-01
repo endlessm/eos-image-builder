@@ -271,6 +271,14 @@ sign_file() {
   fi
 }
 
+# Create a detached checksum with sha256sum.
+checksum_file() {
+  local file=${1:?No file supplied to ${FUNCNAME}}
+  local outfile=${2:-${file}.sha256}
+
+  sha256sum "${file}" | cut -d' ' -f1 > "${outfile}"
+}
+
 # Emulate the old ostree write-refs builtin where a local ref is forced
 # to the commit of another ref.
 ostree_write_refs() {
