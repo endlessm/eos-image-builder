@@ -95,12 +95,12 @@ create_usb_image() {
 
   sign_file "${out_img}"
   local out_img_size=$(stat -c "%s" "${out_img}")
-  local out_img_signature=$(basename "${out_img}.asc")
 
   local out_zimg="${out_img}.${EIB_IMAGE_COMPRESSION}"
   eib_compress_image "${out_img}" "${out_zimg}"
   sign_file "${out_zimg}"
   local out_zimg_size=$(stat -c "%s" "${out_zimg}")
+  local out_zimg_signature=$(basename "${out_zimg}.asc")
 
   # Remove uncompressed image.
   rm -f "${out_img}"
@@ -114,7 +114,7 @@ create_usb_image() {
       "extracted_size": ${out_img_size},
       "compressed_size": ${out_zimg_size},
       "compression_type": "${EIB_IMAGE_COMPRESSION}",
-      "signature": "${out_img_signature}"
+      "signature": "${out_zimg_signature}"
     }
   }
 }
