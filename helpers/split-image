@@ -182,8 +182,8 @@ split_image() {
   disk2_img_asc=$(eib_outfile disk2.img.asc)
 
   local disk1_img_csum disk2_img_csum
-  disk1_img_asc=$(eib_outfile disk1.img.sha256)
-  disk2_img_asc=$(eib_outfile disk2.img.sha256)
+  disk1_img_csum=$(eib_outfile disk1.img.sha256)
+  disk2_img_csum=$(eib_outfile disk2.img.sha256)
 
   # Mount root filesystem from the last partition of the image file.
   DISK1_LOOP=$(losetup --show -f "${disk1_img}")
