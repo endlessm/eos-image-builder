@@ -649,8 +649,9 @@ EOF
   # live image)
   local img_asc="$(eib_outfile img.asc)"
   local img_csum="$(eib_outfile img.sha256)"
+  local img_csum_tgt="${EIB_OUTVERSION}.img"
   sign_file "${img}" "${img_asc}" &
-  checksum_file "${img}" "${img_csum}" &
+  checksum_file "${img}" "${img_csum}" "${img_csum_tgt}" &
 
   # Publish uncompressed file size.
   local img_extracted_size=$(stat -c "%s" "${img}")
