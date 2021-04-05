@@ -5,6 +5,10 @@
 # expect users to be interested in its other features beyond viewing
 # pre-installed content.
 
+if [ "${EIB_IMAGE_KOLIBRI_AUTOMATIC_PROVISION}" != "true" ]; then
+  exit 0
+fi
+
 mkdir -p "${OSTREE_VAR}"/lib/kolibri/data
 cat <<EOF > "${OSTREE_VAR}"/lib/kolibri/data/automatic_provision.json
 {
