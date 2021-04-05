@@ -71,9 +71,13 @@ class ImageBuildRoot(object):
             # Udev control socket and queue for `udevadm settle`
             '/run/udev',
             # Required builder directories
-            config['build']['sysconfdir'],
             config['build']['cachedir'],
             config['build']['srcdir'],
+        ]
+
+        # Optional mounts dependent on existence on the host
+        optional_mounts = [
+            config['build']['sysconfdir'],
         ]
 
         # Include local settings directory if provided
@@ -150,7 +154,11 @@ class ImageBuildRoot(object):
         # (children). Avoid superfluous mounts when a parent on the same
         # device is already being mounted.
         to_mount = OrderedDict()
-        for path in sorted(required_mounts + config_mounts):
+        for path in sorted(required_mounts + optional_mounts + config_mounts):
+            if path in optional_mounts and not os.path.exists(path):
+                log.info('Skipping non-existent optional mount %s', path)
+                continue
+
             dev = os.stat(path).st_dev
 
             for parent, parent_dev in to_mount.items():
