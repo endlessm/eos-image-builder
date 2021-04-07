@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def test_config_attrs(make_builder):
     builder = make_builder()
     cases = [
-        ('product', 'eos', 'eos'),
+        ('product', 'eoscustom', 'eoscustom'),
         ('branch', 'master', 'master'),
         ('arch', 'amd64', 'amd64'),
         ('platform', 'amd64', 'amd64'),
@@ -40,7 +40,7 @@ def test_get_environment(make_builder):
     builder.config['sect']['opt'] = 'a\n\tb'
 
     cases = [
-        ('EIB_PRODUCT', 'eos'),
+        ('EIB_PRODUCT', 'eoscustom'),
         ('EIB_BRANCH', 'master'),
         ('EIB_ARCH', 'amd64'),
         ('EIB_PLATFORM', 'amd64'),
@@ -85,8 +85,8 @@ def test_bad_arch(make_builder):
 
 
 # Build test variants. This is ideally the same as the release image
-# variants. Configurations with master and the latest stable branch are
-# tested.
+# variants + some typical custom variants. Configurations with master
+# and the latest stable branch are tested.
 STABLE_BRANCH = sorted(
     filter(lambda b: b != 'master',
            map(lambda c: c.replace('.ini', ''),
@@ -108,8 +108,12 @@ RELEASE_TARGETS = [
     'eos-arm64-libretechcc-en',
     'eosinstaller-amd64-amd64-base',
 ]
+CUSTOM_TARGETS = [
+    'eoscustom-amd64-amd64-base',
+    'eoscustom-arm64-rpi4-base',
+]
 TEST_VARIANTS = []
-for target in RELEASE_TARGETS:
+for target in RELEASE_TARGETS + CUSTOM_TARGETS:
     product, arch, platform, personality = target.split('-')
     TEST_VARIANTS += [
         (product, 'master', arch, platform, personality),
@@ -194,15 +198,15 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     _run_test()
 
     # Product config
-    eos = configdir / 'product' / 'eos.ini'
-    eos.parent.mkdir(exist_ok=True)
-    eos.write_text(dedent("""\
+    eoscustom = configdir / 'product' / 'eoscustom.ini'
+    eoscustom.parent.mkdir(exist_ok=True)
+    eoscustom.write_text(dedent("""\
     [buildroot]
     packages_add = b
     packages_del = a
     """))
     expected_packages = 'b'
-    expected_loaded.append(eos)
+    expected_loaded.append(eoscustom)
 
     other = configdir / 'product' / 'other.ini'
     other.parent.mkdir(exist_ok=True)
@@ -232,13 +236,13 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     expected_not_loaded.append(local_other)
 
     # Product-arch config
-    eos_amd64 = configdir / 'product-arch' / 'eos-amd64.ini'
-    eos_amd64.parent.mkdir(exist_ok=True)
-    eos_amd64.write_text(dedent("""\
+    eoscustom_amd64 = configdir / 'product-arch' / 'eoscustom-amd64.ini'
+    eoscustom_amd64.parent.mkdir(exist_ok=True)
+    eoscustom_amd64.write_text(dedent("""\
     [buildroot]
     packages_add = d e
     """))
-    expected_loaded.append(eos_amd64)
+    expected_loaded.append(eoscustom_amd64)
     expected_packages = 'b\nd'
 
     _run_test()

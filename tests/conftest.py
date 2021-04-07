@@ -32,7 +32,7 @@ def builder_config(config):
     interpolation of full sections should succeed.
     """
     config[config.BUILD_SECTION].update({
-        'product': 'eos',
+        'product': 'eoscustom',
         'branch': 'master',
         'arch': 'amd64',
         'platform': 'amd64',
@@ -104,7 +104,7 @@ def mock_datetime(monkeypatch):
 def make_builder(tmp_builder_config, tmp_builder_paths, mock_datetime):
     """Factory to create ImageBuilder with defaults for required arguments"""
     def _make_builder(**kwargs):
-        kwargs.setdefault('product', 'eos')
+        kwargs.setdefault('product', 'eoscustom')
         kwargs.setdefault('branch', 'master')
         kwargs.setdefault('arch', 'amd64')
         kwargs.setdefault('platform', 'amd64')
