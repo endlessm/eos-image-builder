@@ -339,7 +339,7 @@ def add_cli_options(argparser):
 
     argparser.add_argument('-d', '--localdir', help='local settings directory')
 
-    add_argument('-p', '--product', default='eos',
+    add_argument('-p', '--product', default='eoscustom',
                  help='product to build')
     argparser.add_argument('-a', '--arch', choices=SUPPORTED_ARCHES,
                            help='architecture to build '
