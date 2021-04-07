@@ -4,9 +4,9 @@
 # embedded in other images, so make sure the original file exists.
 pushd "${EIB_OUTDIR}"
 for checksum in *.sha256; do
-    asset=${checksum%.sha256}
+    read -r _ asset < "${checksum}"
     if [ -f "${asset}" ]; then
-        awk "{print \$1 \"  ${asset}\"}" "${checksum}"
+        cat "${checksum}"
     fi
 done > SHA256SUMS
 popd

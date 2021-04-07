@@ -180,18 +180,25 @@ def test_checksum_file(make_builder, tmp_path):
     assert proc.returncode != 0
     assert 'No file supplied' in proc.stderr.decode('utf-8')
 
-    # Sign a file with the default output and verify it
+    # Checksum a file with the default output and verify it
     script = 'checksum_file {}'.format(test_file)
     run_lib(builder, script)
     assert test_csum.exists()
-    assert test_csum.read_text() == expected_checksum + '\n'
+    assert test_csum.read_text() == '{}  test\n'.format(expected_checksum)
 
-    # Sign a file with a specified output and verify it
+    # Checksum a file with a specified output and verify it
     csum_file = tmp_path / 'checksum'
     script = 'checksum_file {} {}'.format(test_file, csum_file)
     run_lib(builder, script)
     assert csum_file.exists()
-    assert csum_file.read_text() == expected_checksum + '\n'
+    assert csum_file.read_text() == '{}  test\n'.format(expected_checksum)
+
+    # Checksum a file with a specified output and target and verify it
+    csum_file = tmp_path / 'checksum'
+    script = 'checksum_file {} {} {}'.format(test_file, csum_file, 'target')
+    run_lib(builder, script)
+    assert csum_file.exists()
+    assert csum_file.read_text() == '{}  target\n'.format(expected_checksum)
 
 
 def test_run_hooks(make_builder, tmp_bindir, tmp_path):

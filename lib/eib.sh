@@ -271,12 +271,16 @@ sign_file() {
   fi
 }
 
-# Create a detached checksum with sha256sum.
+# Create a detached checksum with sha256sum. By default the target in
+# the checksum file is the basename of the file being checksummed.
 checksum_file() {
   local file=${1:?No file supplied to ${FUNCNAME}}
   local outfile=${2:-${file}.sha256}
+  local target=${3:-${file##*/}}
+  local checksum
 
-  sha256sum "${file}" | cut -d' ' -f1 > "${outfile}"
+  checksum=$(sha256sum "${file}" | cut -d' ' -f1)
+  echo "${checksum}  ${target}" > "${outfile}"
 }
 
 # Emulate the old ostree write-refs builtin where a local ref is forced
