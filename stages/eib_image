@@ -427,12 +427,12 @@ EOF
       esac
       ;;
     arm64)
-      cp "${EIB_DATADIR}"/arm64/boot.src "${EIB_TMPDIR}"/boot.scr
-      sed -i "1s/^/"$platform_bootargs"\n/" "${EIB_TMPDIR}"/boot.scr
+      cp "${EIB_DATADIR}"/arm64/boot.src "${EIB_TMPDIR}"/boot.src
+      sed -i "1s/^/"$platform_bootargs"\n/" "${EIB_TMPDIR}"/boot.src
 
       # Make a boot script for u-boot
       mkimage -T script -C none -n "Endless OS arm64 boot script" -d \
-        "${EIB_TMPDIR}"/boot.scr \
+        "${EIB_TMPDIR}"/boot.src \
         "${ROOT}"/boot/boot.scr
 
       case "${EIB_PLATFORM}" in
