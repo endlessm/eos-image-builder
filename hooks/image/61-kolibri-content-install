@@ -24,3 +24,5 @@ if [ "${EIB_IMAGE_KOLIBRI_AUTOMATIC_PROVISION}" = "true" ]; then
   }
 }
 EOF
+fi
+
