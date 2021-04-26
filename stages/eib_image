@@ -670,11 +670,14 @@ EOF
   cp "${EIB_TMPDIR}"/config.ini "$(eib_outfile config.ini)"
 
   # Create ISO if required. This requires the uncompressed image,
-  # boot.zip and eheir associated checksums and signatures. In theory we
-  # could `wait` only for the checksums and signatures and allow
-  # compressing the image and signing it to happen in parallel with
-  # creating the ISO.
+  # boot.zip and their associated checksums and signatures.
   if [[ "${EIB_IMAGE_ISO}" = "true" && "$EIB_IMAGE_BOOT_ZIP" = "true" ]]; then
+    # Make sure the uncompressed checksums and signatures have
+    # completed. In theory we could `wait` only for the checksums and
+    # signatures and allow compressing the image and signing it to
+    # happen in parallel with creating the ISO.
+    wait
+
     "${EIB_HELPERSDIR}"/create-iso "${version}" "$(eib_outfile iso)" \
       "${img}" "${boot_zip}" "${img_csum}" "${boot_zip}.sha256" "${img_asc}" \
       "${boot_zip}.asc"
