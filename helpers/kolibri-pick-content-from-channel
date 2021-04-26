@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+# TODO: Remove this. It is inefficient and only needed downstream.
+
 # Given a Kolibri channel ID, finds content in remaining Kolibri channels
 # which is duplicated in the original channel, and marks it as available.
 

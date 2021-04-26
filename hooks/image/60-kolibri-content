@@ -1,8 +1,29 @@
 # Populate the Kolibri home directory
 
-if [ "${EIB_IMAGE_KOLIBRI_CONTENT}" != "true" ]; then
+if [ -z "${EIB_KOLIBRI_INSTALL_CHANNELS}" ]; then
   exit 0
 fi
+
+import_kolibri_channel()
+{
+  local channel_id=$1
+  local channel_include_node_ids_var="EIB_KOLIBRI_${channel_id}_INCLUDE_NODE_IDS"
+  local channel_exclude_node_ids_var="EIB_KOLIBRI_${channel_id}_EXCLUDE_NODE_IDS"
+  local importcontent_opts=()
+
+  if [ -n "${!channel_include_node_ids_var}" ]; then
+    importcontent_include_nodes=$(echo "${!channel_include_node_ids_var}" | tr ' ' ',')
+    importcontent_opts+=(--node_ids="${importcontent_include_nodes}")
+  fi
+
+  if [ -n "${!channel_exclude_node_ids_var}" ]; then
+    importcontent_exclude_nodes=$(echo "${!channel_exclude_node_ids_var}" | tr ' ' ',')
+    importcontent_opts+=(--exclude_node_ids="${importcontent_exclude_nodes}")
+  fi
+
+  kolibri manage importchannel network "${channel_id}"
+  kolibri manage importcontent ${importcontent_opts[@]} network "${channel_id}"
+}
 
 # Needs to be kept in sync with hooks/image/61-kolibri-content-install
 KOLIBRI_CONTENT_DIR="${EIB_CONTENTDIR}/kolibri-content"
@@ -12,8 +33,8 @@ venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
 python3 -m venv ${venv_dir}
 source ${venv_dir}/bin/activate
 
-pip install kolibri==${EIB_IMAGE_KOLIBRI_CONTENT_APP_VERSION}
-pip install kolibri-app-desktop-xdg-plugin==${EIB_IMAGE_KOLIBRI_CONTENT_APP_DESKTOP_XDG_PLUGIN_VERSION}
+pip install kolibri==${EIB_KOLIBRI_APP_VERSION}
+pip install kolibri-app-desktop-xdg-plugin==${EIB_KOLIBRI_APP_DESKTOP_XDG_PLUGIN_VERSION}
 
 export KOLIBRI_HOME="${KOLIBRI_CONTENT_DIR}"
 
@@ -27,25 +48,16 @@ EOF
 kolibri plugin enable kolibri.plugins.app
 kolibri plugin enable kolibri_app_desktop_xdg_plugin
 
-kolibri manage importchannel network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_ENDLESS_KEY}
-
-for channel_id in ${EIB_IMAGE_KOLIBRI_CONTENT_EXTRA_CHANNELS}; do
-  kolibri manage importchannel network ${channel_id}
+for channel_id in ${EIB_KOLIBRI_INSTALL_CHANNELS}; do
+  import_kolibri_channel "${channel_id}"
 done
 
-kolibri manage importchannel network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_EOS_HELP}
-kolibri manage importcontent --node_ids 3b909a18242c48208dbc49d06bc48162,6e8f60c6b9c841969853d48f4eff22cf network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_EOS_HELP}
-python3 "${EIB_HELPERSDIR}"/kolibri-pick-content-from-channel ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_ENDLESS_KEY} --ignore-channel=${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_EOS_HELP}
-kolibri manage deletechannel ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_ENDLESS_KEY}
-
+# Sort channels in the same order as in EIB_KOLIBRI_INSTALL_CHANNELS
 position=1
-for channel_id in ${EIB_IMAGE_KOLIBRI_CONTENT_EXTRA_CHANNELS}; do
+for channel_id in ${EIB_KOLIBRI_INSTALL_CHANNELS}; do
   kolibri manage setchannelposition ${channel_id} ${position} || true
   let position=position+1
 done
-
-kolibri manage importchannel network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_EOS_HELP}
-kolibri manage importcontent --node_ids 3b909a18242c48208dbc49d06bc48162,6e8f60c6b9c841969853d48f4eff22cf network ${EIB_IMAGE_KOLIBRI_CONTENT_CHANNEL_EOS_HELP}
 
 # Empty the user database, and ensure that each instance of this image has a
 # unique Facility ID.
