@@ -7,8 +7,8 @@ fi
 import_kolibri_channel()
 {
   local channel_id=$1
-  local channel_include_node_ids_var="EIB_KOLIBRI_${channel_id}_INCLUDE_NODE_IDS"
-  local channel_exclude_node_ids_var="EIB_KOLIBRI_${channel_id}_EXCLUDE_NODE_IDS"
+  local channel_include_node_ids_var="EIB_KOLIBRI_${channel_id^^}_INCLUDE_NODE_IDS"
+  local channel_exclude_node_ids_var="EIB_KOLIBRI_${channel_id^^}_EXCLUDE_NODE_IDS"
   local importcontent_opts=()
 
   if [ -n "${!channel_include_node_ids_var}" ]; then
