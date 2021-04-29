@@ -12,12 +12,12 @@ import_kolibri_channel()
   local importcontent_opts=()
 
   if [ -n "${!channel_include_node_ids_var}" ]; then
-    importcontent_include_nodes=$(echo "${!channel_include_node_ids_var}" | tr ' ' ',')
+    importcontent_include_nodes=$(echo "${!channel_include_node_ids_var}" | xargs | tr -s ' ' ',')
     importcontent_opts+=(--node_ids="${importcontent_include_nodes}")
   fi
 
   if [ -n "${!channel_exclude_node_ids_var}" ]; then
-    importcontent_exclude_nodes=$(echo "${!channel_exclude_node_ids_var}" | tr ' ' ',')
+    importcontent_exclude_nodes=$(echo "${!channel_exclude_node_ids_var}" | xargs | tr -s ' ' ',')
     importcontent_opts+=(--exclude_node_ids="${importcontent_exclude_nodes}")
   fi
 
