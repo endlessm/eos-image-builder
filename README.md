@@ -72,6 +72,7 @@ Known to work on Debian Buster (10) and newer. Required packages:
  * mmdebstrap
  * gnupg
  * python3
+ * rsync
 
 Image signing
 -------------
