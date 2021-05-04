@@ -60,7 +60,7 @@ shrink_disk1_image() {
   # Fail if the image won't fit in this space.
   disk1_size=${EIB_IMAGE_DISK1_SIZE}
   local disk1_max_img_size
-  disk1_max_img_size=$(python -c "print int(${disk1_size} * 0.98)")
+  disk1_max_img_size=$(python3 -c "print(int(${disk1_size} * 0.98))")
   ((disk1_max_img_size -= 1 * 2**30))
   if ((new_disk1_img_size > disk1_max_img_size)); then
     echo "ERROR: ${EIB_PERSONALITY} disk1 image size ${new_disk1_img_size} " \
@@ -233,7 +233,7 @@ split_image() {
   rm -f "${disk2_img}"
   disk2_size=${EIB_IMAGE_DISK2_SIZE}
   local disk2_img_size
-  disk2_img_size=$(python -c "print int(${disk2_size} * 0.98)")
+  disk2_img_size=$(python3 -c "print(int(${disk2_size} * 0.98))")
   truncate -s ${disk2_img_size} "${disk2_img}"
 
   pt_label=${EIB_IMAGE_PARTITION_TABLE}
