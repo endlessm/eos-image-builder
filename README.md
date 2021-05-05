@@ -429,3 +429,14 @@ section above if you want to test authentication or GPG signing.
 Now you should be able to run `sudo ./eos-image-builder` with the
 options mentioned above as well as any `--product` type options to
 select the appropriate image variant for the base configuration.
+
+Licensing and redistribution
+============================
+
+Images built with this tool include Endless OS (more precisely: the Endless
+OS ostree filesystem tree), a copyrighted collective work of the Endless OS
+Foundation, and hence any redistribution of such images is subject to the
+[Endless OS Redistribution Policy](https://endlessos.com/redistribution-policy/).
+
+This eos-image-builder tool in itself is Open Source software licensed
+under the GNU GPL v2.
