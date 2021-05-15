@@ -697,12 +697,10 @@ EOF
 
   # Create USB image if required
   # This expects to have an ISO image for eos-write-live-image.
-  if [[ "${EIB_IMAGE_USB}" = "true" && "${EIB_USB_LIVE_IMAGE}" = "true" && "${EIB_IMAGE_ISO}" = "true" && "${EIB_IMAGE_BOOT_ZIP}" = "true" ]]; then
+  if [[ "${EIB_IMAGE_USB}" = "true" && "${EIB_IMAGE_ISO}" = "true" && "${EIB_IMAGE_BOOT_ZIP}" = "true" ]]; then
     "${EIB_HELPERSDIR}"/create-usb-image "${version}" "$(eib_outfile usb.img)" \
       "$(eib_outfile iso)" "${boot_zip}" "${img_csum}" "${boot_zip}.sha256" \
       "${img_asc}" "${boot_zip}.asc"
-  else
-    "${EIB_HELPERSDIR}"/create-usb-image "${version}" "$(eib_outfile usb.img)"
   fi
 
   # Await signing and checksumming subprocesses

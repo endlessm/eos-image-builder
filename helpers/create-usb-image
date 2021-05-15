@@ -42,28 +42,32 @@ create_usb_image() {
   shift
   local out_img=${1:?No target filename ${FUNCNAME}}
   shift
+  local src_img=${1:?No source image supplied to ${FUNCNAME}}
+  shift
+  local boot_zip=${1:?No boot.zip supplied to ${FUNCNAME}}
+  shift
+  local src_img_csum=${1:?No image checksum supplied to ${FUNCNAME}}
+  shift
+  local boot_zip_csum=${1:?No boot.zip checksum supplied to ${FUNCNAME}}
+  shift
+  local src_img_asc=${1:?No image signature supplied to ${FUNCNAME}}
+  shift
+  local boot_zip_asc=${1:?No boot.zip signature supplied to ${FUNCNAME}}
+  shift
 
-  if [ "$#" -gt 0 ]; then
-    local has_img=1
-    local src_img=${1:?No source image supplied to ${FUNCNAME}}
-    shift
-    local boot_zip=${1:?No boot.zip supplied to ${FUNCNAME}}
-    shift
-    local src_img_csum=${1:?No image checksum supplied to ${FUNCNAME}}
-    shift
-    local boot_zip_csum=${1:?No boot.zip checksum supplied to ${FUNCNAME}}
-    shift
-    local src_img_asc=${1:?No image signature supplied to ${FUNCNAME}}
-    shift
-    local boot_zip_asc=${1:?No boot.zip signature supplied to ${FUNCNAME}}
-    shift
-    local src_img_name=$(basename "${src_img}")
-  fi
-
+  local src_img_name=$(basename "${src_img}")
   local out_img_name=$(basename "${out_img}")
 
   local downloads_dir="${EIB_CONTENTDIR}/create-usb-image-downloads"
   mkdir -p "${downloads_dir}"
+
+  # eos-write-live-image expects to find the image, boot.zip and
+  # associated signatures and checksums in the same directory, so create
+  # a temporary directory with all of these files.
+  mkdir -p "${create_usb_image_tmp_dir}"
+  ln -sf -t "${create_usb_image_tmp_dir}" \
+    "${src_img}" "${src_img_csum}" "${src_img_asc}" \
+    "${boot_zip}" "${boot_zip_csum}" "${boot_zip_asc}"
 
   # Copy Windows launcher
   download_file "${launcher_url}" "${downloads_dir}/Endless Launcher.exe"
@@ -79,6 +83,10 @@ create_usb_image() {
   local write_live_image_args=(
     "--label"
     "${EIB_USB_LABEL:-$default_label}"
+    "--no-bios"
+    "--persistent"
+    "--free-space"
+    "${EIB_USB_FREE_SPACE:-100}"
     "--windows-tool"
     "${downloads_dir}/Endless Launcher.exe"
   )
@@ -87,24 +95,7 @@ create_usb_image() {
     write_live_image_args+=("--extra-data" "$path")
   done < <(find "${EIB_USB_IMAGE_WORKSPACE_DIR}" -mindepth 1 -maxdepth 1 -print0)
 
-  if [ -n "${has_img}" ]; then
-    write_live_image_args+=(
-      "--no-bios"
-      "--persistent"
-      "--free-space"
-      "${EIB_USB_FREE_SPACE:-100}"
-    )
-    # eos-write-live-image expects to find the image, boot.zip and
-    # associated signatures and checksums in the same directory, so create
-    # a temporary directory with all of these files.
-    mkdir -p "${create_usb_image_tmp_dir}"
-    ln -sf -t "${create_usb_image_tmp_dir}" \
-      "${src_img}" "${src_img_csum}" "${src_img_asc}" \
-      "${boot_zip}" "${boot_zip_csum}" "${boot_zip_asc}"
-    eos-write-live-image --force "${write_live_image_args[@]}" "${create_usb_image_tmp_dir}/${src_img_name}" "${usb_image_loop}"
-  else
-    "${EIB_HELPERSDIR}"/eos-write-live-image-data-only --force "${write_live_image_args[@]}" "${usb_image_loop}"
-  fi
+  eos-write-live-image --force "${write_live_image_args[@]}" "${create_usb_image_tmp_dir}/${src_img_name}" "${usb_image_loop}"
 
   cleanup_devices
 
