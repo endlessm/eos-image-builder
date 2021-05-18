@@ -8,7 +8,7 @@
 
 launcher_url=$(
   curl -sSL https://api.github.com/repos/endlessm/windows-usb-launcher/releases/latest |
-  jq -r '.assets[] | select(.name == "Endless.Launcher.exe") | .browser_download_url'
+  jq -r '.assets[] | select(.name == "Endless.Launcher.signed.exe") | .browser_download_url'
 )
 create_usb_image_tmp_dir="${EIB_TMPDIR}/create-usb-image"
 
