@@ -56,25 +56,10 @@ if os.environ.get('EIB_FLATPAK_ENABLE', 'false') != 'true':
     write_manifest(data, hook_group)
     exit(0)
 
-# Open the flatpak installation in the OS /var
+# Open the flatpak installation in the OS /var/lib/flatpak or split disk
+# /var/endless-extra/flatpak.
 if hook_group == 'image':
-    # Normally this would be $OSTREE_VAR/lib/flatpak, but we use a
-    # couple symlinks so it can be shared with the ostree repository.
-    # Unfortunately, the symlinks are broken outside the chroot, so
-    # create a temporary directory with symlinks that will resolve
-    # correctly.
-    flatpak_dir = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
-                               'flatpak')
-    ostree_repo = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
-                               'ostree/repo')
-    system_path = os.path.join(os.environ['EIB_TMPDIR'], 'flatpak')
-    shutil.rmtree(system_path, ignore_errors=True)
-    os.makedirs(system_path)
-    for entry in os.listdir(flatpak_dir):
-        if entry != 'repo':
-            os.symlink(os.path.join(flatpak_dir, entry),
-                       os.path.join(system_path, entry))
-    os.symlink(ostree_repo, os.path.join(system_path, 'repo'))
+    system_path = os.path.join(os.environ['OSTREE_VAR'], 'lib/flatpak')
 else:
     system_path = os.path.join(os.environ['OSTREE_EXTRA'], 'flatpak')
 print('Opening flatpak installation in', system_path)
