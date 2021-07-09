@@ -32,7 +32,6 @@ os.environ['FLATPAK_SKIP_PARENTAL_CONTROLS_NO_SYSTEM_BUS'] = '1'
 # running in a session, but may not on Jenkins. See also
 # /etc/profile.d/flatpak.sh.
 data_dirs = ':'.join(['/var/lib/flatpak/exports/share/',
-                      '/var/endless-extra/flatpak/exports/share/',
                       '/usr/share/'])
 os.environ['XDG_DATA_DIRS'] = data_dirs
 
@@ -40,16 +39,9 @@ os.environ['XDG_DATA_DIRS'] = data_dirs
 # respect chroot mount locations.
 content_repo = os.path.join(os.environ['EIB_CONTENTDIR'],
                             'flatpak/repo')
-hook_group = os.environ['EIB_HOOK_GROUP']
-if hook_group == 'split':
-    installation_path = os.path.join(os.environ['EIB_EXTRA_MOUNT'],
-                                     'flatpak')
-    split_refs = True
-else:
-    installation_path = '/var/lib/flatpak'
-    split_refs = False
 
 # Open the flatpak installation and pass it to the manager
+installation_path = '/var/lib/flatpak'
 logger.info('Opening flatpak installation %s', installation_path)
 installation_file = Gio.File.new_for_path(installation_path)
 installation = Flatpak.Installation.new_for_path(installation_file,
@@ -57,7 +49,7 @@ installation = Flatpak.Installation.new_for_path(installation_file,
 manager = eibflatpak.FlatpakManager(installation, config=config)
 manager.add_remotes()
 manager.enumerate_remotes()
-manager.resolve_refs(split=split_refs)
+manager.resolve_refs()
 
 # Pull the install refs using the content repo as a cache without making
 # refs in case the resolved refs aren't the same as the installation

@@ -688,13 +688,6 @@ EOF
     "${EIB_HELPERSDIR}"/create-vm-image "$(eib_outfile ovf.zip)" "${img}"
   fi
 
-  # Create split image for 2 disk systems if required.
-  # This must happen after creating the ISO, since the splitting
-  # operation edits the original image in place.
-  if [ "${EIB_IMAGE_SPLIT}" = true ]; then
-    "${EIB_HELPERSDIR}"/split-image "${img}"
-  fi
-
   # Create USB image if required
   # This expects to have an ISO image for eos-write-live-image.
   if [[ "${EIB_IMAGE_USB}" = "true" && "${EIB_IMAGE_ISO}" = "true" && "${EIB_IMAGE_BOOT_ZIP}" = "true" ]]; then
