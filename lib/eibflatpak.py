@@ -147,8 +147,7 @@ class FlatpakRemote(object):
     UTF8_READER = codecs.getreader('utf-8')
 
     def __init__(self, manager, name, url=None, deploy_url=None,
-                 repo_file=None, apps=None, runtimes=None,
-                 nosplit_apps=None, nosplit_runtimes=None, exclude=None,
+                 repo_file=None, apps=None, runtimes=None, exclude=None,
                  allow_extra_data=None, title=None, default_branch=None,
                  **extra_options):
         # Copy some manager attributes
@@ -163,9 +162,6 @@ class FlatpakRemote(object):
         self.repo_file = repo_file
         self.apps = apps.split() if apps else []
         self.runtimes = runtimes.split() if runtimes else []
-        self.nosplit_apps = nosplit_apps.split() if nosplit_apps else []
-        self.nosplit_runtimes = \
-            nosplit_runtimes.split() if nosplit_runtimes else []
         self.exclude = set(exclude.split()) if exclude else set()
         self.allow_extra_data = set(allow_extra_data.split()) \
             if allow_extra_data else set()
@@ -709,12 +705,11 @@ class FlatpakManager(object):
                                "contains potentially non-redistributable",
                                "extra data")
 
-    def resolve_refs(self, split=False):
+    def resolve_refs(self):
         """Resolve all refs needed for installation
 
         Add the apps and runtimes required for each remote and resolve
-        all runtime and extension dependencies. If split is True, the
-        nosplit apps and runtimes will not be included.
+        all runtime and extension dependencies.
         """
         # Dict of FlatpakInstallRefs needed for installation keyed by
         # the ref string.
@@ -722,13 +717,8 @@ class FlatpakManager(object):
 
         # Get required apps and runtimes
         for remote in self.remotes.values():
-            if split:
-                wanted_apps = set(remote.apps) - set(remote.nosplit_apps)
-                wanted_runtimes = \
-                    set(remote.runtimes) - set(remote.nosplit_runtimes)
-            else:
-                wanted_apps = remote.apps
-                wanted_runtimes = remote.runtimes
+            wanted_apps = remote.apps
+            wanted_runtimes = remote.runtimes
 
             for app in wanted_apps:
                 full_ref = remote.match(app, Flatpak.RefKind.APP)

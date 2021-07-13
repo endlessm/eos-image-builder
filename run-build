@@ -253,7 +253,6 @@ class ImageBuilder(object):
                  localdir=None,
                  show_config=False,
                  show_apps=False,
-                 show_apps_split=False,
                  show_apps_trim=0,
                  show_apps_group_by=None,
                  dry_run=False,
@@ -267,7 +266,6 @@ class ImageBuilder(object):
         self.personality = personality
         self.show_config = show_config
         self.show_apps = show_apps
-        self.show_apps_split = show_apps_split
         self.show_apps_trim = show_apps_trim
         self.show_apps_group_by = show_apps_group_by
         self.dry_run = dry_run
@@ -553,7 +551,6 @@ class ImageBuilder(object):
             # host likely doesn't have flatpak GIR module
             import applist
             applist.show_apps(self.config,
-                              self.show_apps_split,
                               self.show_apps_trim,
                               self.show_apps_group_by,
                               sys.stdout)
@@ -601,7 +598,6 @@ def main():
                            localdir=args.localdir,
                            show_config=args.show_config,
                            show_apps=args.show_apps,
-                           show_apps_split=args.split,
                            show_apps_trim=args.trim,
                            show_apps_group_by=args.group_by,
                            dry_run=args.dry_run,

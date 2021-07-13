@@ -331,24 +331,11 @@ hooks under `image` are run. `${OSTREE_DEPLOYMENT}` contains the path to
 the checkout, and `${EIB_PERSONALITY}` states which personality is being
 built.
 
-After the full image file has been created, the `split` hooks are run to
-prepare the 2 filesystems. `${OSTREE_DEPLOYMENT}` contains the path to
-the checkout, `${EIB_EXTRA_MOUNT}` contains the chroot-relative path to
-the extra storage (currently `/var/endless-extra`), and `${PERSONALITY}`
-states which personality is being built.
-
-The ostree deployment /var is bind mounted at `${OSTREE_DEPLOYMENT}/var`
-to resemble a real booted system. The 2nd disk filesystem is then
-mounted at `${OSTREE_DEPLOYMENT}/${EIB_EXTRA_MOUNT}`. Hooks are intended
-to migrate content from the root into this filesystem. The filesystem is
-a fixed size (currently 8 GB), so hooks are required to ignore failures
-due to insufficient space and revert to the original layout.
-
 The entire cache (`${EIB_CACHEDIR}`) and source (`${EIB_SRCDIR}`)
-directories are made available to both the `image` and `split` chroot
-hooks. This includes other directories and files derived from the cache
-directory such as `${EIB_CONTENTDIR}` and `${EIB_OUTDIR}` or source
-directory such as `${EIB_DATADIR}` or `${EIB_HELPERSDIR}`.
+directories are made available to both the `image` chroot hooks. This
+includes other directories and files derived from the cache directory
+such as `${EIB_CONTENTDIR}` and `${EIB_OUTDIR}` or source directory such
+as `${EIB_DATADIR}` or `${EIB_HELPERSDIR}`.
 
 Installation of Flatpaks is handled in the image stage. This uses
 configuration in `flatpak-remote-*` sections. See the comments in

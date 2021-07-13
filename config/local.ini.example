@@ -13,10 +13,6 @@
 # GPG homedir at /etc/eos-image-builder/gnupg.
 signing_keyid =
 
-# Most products don't generate split images, but it can be useful to do
-# that locally for testing since the codepaths there are fragile.
-#split = true
-
 # Most people probably do not need VM images when building locally. Disabling
 # by default to save storage and time.
 vm_image = false
@@ -48,17 +44,11 @@ apps =
 #apps_add = org.my.App
 #apps_del = com.endlessm.resume
 
-# Testing for apps to be removed when creating the split disk. As with
-# the install option, this overrides all settings but could use the
-# _add_/_del_ merged options.
-nosplit_apps = com.endlessm.resume
-
 [flatpak-remote-flathub]
 # Completely override the set of installed Flathub apps. See documentation
 # for eos-apps above.
 apps =
   com.endlessm.photos
-nosplit_apps =
 
 [buildroot]
 # The buildroot is generated using packages on the internal OBS repos,

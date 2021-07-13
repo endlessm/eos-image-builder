@@ -1,5 +1,0 @@
-#!/bin/sh -ex
-
-# ensure that split images get the same static extensions (eg symlinks
-# to system GL stack) as the default flatpak installation path
-ln -snf -t /var/endless-extra/flatpak /var/lib/flatpak/extension

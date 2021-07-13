@@ -23,21 +23,13 @@ def commit_date_string(repo, checksum):
     time = datetime.fromtimestamp(timestamp, timezone.utc)
     return time.strftime('%Y-%m-%dT%H:%M:%S%z')
 
-def write_manifest(data, hook_group):
-    """Write out the json to a fragment
-
-    Use a different file name for
-    full/split so the full isn't overwritten by the split.
-    """
+def write_manifest(data):
+    """Write out the json to a fragment"""
     manifestdir = os.environ['EIB_MANIFESTDIR']
-    manifest_path = os.path.join(manifestdir,
-                                 '{}-flatpak.json'.format(hook_group))
+    manifest_path = os.path.join(manifestdir, 'flatpak.json')
     print('Writing flatpak manifest info to', manifest_path)
     with open(manifest_path, 'w') as manifest:
         json.dump(data, manifest)
-
-# Are we running image or split hook phase?
-hook_group = os.environ['EIB_HOOK_GROUP']
 
 # Build the json data structure
 data = {
@@ -45,23 +37,16 @@ data = {
         'remotes': {},
         'runtimes': {},
         'apps': {},
-        'split-remotes': {},
-        'split-runtimes': {},
-        'split-apps': {},
     }
 }
 
 if os.environ.get('EIB_FLATPAK_ENABLE', 'false') != 'true':
     # Write out an empty manifest so it always exists
-    write_manifest(data, hook_group)
+    write_manifest(data)
     exit(0)
 
-# Open the flatpak installation in the OS /var/lib/flatpak or split disk
-# /var/endless-extra/flatpak.
-if hook_group == 'image':
-    system_path = os.path.join(os.environ['OSTREE_VAR'], 'lib/flatpak')
-else:
-    system_path = os.path.join(os.environ['OSTREE_EXTRA'], 'flatpak')
+# Open the flatpak installation in the OS /var/lib/flatpak.
+system_path = os.path.join(os.environ['OSTREE_VAR'], 'lib/flatpak')
 print('Opening flatpak installation in', system_path)
 system_file = Gio.File.new_for_path(system_path)
 system = Flatpak.Installation.new_for_path(system_file, user=False)
@@ -85,12 +70,7 @@ for remote in remotes:
     if url.startswith('file://'):
         continue
 
-    # Use a separate section for full and split remotes
-    if hook_group == 'image':
-        section = 'remotes'
-    else:
-        section = 'split-remotes'
-    data['flatpak'][section][name] = {
+    data['flatpak']['remotes'][name] = {
         'url': url,
         'collection-id': collection_id,
     }
@@ -108,12 +88,7 @@ for runtime in runtimes:
     date = commit_date_string(repo, commit)
     version = runtime.get_appdata_version()
 
-    # Use a separate section for full and split runtimes
-    if hook_group == 'image':
-        section = 'runtimes'
-    else:
-        section = 'split-runtimes'
-    data['flatpak'][section][key] = {
+    data['flatpak']['runtimes'][key] = {
         'name': name,
         'arch': arch,
         'branch': branch,
@@ -144,12 +119,7 @@ for app in apps:
     except GLib.GError:
         runtime = None
 
-    # Use a separate section for full and split apps.
-    if hook_group == 'image':
-        section = 'apps'
-    else:
-        section = 'split-apps'
-    data['flatpak'][section][key] = {
+    data['flatpak']['apps'][key] = {
         'name': name,
         'arch': arch,
         'branch': branch,
@@ -163,4 +133,4 @@ for app in apps:
     }
 
 # Now write out the json to a fragment
-write_manifest(data, hook_group)
+write_manifest(data)
