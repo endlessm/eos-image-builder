@@ -1,5 +1,0 @@
-# This policy in the end creates managed bookmarks for Chromium
-
-if [ -e "${EIB_IMAGE_BOOKMARKS_POLICY_FILE}" ]; then
-  install -m644 "${EIB_IMAGE_BOOKMARKS_POLICY_FILE}" "${OSTREE_DEPLOYMENT}"/etc/chromium-browser/policies/managed/managed-bookmarks.json
-fi
