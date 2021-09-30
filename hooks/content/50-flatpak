@@ -24,10 +24,6 @@ if not config.getboolean('flatpak', 'enable', fallback=True):
 # Enable debug logging for all flatpak operations
 os.environ['G_MESSAGES_DEBUG'] = 'flatpak'
 
-# Skip flatpak parental controls checks when running from
-# the builder - see https://phabricator.endlessm.com/T27896.
-os.environ['FLATPAK_SKIP_PARENTAL_CONTROLS_NO_SYSTEM_BUS'] = '1'
-
 # Create the ostree repository before opening the installation so an
 # archive-z2 repo can be used. That saves disk space on the builder
 # since the objects won't be able to be checked out anywhere.
