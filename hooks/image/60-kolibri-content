@@ -27,6 +27,12 @@ import_kolibri_channel()
 
 # Needs to be kept in sync with hooks/image/61-kolibri-content-install
 KOLIBRI_CONTENT_DIR="${EIB_CONTENTDIR}/kolibri-content"
+# FIXME: For now, we need to remove old content that may exist from previous
+# runs to prevent images accidentally getting extra channels that are not in
+# their configuration. However, this defeats the purpose of the image builder
+# saving the contents of EIB_CONTENTDIR between runs to improve its performance.
+# At some point we should revisit this to try to make the caching work properly.
+rm -rf "${KOLIBRI_CONTENT_DIR}"
 mkdir -p "${KOLIBRI_CONTENT_DIR}"
 
 venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
