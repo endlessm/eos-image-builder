@@ -41,6 +41,7 @@ source ${venv_dir}/bin/activate
 
 pip install kolibri==${EIB_KOLIBRI_APP_VERSION}
 pip install kolibri-app-desktop-xdg-plugin==${EIB_KOLIBRI_APP_DESKTOP_XDG_PLUGIN_VERSION}
+pip install kolibri-desktop-auth-plugin==${EIB_KOLIBRI_DESKTOP_AUTH_PLUGIN_VERSION}
 
 export KOLIBRI_HOME="${KOLIBRI_CONTENT_DIR}"
 
@@ -50,9 +51,16 @@ cat << EOF > "${KOLIBRI_HOME}"/options.ini
 [Deployment]
 STATIC_USE_SYMLINKS = 0
 EOF
+if [ "${EIB_KOLIBRI_DESKTOP_AUTH_PLUGIN_REGULAR_USERS_CAN_MANAGE_CONTENT}" = "true" ]; then
+    cat << EOF >> "${KOLIBRI_HOME}"/options.ini
+[DesktopAuth]
+REGULAR_USERS_CAN_MANAGE_CONTENT = True
+EOF
+fi
 
 kolibri plugin enable kolibri.plugins.app
 kolibri plugin enable kolibri_app_desktop_xdg_plugin
+kolibri plugin enable kolibri_desktop_auth_plugin
 
 for channel_id in ${EIB_KOLIBRI_INSTALL_CHANNELS}; do
   import_kolibri_channel "${channel_id}"
