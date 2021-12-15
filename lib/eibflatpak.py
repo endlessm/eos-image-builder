@@ -22,6 +22,7 @@ import base64
 import codecs
 from collections import namedtuple, OrderedDict
 from configparser import ConfigParser
+from contextlib import contextmanager
 import eib
 from eibostree import fetch_remote_collection_id
 import fnmatch
@@ -149,7 +150,7 @@ class FlatpakRemote(object):
     def __init__(self, manager, name, url=None, deploy_url=None,
                  repo_file=None, apps=None, runtimes=None, exclude=None,
                  allow_extra_data=None, title=None, default_branch=None,
-                 **extra_options):
+                 prio=None, noenumerate=None, **extra_options):
         # Copy some manager attributes
         self.manager = manager
         self.installation = manager.installation
@@ -167,6 +168,8 @@ class FlatpakRemote(object):
             if allow_extra_data else set()
         self.title = title
         self.default_branch = default_branch
+        self.prio = prio
+        self.noenumerate = noenumerate
 
         # Only supported from repo_file
         self.gpg_key = None
@@ -233,6 +236,8 @@ class FlatpakRemote(object):
             remote.set_title(self.title)
         if self.default_branch:
             remote.set_default_branch(self.default_branch)
+        if self.prio is not None:
+            remote.set_prio(self.prio)
 
         # Import the GPG key if specified
         if self.gpg_key:
@@ -296,12 +301,7 @@ class FlatpakRemote(object):
         Sync the appstream and metadata from the remote. If the deploy
         URL differs from the pull URL, it's adjusted here, too.
         """
-        if self.deploy_url != self.url:
-            logger.info('Setting %s URL to %s for deployment', self.name,
-                        self.deploy_url)
-            remote = self.installation.get_remote_by_name(self.name)
-            remote.set_url(self.deploy_url)
-            self.installation.modify_remote(remote)
+        self._modify_remote_for_deployment()
 
         # Set the flatpak remote collection ID if it's enabled and the
         # remote has a collection ID
@@ -328,15 +328,36 @@ class FlatpakRemote(object):
         # Reset any configuration defined metadata
         self.reset_metadata()
 
+    def _modify_remote_for_deployment(self):
+        if self.deploy_url == self.url and self.noenumerate is None:
+            return
+
+        remote = self.installation.get_remote_by_name(self.name)
+
+        if self.deploy_url != self.url:
+            logger.info('Setting %s URL to %s for deployment', self.name,
+                        self.deploy_url)
+            remote.set_url(self.deploy_url)
+
+        if self.noenumerate is not None:
+            logger.info('Setting %s noenumerate to %s for deployment',
+                        self.name, self.noenumerate)
+            remote.set_noenumerate(self.noenumerate)
+
+        self.installation.modify_remote(remote)
+
     def reset_metadata(self):
         """Reset remote's metadata per configuration
 
-        Set the title and default branch remote options back to the
-        value used in the builder configuration. This is needed if the
-        setting was changed by a call to update the remote's metadata
-        from the server.
+        Set title, default branch, and prio remote options back to the values
+        used in the builder configuration. This is needed if the setting was
+        changed by a call to update the remote's metadata from the server.
         """
-        if not self.title and not self.default_branch:
+        if (
+            not self.title
+            and not self.default_branch
+            and self.prio is None
+        ):
             return
 
         remote = self.installation.get_remote_by_name(self.name)
@@ -344,6 +365,8 @@ class FlatpakRemote(object):
             remote.set_title(self.title)
         if self.default_branch:
             remote.set_default_branch(self.default_branch)
+        if self.prio is not None:
+            remote.set_prio(self.prio)
         self.installation.modify_remote(remote)
 
     def enumerate(self):
@@ -543,6 +566,11 @@ class FlatpakManager(object):
             # FlatpakRemote after removing unrecognized options
             remote_options = dict(self.config.items(sect))
             remote_options.pop('enable', None)
+            # Convert prio and noenumerate to the appropriate types
+            remote_options['prio'] = self.config.getint(
+                sect, 'prio', fallback=None)
+            remote_options['noenumerate'] = self.config.getboolean(
+                sect, 'noenumerate', fallback=None)
             logger.debug('Remote %s options: %s', name, remote_options)
             self.remotes[name] = FlatpakRemote(self, name,
                                                **remote_options)
