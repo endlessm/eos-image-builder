@@ -23,21 +23,22 @@ from argparse import ArgumentParser
 import errno
 import fcntl
 import os
-import shutil
 import subprocess
 import sys
 import time
 
 MYDIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.join(MYDIR, 'lib'))
-import eib
+import eib  # noqa: E402
 
 LOCKTIMEOUT = 60
+
 
 def set_close_on_exec(fd):
     flags = fcntl.fcntl(fd, fcntl.F_GETFD)
     flags |= fcntl.FD_CLOEXEC
     fcntl.fcntl(fd, fcntl.F_SETFD, flags)
+
 
 def lock_builder(lockf, timeout):
     wait = timeout
@@ -64,6 +65,7 @@ def lock_builder(lockf, timeout):
     lockf.truncate()
     lockf.write('%d\n' % os.getpid())
     lockf.flush()
+
 
 # This option list must stay in sync with run-build. It's repeated here
 # so that the branch to checkout can be reliably determined.
