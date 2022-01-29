@@ -8,21 +8,5 @@ fi
 KOLIBRI_CONTENT_DIR="${EIB_CONTENTDIR}/kolibri-content"
 
 mkdir -p "${OSTREE_VAR}"/lib/kolibri
+
 cp -rl "${KOLIBRI_CONTENT_DIR}" "${OSTREE_VAR}"/lib/kolibri/data
-
-if [ "${EIB_KOLIBRI_AUTOMATIC_PROVISION}" = "true" ]; then
-  cat <<EOF > "${OSTREE_VAR}"/lib/kolibri/data/automatic_provision.json
-{
-  "facility": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_FACILITY_NAME}",
-  "superusername": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_SUPERUSER_NAME}",
-  "superuserpassword": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_SUPERUSER_PASSWORD}",
-  "preset": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_PRESET}",
-  "facility_settings": {},
-  "device_settings": {
-    "landing_page": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_LANDING_PAGE}",
-    "allow_other_browsers_to_connect": 0
-  }
-}
-EOF
-fi
-

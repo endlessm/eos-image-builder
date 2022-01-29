@@ -1,0 +1,27 @@
+# Configure Kolibri automatic provisioning if enabled
+
+if [ "${EIB_KOLIBRI_AUTOMATIC_PROVISION}" != "true" ]; then
+  exit 0
+fi
+
+mkdir -p "${OSTREE_VAR}"/lib/kolibri/data
+
+cat <<EOF > "${OSTREE_VAR}"/lib/kolibri/data/automatic_provision.json
+{
+  "facility": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_FACILITY_NAME}",
+  "superusername": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_SUPERUSER_NAME}",
+  "superuserpassword": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_SUPERUSER_PASSWORD}",
+  "preset": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_PRESET}",
+  "facility_settings": {
+    "learner_can_edit_username": ${EIB_KOLIBRI_AUTOMATIC_PROVISION_LEARNER_CAN_EDIT_USERNAME},
+    "learner_can_edit_name": ${EIB_KOLIBRI_AUTOMATIC_PROVISION_LEARNER_CAN_EDIT_NAME},
+    "learner_can_edit_password": ${EIB_KOLIBRI_AUTOMATIC_PROVISION_LEARNER_CAN_EDIT_PASSWORD},
+    "learner_can_sign_up": ${EIB_KOLIBRI_AUTOMATIC_PROVISION_LEARNER_CAN_SIGN_UP}
+  },
+  "device_settings": {
+    "landing_page": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_LANDING_PAGE}",
+    "allow_guest_access": ${EIB_KOLIBRI_AUTOMATIC_PROVISION_ALLOW_GUEST_ACCESS},
+    "allow_other_browsers_to_connect": 0
+  }
+}
+EOF
