@@ -1,0 +1,35 @@
+#!/usr/bin/python3
+
+# Create a default options.ini for Kolibri
+
+import configparser
+import functools
+import os
+from pathlib import Path
+
+OSTREE_VAR = Path(os.environ.get("OSTREE_VAR"))
+KOLIBRI_HOME = Path(OSTREE_VAR, "lib/kolibri/data")
+OPTIONS_FILE_PATH = Path(KOLIBRI_HOME, "options.ini")
+
+EIB_KOLIBRI_REGULAR_USERS_CAN_MANAGE_CONTENT = os.environ.get("EIB_KOLIBRI_REGULAR_USERS_CAN_MANAGE_CONTENT")
+
+config = configparser.ConfigParser()
+
+# By default, ConfigParser converts option names to a lowercase "canonical"
+# form. Instead, we want it to leave them alone.
+config.optionxform = lambda name: name
+
+if EIB_KOLIBRI_REGULAR_USERS_CAN_MANAGE_CONTENT == "true":
+    try:
+        config.add_section("DesktopAuth")
+    except configparser.DuplicateSectionError:
+        pass
+    config.set("DesktopAuth", "REGULAR_USERS_CAN_MANAGE_CONTENT", "True")
+
+config_count = functools.reduce(
+    lambda total, section: total + len(section), config.values(), 0
+)
+
+if config_count > 0:
+    with open(OPTIONS_FILE_PATH, "w") as options_file:
+        config.write(options_file)
