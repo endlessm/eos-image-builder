@@ -51,12 +51,6 @@ cat << EOF > "${KOLIBRI_HOME}"/options.ini
 [Deployment]
 STATIC_USE_SYMLINKS = 0
 EOF
-if [ "${EIB_KOLIBRI_DESKTOP_AUTH_PLUGIN_REGULAR_USERS_CAN_MANAGE_CONTENT}" = "true" ]; then
-    cat << EOF >> "${KOLIBRI_HOME}"/options.ini
-[DesktopAuth]
-REGULAR_USERS_CAN_MANAGE_CONTENT = True
-EOF
-fi
 
 kolibri plugin enable kolibri.plugins.app
 kolibri plugin enable kolibri_app_desktop_xdg_plugin
