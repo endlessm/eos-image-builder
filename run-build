@@ -462,6 +462,10 @@ class ImageBuilder(object):
         schema_file = os.path.join(self.configdir, 'schema.ini')
         schema = eib.ImageConfigParser()
         schema.read_config_file(schema_file, 'schema')
+        if self.local_configdir:
+            local_schema_file = os.path.join(self.local_configdir,
+                                             'schema.ini')
+            schema.read_config_file(local_schema_file, 'local_schema')
 
         for sect in schema.sections():
             for option, value in schema.items(sect):
