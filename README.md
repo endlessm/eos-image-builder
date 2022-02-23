@@ -168,6 +168,24 @@ The system and local configuration files are not typically used. They
 can allow for a permanent or temporary override for a particular host or
 build.
 
+Schema
+------
+
+The image builder configuration scheme is intentionally very flexible to
+allow building images with various combinations of attributes. That
+flexibility means that it's easy to initiate builds with unsupported
+settings. A configuration schema can be defined to help ensure specific
+keys are set or to limit their values to a supported set.
+
+The configuration schema is defined in `config/schema.ini` and
+`$localdir/config/schema.ini`. Schema files are INI formatted like the
+configuration itself. Sections and key names match the config files,
+with key suffixes as follows:
+
+ * `_required`: `true` means that the key must be set
+ * `_values`: the value, if set, must be within the space-separated list
+   of values here
+
 Merged options
 --------------
 
