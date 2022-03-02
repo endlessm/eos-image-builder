@@ -4,6 +4,9 @@ if [ -z "${EIB_KOLIBRI_INSTALL_CHANNELS}" ]; then
   exit 0
 fi
 
+# Do not create symlinks for static files inside the image builder.
+export KOLIBRI_STATIC_USE_SYMLINKS=0
+
 import_kolibri_channel()
 {
   local channel_id=$1
@@ -44,13 +47,6 @@ pip install kolibri-app-desktop-xdg-plugin==${EIB_KOLIBRI_APP_DESKTOP_XDG_PLUGIN
 pip install kolibri-desktop-auth-plugin==${EIB_KOLIBRI_DESKTOP_AUTH_PLUGIN_VERSION}
 
 export KOLIBRI_HOME="${KOLIBRI_CONTENT_DIR}"
-
-# Disable use of symlinks so we can install the data on filesystems that do not
-# support them (exFAT).
-cat << EOF > "${KOLIBRI_HOME}"/options.ini
-[Deployment]
-STATIC_USE_SYMLINKS = 0
-EOF
 
 kolibri plugin enable kolibri.plugins.app
 kolibri plugin enable kolibri_app_desktop_xdg_plugin
