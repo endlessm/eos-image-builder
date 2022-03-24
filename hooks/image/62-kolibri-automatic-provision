@@ -8,9 +8,11 @@ mkdir -p "${OSTREE_VAR}"/lib/kolibri/data
 
 cat <<EOF > "${OSTREE_VAR}"/lib/kolibri/data/automatic_provision.json
 {
-  "facility": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_FACILITY_NAME}",
-  "superusername": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_SUPERUSER_NAME}",
-  "superuserpassword": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_SUPERUSER_PASSWORD}",
+  "facility_name": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_FACILITY_NAME}",
+  "superuser": {
+      "username": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_SUPERUSER_NAME}",
+      "password": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_SUPERUSER_PASSWORD}"
+  },
   "preset": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_PRESET}",
   "facility_settings": {
     "learner_can_edit_username": ${EIB_KOLIBRI_AUTOMATIC_PROVISION_LEARNER_CAN_EDIT_USERNAME},
