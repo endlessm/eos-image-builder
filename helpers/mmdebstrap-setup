@@ -4,7 +4,7 @@
 
 ROOT=${1:?No root directory supplied}
 
-for var in BUILDROOT_KEYRING BUILDROOT_APT_CACHE; do
+for var in BUILDROOT_KEYRING; do
     if [ ! -v "$var" ]; then
         echo "error: Required variable $var not set" >&2
         exit 1
@@ -30,6 +30,3 @@ cat > "$ROOT/etc/apt/apt.conf.d/99keyring" <<EOF
 Dir::Etc::Trusted "$BUILDROOT_KEYRING";
 Dir::Etc::TrustedParts "";
 EOF
-
-# Populate the apt cache from the persistent cache.
-rsync -a --exclude=/partial "$BUILDROOT_APT_CACHE/" /var/cache/apt/archives/
