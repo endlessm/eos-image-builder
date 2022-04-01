@@ -88,13 +88,19 @@ class ImageBuildRoot(object):
         keyring = eib.get_keyring(config)
 
         # Wipe the apt cache directory if it's grown too large.
-        if os.path.exists(aptcache_dir):
-            aptcache_size = eib.disk_usage(aptcache_dir)
-            if aptcache_size >= aptcache_max_size:
-                log.info('Apt cache directory uses %d bytes, removing',
-                         aptcache_size)
-                shutil.rmtree(aptcache_dir)
-        os.makedirs(os.path.join(aptcache_dir), exist_ok=True)
+        #
+        # FIXME: This is currently commented because mmdebstrap throws
+        # an error if you seed /var/cache/apt/archives in the root
+        # before it runs. To make this work something like apt-cacher is
+        # needed to handle it at the HTTP level.
+        #
+        # if os.path.exists(aptcache_dir):
+        #     aptcache_size = eib.disk_usage(aptcache_dir)
+        #     if aptcache_size >= aptcache_max_size:
+        #         log.info('Apt cache directory uses %d bytes, removing',
+        #                  aptcache_size)
+        #         shutil.rmtree(aptcache_dir)
+        # os.makedirs(os.path.join(aptcache_dir), exist_ok=True)
 
         # Generate a sources list
         sources_args = {
@@ -123,7 +129,6 @@ class ImageBuildRoot(object):
         buildroot_env = os.environ.copy()
         buildroot_env.update({
             'BUILDROOT_KEYRING': keyring,
-            'BUILDROOT_APT_CACHE': aptcache_dir,
         })
         buildroot_cmd = (
             'mmdebstrap',
