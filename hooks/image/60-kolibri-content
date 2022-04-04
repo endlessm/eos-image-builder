@@ -4,6 +4,12 @@ if [ -z "${EIB_KOLIBRI_INSTALL_CHANNELS}" ]; then
   exit 0
 fi
 
+# Use a separate content URL if configured.
+if [ -n "${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}" ]; then
+  KOLIBRI_CENTRAL_CONTENT_BASE_URL="${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}"
+  export KOLIBRI_CENTRAL_CONTENT_BASE_URL
+fi
+
 # Do not create symlinks for static files inside the image builder.
 export KOLIBRI_STATIC_USE_SYMLINKS=0
 
