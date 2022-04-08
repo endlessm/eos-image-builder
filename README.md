@@ -69,10 +69,9 @@ Setup
 
 Known to work on Debian Buster (10) and newer. Required packages:
 
- * mmdebstrap
+ * ostree
  * gnupg
  * python3
- * rsync
 
 Image signing
 -------------
