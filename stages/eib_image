@@ -60,9 +60,14 @@ if [[ "${EIB_ARCH}" == "armhf" ]] || [[ "${EIB_ARCH}" == "arm64" ]]; then
   # Empty uEnv.txt otherwise ostree gets upset
   > "${BOOT}"/loader/uEnv.txt
   ln -s loader/uEnv.txt "${BOOT}"/uEnv.txt
+  ostree --repo="${REPOPATH}" config set sysroot.bootloader uboot
 else
   # Assume grub for all other architectures
   mkdir -p "${BOOT}"/grub
+
+  # Configure the ostree bootloader to none so it only makes BLS entries
+  # and doesn't try to update grub.cfg.
+  ostree --repo="${REPOPATH}" config set sysroot.bootloader none
 fi
 
 # Platform dependent boot arguments
