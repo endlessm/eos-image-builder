@@ -50,12 +50,7 @@ class ImageBuildRoot(object):
         self.builddir = builddir
 
         # Get the config parameters
-        arch = config['buildroot']['arch']
-        repo = config['buildroot']['repo']
-        codename = config['buildroot']['codename']
-        components = config['buildroot']['components'].split()
         packages = config['buildroot']['packages'].split()
-        base = config['buildroot']['base']
         config_mounts = config['buildroot']['mounts'].split()
         # aptcache_dir = config['buildroot']['aptcache_dir']
         # aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
@@ -69,6 +64,7 @@ class ImageBuildRoot(object):
             '/dev/pts',
             # Udev control socket and queue for `udevadm settle`
             '/run/udev',
+            '/etc/resolv.conf',
             # Required builder directories
             config['build']['cachedir'],
             config['build']['srcdir'],
@@ -82,9 +78,6 @@ class ImageBuildRoot(object):
         # Include local settings directory if provided
         if 'localdir' in config['build']:
             required_mounts.append(config['build']['localdir'])
-
-        # Make sure the keyring is created
-        keyring = eib.get_keyring(config)
 
         # Wipe the apt cache directory if it's grown too large.
         #
@@ -101,49 +94,55 @@ class ImageBuildRoot(object):
         #         shutil.rmtree(aptcache_dir)
         # os.makedirs(os.path.join(aptcache_dir), exist_ok=True)
 
-        # Generate a sources list
-        sources_args = {
-            'url': repo,
-            'codename': codename,
-            'components': ' '.join(components),
-            'base': base,
-        }
-        sources = dedent('''\
-        deb {url} {codename} {components}
-        deb http://deb.debian.org/debian {base} main contrib non-free
-        deb http://deb.debian.org/debian {base}-updates main contrib non-free
-        deb http://security.debian.org {base}-security main contrib non-free
-        '''.format(**sources_args))
+        # Pull the ostree. Ideally the eosminbase ostree would be used to
+        # minimize the buildroot, but that's not released and would fail with
+        # --use-production-ostree.
+        repo_path = config['ostree']['repodir']
+        remote = config['ostree']['remote']
+        ref = config['ostree']['ref']
+        log.info(f'Pulling OSTree ref {remote}:{ref}')
+        eib.retry(subprocess.check_call, [
+            'ostree',
+            f'--repo={repo_path}',
+            'pull',
+            remote,
+            ref,
+        ])
 
-        sources_path = os.path.join(config['build']['tmpdir'],
-                                    'buildroot-sources.list')
-        with open(sources_path, 'w') as f:
-            f.write(sources)
-
-        log.info('Creating buildroot in %s', self.builddir)
-        setup_script = os.path.join(config['build']['helpersdir'],
-                                    'mmdebstrap-setup')
-        cleanup_script = os.path.join(config['build']['helpersdir'],
-                                      'mmdebstrap-cleanup')
-        buildroot_env = os.environ.copy()
-        buildroot_env.update({
-            'BUILDROOT_KEYRING': keyring,
-        })
-        buildroot_cmd = (
-            'mmdebstrap',
-            '--verbose',
-            '--architectures=' + arch,
-            '--variant=minbase',
-            '--include=' + ','.join(packages),
-            '--setup-hook=' + setup_script,
-            '--customize-hook=' + cleanup_script,
-            # Empty suite is used to prevent mmdebstrap from filtering
-            # the required packages.
-            '',
+        # Checkout the commit.
+        log.info(f'Checking out OSTree ref {remote}:{ref} to {self.builddir}')
+        shutil.rmtree(self.builddir)
+        subprocess.check_call([
+            'ostree',
+            f'--repo={repo_path}',
+            'checkout',
+            f'{remote}:{ref}',
             self.builddir,
-            sources_path
+        ])
+
+        # Adjust the checkout a bit so it works for execution. /usr/etc is
+        # copied to /etc rather than renamed so that any modifications don't
+        # affect the repo objects.
+        #
+        # /home, /root, /opt and /usr/local are all symlinks into persistent
+        # storage that aren't needed here and may mess with bind mounts.
+        log.debug(
+            f'Copying OSTree {self.builddir}/usr/etc to {self.builddir}/etc'
         )
-        subprocess.check_call(buildroot_cmd, env=buildroot_env)
+        shutil.copytree(
+            os.path.join(self.builddir, 'usr/etc'),
+            os.path.join(self.builddir, 'etc'),
+            # Copy symlinks as is.
+            symlinks=True,
+        )
+        for path in ('home', 'root', 'opt', 'usr/local'):
+            build_path = os.path.join(self.builddir, path)
+            if os.path.islink(build_path):
+                log.debug(f'Replacing {build_path} symlink with directory')
+                os.unlink(build_path)
+                os.makedirs(build_path, exist_ok=True)
+                if path == 'root':
+                    os.chmod(build_path, 0o0700)
 
         # Make the buildroot a private mount point. This ensures that
         # mounts from the host that happen during the build don't
@@ -180,6 +179,32 @@ class ImageBuildRoot(object):
         # Really mount the directories
         for path in to_mount:
             self.mount(path)
+
+        log.info('Installing buildroot packages')
+        apt_env = os.environ.copy()
+        apt_env['DEBIAN_FRONTEND'] = 'noninteractive'
+        apt_conf_path = os.path.join(self.builddir, 'etc/apt/apt.conf.d/99eib.conf')
+        os.makedirs(os.path.dirname(apt_conf_path), exist_ok=True)
+        with open(apt_conf_path, 'w') as f:
+            f.write(dedent("""\
+            # Assume yes for all apt questions.
+            APT::Get::Assume-Yes "true";
+            # Disable recommends like when building the OS.
+            APT::Install-Recommends "false";
+            # Ignore changes in the sources Release file.
+            Acquire::AllowReleaseInfoChange "true";
+            # Don't fetch any translations.
+            Acquire::Languages "none";
+            DPkg::Options {
+                # Always use the new version of a config file when upgrading.
+                "--force-confnew";
+            };
+            """))
+        apt_cmd = ['chroot', self.builddir, 'apt-get', 'update']
+        subprocess.check_call(apt_cmd, env=apt_env)
+        apt_cmd = ['chroot', self.builddir, 'apt-get', 'install', '-y']
+        apt_cmd += packages
+        subprocess.check_call(apt_cmd, env=apt_env)
 
     def mount(self, path, target=None):
         """Bind mount path in the build directory"""
@@ -545,6 +570,70 @@ class ImageBuilder(object):
                       % self.get_build_option('outversion'))
             self.config.write(out)
 
+    def setup_ostree_content_repo(self):
+        repo_path = self.config['ostree']['repodir']
+
+        # Create the repo if needed. Use a normal bare repo to speed up later
+        # deployment.
+        repo_config_path = os.path.join(repo_path, 'config')
+        if not os.path.exists(repo_config_path):
+            log.info(f'Creating OSTree repo {repo_path}')
+            os.makedirs(repo_path, exist_ok=True)
+            subprocess.check_call([
+                'ostree',
+                f'--repo={repo_path}',
+                'init',
+                '--mode=bare',
+            ])
+
+        # Optionally use the production ostree repo rather than staging.
+        if self.use_production_ostree:
+            remote_url = self.config['ostree']['prod_pull_url']
+        else:
+            remote_url = self.config['ostree']['dev_pull_url']
+
+        # Make sure the keyring is created
+        keyring = eib.get_keyring(self.config)
+
+        # Recreate the remote setup to ensure there aren't any stale settings. Don't
+        # bother GPG verifying the summary if it's being fetched over HTTPS. This often
+        # fails when the summary is being updated concurrently since the received
+        # summary and summary signature can be mismatched.
+        remote = self.config['ostree']['remote']
+        log.info(f'Adding OSTree repo {repo_path} remote {remote}')
+        gpg_verify_summary = not remote_url.startswith('https://')
+        gpg_verify_summary_str = str(gpg_verify_summary).lower()
+        subprocess.check_call([
+            'ostree',
+            f'--repo={repo_path}',
+            'remote',
+            'delete',
+            '--if-exists',
+            remote,
+        ])
+        subprocess.check_call([
+            'ostree',
+            f'--repo={repo_path}',
+            'remote',
+            'add',
+            f'--set=gpg-verify-summary={gpg_verify_summary_str}',
+            f'--gpg-import={keyring}',
+            remote,
+            remote_url,
+            self.config['ostree']['ref'],
+        ])
+
+        # Prune the builder's ostree to keep the local repo from growing unbounded. Only
+        # the latest commit on each ref is needed to minimize the pull size.
+        log.info(f'Pruning OSTree repo {repo_path}')
+        subprocess.check_call([
+            'ostree',
+            f'--repo={repo_path}',
+            'prune',
+            '--refs-only',
+            '--depth=0',
+        ])
+
     def run(self):
         log.info('Configuring image build')
         self.configure()
@@ -571,6 +660,8 @@ class ImageBuilder(object):
         builder_env = self.get_environment()
         self.create_tmp_config()
         self.create_tmp_full_config()
+
+        self.setup_ostree_content_repo()
 
         # Run the buildscript in a buildroot
         with ImageBuildRoot(self.builddir, self.config):
