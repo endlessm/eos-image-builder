@@ -292,7 +292,7 @@ starting the program.
 Options available:
 
 * `--product`: specify product to build (eos, eosnonfree, eosdev)
-* `--platform`: specify a sub-architecture to build (ec100, odroidu2)
+* `--platform`: specify a sub-architecture to build (e.g. pinebookpro)
 * `--personality`: specify image personality to build (base, en)
 * `--dry-run`: perform a build, but do not publish the results
 

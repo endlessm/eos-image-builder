@@ -294,8 +294,6 @@ class ImageBuilder(object):
                 self.arch = 'arm64'
             elif fnmatch.fnmatch(machine, 'i?86'):
                 self.arch = 'i386'
-            elif machine.startswith('arm'):
-                self.arch = 'armhf'
             else:
                 raise eib.ImageBuildError('Machine', machine, 'not supported')
 
@@ -305,12 +303,8 @@ class ImageBuilder(object):
         if platform:
             self.platform = platform
         else:
-            if self.arch == 'armhf':
-                # Default to odroidu2 (should probably be ec100)
-                self.platform = 'odroidu2'
-            else:
-                # Assume platform neutral arch
-                self.platform = self.arch
+            # Assume platform neutral arch
+            self.platform = self.arch
 
         # Common paths
         self.builddir = eib.BUILDDIR

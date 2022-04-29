@@ -55,7 +55,6 @@ SUPPORTED_ARCHES = [
     'i386',
     'amd64',
     'arm64',
-    'armhf'
 ]
 
 # Python normally catches SIGINT and converts it to the

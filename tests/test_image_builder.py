@@ -71,7 +71,6 @@ def test_series(make_builder, branch, expected):
     ('amd64', 'nexthw', 'nexthw'), ('amd64', None, 'amd64'),
     ('arm64', 'rpi4', 'rpi4'), ('arm64', None, 'arm64'),
     ('i386', 'i386', 'i386'), ('i386', None, 'i386'),
-    ('armhf', 'ec100', 'ec100'), ('armhf', None, 'odroidu2'),
 ])
 def test_platform(make_builder, arch, platform, expected):
     builder = make_builder(arch=arch, platform=platform)
