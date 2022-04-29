@@ -54,7 +54,7 @@ ostree --repo="${REPOPATH}" pull-local --disable-fsync \
 ostree --repo="${REPOPATH}" pull ${EIB_OSTREE_REMOTE} ostree-metadata
 
 # Basic bootloader setup
-if [[ "${EIB_ARCH}" == "armhf" ]] || [[ "${EIB_ARCH}" == "arm64" ]]; then
+if [[ "${EIB_ARCH}" == "arm64" ]]; then
   mkdir -p "${BOOT}"/loader.0
   ln -s loader.0 "${BOOT}"/loader
   # Empty uEnv.txt otherwise ostree gets upset
@@ -265,10 +265,6 @@ create_image() {
            # Root Partition (64-bit ARM)
            part_type="b921b045-1df0-41c3-af44-4c6f280d3fae"
            ;;
-         armhf)
-           # Root Partition (32-bit ARM)
-           part_type="69DAD710-2CE4-4E3C-B16C-21A1D49ABED3"
-           ;;
          *)
            echo "Unrecognized architecture ${EIB_ARCH}" >&2
            return 1
@@ -281,12 +277,6 @@ create_image() {
        # marker indicating the partition should be resized later
        # attrs=... is unused for DOS partition table so it's safe to leave it here
        rootfs_attrs="GUID:55"
-     fi
-
-     if [[ "${EIB_PLATFORM}" == "rk3288" ]]; then
-      # Mark the partition where /boot is as LegacyBIOSBootable as required by
-      # the distro booting protocol (see U-Boot doc/README.distro)
-       rootfs_attrs="$rootfs_attrs LegacyBIOSBootable"
      fi
 
      if [[ "${EIB_PLATFORM:0:3}" == "rpi" ]]; then
@@ -375,62 +365,6 @@ EOF
 
   # Install bootloader
   case "${EIB_ARCH}" in
-    armhf)
-      case "${EIB_PLATFORM}" in
-        odroidu2)
-          # from hardkernel u-boot sd_fusing.sh
-          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/exynos4_odroid
-          dd conv=notrunc if="${UBOOT_PATH}"/bl1.HardKernel of=${img} seek=1
-          dd conv=notrunc if="${UBOOT_PATH}"/bl2.HardKernel of=${img} seek=31
-          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} seek=63
-          dd conv=notrunc if="${UBOOT_PATH}"/tzsw.HardKernel of=${img} seek=2111
-          ;;
-        sqwerty)
-          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/exynos4_sqwerty
-          dd conv=notrunc if="${UBOOT_PATH}"/bl1.Sqwerty of=${img} seek=1
-          dd conv=notrunc if="${UBOOT_PATH}"/bl2.Sqwerty of=${img} seek=31
-          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} seek=63
-          dd conv=notrunc if="${UBOOT_PATH}"/tzsw.Sqwerty of=${img} seek=2111
-          ;;
-        ec100)
-          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/meson8b_m201
-          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=1 count=442
-          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.bin of=${img} bs=17408 skip=1 seek=1
-          ;;
-        rk3288)
-          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/chromebook_jerry
-          cp "${UBOOT_PATH}/boot.scr" "${ROOT}/boot/boot.scr"
-          if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ]; then
-            dd conv=notrunc if="${UBOOT_PATH}"/u-boot.kpart of=${boot_loop} bs=1M
-	  else
-            # zip SPI image
-            local uboot_spi_zip="$(eib_outfile uboot-spi.zip)"
-            zip "${uboot_spi_zip}" "${DEPLOY}"/usr/lib/u-boot/chromebook_jerry/u-boot.SPI
-            sign_file "${uboot_spi_zip}" &
-            checksum_file "${uboot_spi_zip}" &
-
-            # Generate manifest information
-            local uboot_spi_zip_name=$(basename "${uboot_spi_zip}")
-            local uboot_spi_zip_size=$(stat -c "%s" "${uboot_spi_zip}")
-            local uboot_spi_zip_signature="${uboot_spi_zip_name}.asc"
-            local uboot_spi_zip_checksum="${uboot_spi_zip_name}.sha256"
-            cat >> "${img_manifest}" <<EOF
-    "uboot-spi": {
-      "file": "${uboot_spi_zip_name}",
-      "compressed_size": ${uboot_spi_zip_size},
-      "compression_type": "zip",
-      "signature": "${uboot_spi_zip_signature}",
-      "checksum": "${uboot_spi_zip_checksum}"
-    },
-EOF
-          fi
-          ;;
-        *)
-          echo "Unrecognized armhf platform ${EIB_PLATFORM}" >&2
-          return 1
-          ;;
-      esac
-      ;;
     arm64)
       cp "${EIB_DATADIR}"/arm64/boot.src "${EIB_TMPDIR}"/boot.src
       sed -i "1s/^/"$platform_bootargs"\n/" "${EIB_TMPDIR}"/boot.src
