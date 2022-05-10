@@ -12,7 +12,16 @@ import_kolibri_channel()
   local channel_id=$1
   local channel_include_node_ids_var="EIB_KOLIBRI_${channel_id^^}_INCLUDE_NODE_IDS"
   local channel_exclude_node_ids_var="EIB_KOLIBRI_${channel_id^^}_EXCLUDE_NODE_IDS"
-  local importcontent_opts=()
+  local importcontent_opts=(
+    # Normally importcontent ignores download errors. Make it fail so we
+    # can be sure we've fully provisioned channels.
+    --fail-on-error
+  )
+  local importcontent_network_opts=(
+    # The default timeout is 60 seconds, but downloading can be slow
+    # when objects aren't in our content CDN yet.
+    --timeout 300
+  )
 
   if [ -n "${!channel_include_node_ids_var}" ]; then
     importcontent_include_nodes=$(echo "${!channel_include_node_ids_var}" | xargs | tr -s ' ' ',')
@@ -25,7 +34,8 @@ import_kolibri_channel()
   fi
 
   kolibri manage importchannel network "${channel_id}"
-  kolibri manage importcontent ${importcontent_opts[@]} network "${channel_id}"
+  kolibri manage importcontent "${importcontent_opts[@]}" \
+    network "${importcontent_network_opts[@]}" "${channel_id}"
 }
 
 # Needs to be kept in sync with hooks/image/61-kolibri-content-install
