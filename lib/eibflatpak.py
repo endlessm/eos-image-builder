@@ -714,6 +714,15 @@ class FlatpakManager(object):
         # Dict of FlatpakInstallRefs needed for installation keyed by
         # the ref string.
         self.install_refs = {}
+        eol_refs = []
+        eol_rebase_refs = []
+
+        def _check_eol(full_ref):
+            if full_ref.remote_ref.get_eol():
+                eol_refs.append(full_ref)
+
+            if full_ref.remote_ref.get_eol_rebase():
+                eol_rebase_refs.append(full_ref)
 
         # Get required apps and runtimes
         for remote in self.remotes.values():
@@ -726,6 +735,7 @@ class FlatpakManager(object):
                     raise FlatpakError('Could not find app', app, 'in',
                                        remote.name)
                 self._check_excluded(full_ref)
+                _check_eol(full_ref)
                 logger.info('Adding app %s from %s', full_ref.ref,
                             remote.name)
                 self.install_refs[full_ref.ref] = FlatpakInstallRef(
@@ -737,6 +747,7 @@ class FlatpakManager(object):
                     raise FlatpakError('Could not find runtime',
                                        runtime, 'in', remote.name)
                 self._check_excluded(full_ref)
+                _check_eol(full_ref)
                 logger.info('Adding runtime %s from %s', full_ref.ref,
                             remote.name)
                 self.install_refs[full_ref.ref] = FlatpakInstallRef(
@@ -763,6 +774,7 @@ class FlatpakManager(object):
                     except FlatpakError as e:
                         raise FlatpakError("Can't install runtime for ref",
                                            full_ref.ref, "-", e.msg)
+                    _check_eol(runtime)
                     logger.info('Adding %s runtime %s from %s',
                                 full_ref.ref, runtime.ref,
                                 runtime.remote.name)
@@ -791,6 +803,7 @@ class FlatpakManager(object):
                             logger.info("Excluding %s related ref: %s",
                                         full_ref.ref, e)
                             continue
+                        _check_eol(match)
                         logger.info('Adding %s related ref %s from %s',
                                     full_ref.ref, related_ref,
                                     match.remote.name)
@@ -805,6 +818,30 @@ class FlatpakManager(object):
                         install_match.subpaths = subpaths
 
                 checked_refs.add(full_ref.ref)
+
+        for full_ref in eol_refs:
+            logger.warn(
+                "%s in %s is marked as EOL: %s",
+                full_ref.ref,
+                full_ref.remote.name,
+                full_ref.remote_ref.get_eol(),
+            )
+
+        for full_ref in eol_rebase_refs:
+            logger.error(
+                "%s in %s is marked as EOL, superseded by %s",
+                full_ref.ref,
+                full_ref.remote.name,
+                full_ref.remote_ref.get_eol_rebase(),
+            )
+
+        # TODO: optionally make plain EOL fatal? make this optionally non-fatal?
+        if eol_rebase_refs:
+            raise FlatpakError(
+                "Refusing to build image containing Flatpaks marked as eol-rebase:",
+                ", ".join(full_ref.ref for full_ref in eol_rebase_refs),
+            )
+
 
     @staticmethod
     def _subpaths_to_subdirs(subpaths):
