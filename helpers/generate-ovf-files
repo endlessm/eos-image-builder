@@ -6,12 +6,17 @@ Generate Open Virtualization Format package for Endless OS
 '''
 
 import argparse
+import eib
+import logging
 import os
+import shlex
 import subprocess
 import uuid
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
+
+logger = logging.getLogger(os.path.basename(__file__))
 
 class OVFGenerator:
     # System configuration
@@ -40,7 +45,7 @@ class OVFGenerator:
 
     def __run(self, cmd, shell=False):
         '''Run cmd locally.'''
-        print('# {}'.format(cmd))
+        logger.info('# %s', shlex.join(cmd))
 
         return subprocess.check_output(cmd, shell=shell)
 
@@ -329,6 +334,8 @@ class OVFGenerator:
 
 
 def main():
+    eib.setup_logging()
+
     parser = argparse.ArgumentParser(
     description='Import an EOS disk image into OVF format as a VM'
                 'with approiate system configuration.')
