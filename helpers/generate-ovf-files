@@ -43,11 +43,11 @@ class OVFGenerator:
         self.VM_UUID = str(uuid.uuid4())
         self.VOL_UUID = str(uuid.uuid4())
 
-    def __run(self, cmd, shell=False):
+    def __run(self, cmd, **kwargs):
         '''Run cmd locally.'''
         logger.info('# %s', shlex.join(cmd))
 
-        return subprocess.check_output(cmd, shell=shell)
+        return subprocess.check_call(cmd, **kwargs)
 
     def __trim_file_type(self, filename):
         if filename.endswith('.img.xz') or \
@@ -307,11 +307,9 @@ class OVFGenerator:
         else:
             zip_file = self.__trim_file_type(self.IMAGE_FILE) + '.ovf.zip'
 
-        manifest = open(mf_file, 'w')
-        for f in ovf_file, vmdk_file:
-            digest = self.__run(['openssl', 'sha256', '-r', f]).decode('utf-8').split()[0]
-            manifest.write('SHA256(' + os.path.basename(f) + ')= ' + digest + '\n')
-        manifest.close()
+        with open(mf_file, 'w') as manifest:
+            self.__run(["sha256sum", "--tag", ovf_file, vmdk_file],
+                       stdout=manifest)
 
         self.__run(['zip', '--junk-paths', zip_file, ovf_file, vmdk_file, mf_file])
 
