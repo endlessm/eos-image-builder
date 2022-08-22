@@ -294,9 +294,8 @@ class OVFGenerator:
         # Output OVF description file
         mydata = ElementTree.tostring(top, 'utf-8')
         reparsed = minidom.parseString(mydata)
-        ovfile = open(self.__trim_file_type(pathname)+'.ovf', 'w')
-        ovfile.write(reparsed.toprettyxml(indent='    '))
-        ovfile.close()
+        with open(self.__trim_file_type(pathname)+'.ovf', 'w') as ovfile:
+            ovfile.write(reparsed.toprettyxml(indent='    '))
 
     def __archive_to_zip(self, out_path=None):
         ovf_file = self.__trim_file_type(self.IMAGE_FILE) + '.ovf'
@@ -314,9 +313,8 @@ class OVFGenerator:
         self.__run(['zip', '--junk-paths', zip_file, ovf_file, vmdk_file, mf_file])
 
         uncompressed_size = os.stat(ovf_file).st_size + os.stat(vmdk_file).st_size + os.stat(mf_file).st_size
-        size_file = open(zip_file + '.size', 'w')
-        size_file.write(str(uncompressed_size))
-        size_file.close()
+        with open(zip_file + '.size', 'w') as size_file:
+            size_file.write(str(uncompressed_size))
 
     def __del__(self):
         # Remove left-over artifacts
