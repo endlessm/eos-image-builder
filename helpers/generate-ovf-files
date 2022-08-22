@@ -310,7 +310,11 @@ class OVFGenerator:
             self.__run(["sha256sum", "--tag", ovf_file, vmdk_file],
                        stdout=manifest)
 
-        self.__run(['zip', '--junk-paths', zip_file, ovf_file, vmdk_file, mf_file])
+        # Compress the disk image itself in parallel:
+        with open(zip_file, "w") as f:
+            self.__run(["pigz", "--zip", "--stdout", "--keep", vmdk_file], stdout=f)
+        # Add the other, smaller files to the archive:
+        self.__run(['zip', '--junk-paths', zip_file, ovf_file, mf_file])
 
         uncompressed_size = os.stat(ovf_file).st_size + os.stat(vmdk_file).st_size + os.stat(mf_file).st_size
         with open(zip_file + '.size', 'w') as size_file:
