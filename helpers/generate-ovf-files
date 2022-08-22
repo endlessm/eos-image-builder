@@ -334,7 +334,7 @@ def main():
 
     parser = argparse.ArgumentParser(
     description='Import an EOS disk image into OVF format as a VM'
-                'with approiate system configuration.')
+                'with appropriate system configuration.')
     parser.add_argument('-c', '--cpus', type=int, required=False,
                         help='number of virtual CPUs (default 1)')
     parser.add_argument('-m', '--memory', type=int, required=False,
