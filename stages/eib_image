@@ -78,12 +78,11 @@ fi
 esp_size=62
 if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
   sdboot_esp_img="${EIB_TMPDIR}/${EIB_OUTVERSION}_sdboot.img"
-  # 250MB of ESP is off-handedly referred to as "large enough" in
-  # the boot loader spec (at time of this commit) available at:
-  # https://www.freedesktop.org/wiki/Specifications/BootLoaderSpec
+  # https://systemd.io/BOOT_LOADER_SPECIFICATION/ suggests 500MB is a
+  # "suitable" size for an ESP.
   # We'll be using the increase in space to store kernel+initramfs
   # for an active and potentially a rollback copy.
-  esp_size=250
+  esp_size=500
   rm -f "${sdboot_esp_img}"
   truncate -s ${esp_size}M "${sdboot_esp_img}"
   mkfs.vfat "${sdboot_esp_img}"
