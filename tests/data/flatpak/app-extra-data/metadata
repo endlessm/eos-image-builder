@@ -1,0 +1,9 @@
+[Application]
+name=com.example.AppExtraData
+runtime=com.example.Platform/x86_64/1
+sdk=com.example.Sdk/x86_64/1
+
+[Extra Data]
+uri = http://example.com/foo.tar.gz
+size = 1
+checksum = 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
