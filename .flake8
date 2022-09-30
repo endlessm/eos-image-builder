@@ -1,0 +1,21 @@
+[flake8]
+# Allow slightly longer lines
+max-line-length = 88
+
+# Check python scripts without .py suffix
+filename =
+    *.py,
+    ./eos-image-builder,
+    ./helpers/assemble-manifest,
+    ./helpers/fetch-remote-collection-id,
+    ./helpers/generate-ovf-files,
+    ./helpers/kill-chroot-procs,
+    ./helpers/kolibri-pick-content-from-channel,
+    ./helpers/mutable-path,
+    ./helpers/packages-manifest,
+    ./hooks/content/50-flatpak,
+    ./hooks/image/50-flatpak.chroot,
+    ./hooks/image/62-kolibri-options,
+    ./hooks/image/70-flatpak-manifest,
+    ./hooks/image/70-ostree-manifest,
+    ./run-build

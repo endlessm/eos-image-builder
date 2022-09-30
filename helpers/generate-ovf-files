@@ -18,9 +18,10 @@ from xml.etree.ElementTree import Element, SubElement
 
 logger = logging.getLogger(os.path.basename(__file__))
 
+
 class OVFGenerator:
     # System configuration
-    EXTRA_STORAGE = 10 # gigabytes
+    EXTRA_STORAGE = 10  # gigabytes
     RAM = 2048    # megabytes
     CPUS = 1
     VM_UUID = None
@@ -56,7 +57,11 @@ class OVFGenerator:
         elif filename.endswith('.img'):
             return filename[:-4]
         else:
-            raise Exception('Unknown input file type for %s. (not .img.xz, .img.gz or .img)' % filename)
+            raise Exception(
+                'Unknown input file type for %s. '
+                '(not .img.xz, .img.gz or .img)'
+                % filename
+            )
 
     def __create_virtual_disk(self, input_filename):
         # Sort out the input file format.
@@ -68,7 +73,10 @@ class OVFGenerator:
 
         if input_filename.endswith('.img'):
             img_filename = input_filename
-        elif input_filename.endswith('.img.xz') or input_filename.endswith('.img.gz'):
+        elif (
+            input_filename.endswith('.img.xz') or
+            input_filename.endswith('.img.gz')
+        ):
             compressed_img_filename = input_filename
             img_filename, ext = os.path.splitext(compressed_img_filename)
             cmds = {
@@ -111,7 +119,7 @@ class OVFGenerator:
         # Network section
         network_section = SubElement(top, 'NetworkSection')
         SubElement(network_section, 'Info').text = 'List of networks'
-        network = SubElement(network_section, 'Network', {'ovf:name':'NAT'})
+        network = SubElement(network_section, 'Network', {'ovf:name': 'NAT'})
         SubElement(network, 'Description').text = 'NAT network used by this VM'
 
         # Disk section
@@ -121,10 +129,11 @@ class OVFGenerator:
                    {'ovf:diskId': 'vmdisk0',
                     'ovf:capacity': str(self.VIRTUAL_DISK_SIZE),
                     'ovf:fileRef': self.VM_NAME + '0',
-                    'ovf:format':
+                    'ovf:format': (
                          'http://www.vmware.com/interfaces/specifications/' +
-                         'vmdk.html#streamOptimized',
-                    'ovf:disk-type':'System',
+                         'vmdk.html#streamOptimized'
+                    ),
+                    'ovf:disk-type': 'System',
                     'ovf:boot': 'True',
                     'vbox:uuid': self.VOL_UUID})
 
@@ -137,14 +146,21 @@ class OVFGenerator:
                                 {'ovf:id': '101', 'ovf:required': 'false'})
         SubElement(os_section, 'Info').text = 'The OS contained in this VM'
         SubElement(os_section, 'Description').text = 'Endless OS'
-        SubElement(os_section, 'vbox:OSType',
-                                {'ovf:required': 'false'}).text = 'Linux_64'
+        SubElement(
+            os_section, 'vbox:OSType', {'ovf:required': 'false'}
+        ).text = 'Linux_64'
         vhw_section = SubElement(virtual_section, 'VirtualHardwareSection')
-        SubElement(vhw_section, 'Info').text = str(self.CPUS) + ' CPU, ' + str(self.RAM) + ' Memory'
+        SubElement(vhw_section, 'Info').text = (
+            str(self.CPUS) + ' CPU, ' + str(self.RAM) + ' Memory'
+        )
 
         hw_items[0] = Element('Item')
-        SubElement(hw_items[0], 'rasd:Caption').text = str(self.CPUS) + ' virtual cpu'
-        SubElement(hw_items[0], 'rasd:Description').text = 'Number of ' + 'virtual CPUs'
+        SubElement(hw_items[0], 'rasd:Caption').text = (
+            str(self.CPUS) + ' virtual cpu'
+        )
+        SubElement(hw_items[0], 'rasd:Description').text = (
+            'Number of virtual CPUs'
+        )
         SubElement(hw_items[0], 'rasd:InstanceID').text = str(self.CPUS)
         SubElement(hw_items[0], 'rasd:ResourceType').text = '3'
         SubElement(hw_items[0], 'rasd:VirtualQuantity').text = str(self.CPUS)
@@ -152,7 +168,9 @@ class OVFGenerator:
 
         hw_items[1] = Element('Item')
         SubElement(hw_items[1], 'rasd:AllocationUnits').text = 'byte * 2^20'
-        SubElement(hw_items[1], 'rasd:Caption').text = str(self.RAM) + ' MB of memory'
+        SubElement(hw_items[1], 'rasd:Caption').text = (
+            str(self.RAM) + ' MB of memory'
+        )
         SubElement(hw_items[1], 'rasd:Description').text = 'Memory Size'
         SubElement(hw_items[1], 'rasd:InstanceID').text = '2'
         SubElement(hw_items[1], 'rasd:ResourceType').text = '4'
@@ -171,9 +189,13 @@ class OVFGenerator:
 
         hw_items[3] = Element('Item')
         SubElement(hw_items[3], 'rasd:AutomaticAllocation').text = 'true'
-        SubElement(hw_items[3], 'rasd:Caption').text = 'Ethernet adapter on "NAT"'
+        SubElement(hw_items[3], 'rasd:Caption').text = (
+            'Ethernet adapter on "NAT"'
+        )
         SubElement(hw_items[3], 'rasd:Connection').text = 'NAT'
-        SubElement(hw_items[3], 'rasd:ElementName').text = 'Ethernet Adapter on "NAT"'
+        SubElement(hw_items[3], 'rasd:ElementName').text = (
+            'Ethernet Adapter on "NAT"'
+        )
         SubElement(hw_items[3], 'rasd:InstanceID').text = '4'
         SubElement(hw_items[3], 'rasd:ResourceSubType').text = 'E1000'
         SubElement(hw_items[3], 'rasd:ResourceType').text = '10'
@@ -197,9 +219,9 @@ class OVFGenerator:
         SubElement(hw_items[5], 'rasd:InstanceID').text = '6'
         SubElement(hw_items[5], 'rasd:ResourceType').text = '23'
         SubElement(hw_items[5], 'vmw:Config',
-                    {'ovf:required': 'false',
-                     'vmw:key': 'ehciEnabled',
-                     'vmw:value': 'true'})
+                   {'ovf:required': 'false',
+                    'vmw:key': 'ehciEnabled',
+                    'vmw:value': 'true'})
         vhw_section.append(hw_items[5])
 
         hw_items[6] = Element('Item', {'ovf:required': 'false'})
@@ -219,13 +241,13 @@ class OVFGenerator:
         SubElement(hw_items[7], 'rasd:InstanceID').text = '8'
         SubElement(hw_items[7], 'rasd:ResourceType').text = '24'
         SubElement(hw_items[7], 'vmw:Config',
-                    {'ovf:required': 'false',
-                     'vmw:key': 'enable3DSupport',
-                     'vmw:value': 'true'})
+                   {'ovf:required': 'false',
+                    'vmw:key': 'enable3DSupport',
+                    'vmw:value': 'true'})
         SubElement(hw_items[7], 'vmw:Config',
-                    {'ovf:required': 'false',
-                     'vmw:key': 'videoRamSizeInKB',
-                     'vmw:value': '262144'})
+                   {'ovf:required': 'false',
+                    'vmw:key': 'videoRamSizeInKB',
+                    'vmw:value': '262144'})
         vhw_section.append(hw_items[7])
 
         hw_items[8] = Element('Item', {'ovf:required': 'false'})
@@ -237,9 +259,9 @@ class OVFGenerator:
         vhw_section.append(hw_items[8])
 
         SubElement(vhw_section, 'vmw:ExtraConfig',
-                    {'ovf:required': 'false',
-                     'vmw:key': 'virtualHW.productCompatibility',
-                     'vmw:value': 'hosted'})
+                   {'ovf:required': 'false',
+                    'vmw:key': 'virtualHW.productCompatibility',
+                    'vmw:value': 'hosted'})
 
         # vbox:Machine section
         vMachine = SubElement(virtual_section, 'vbox:Machine',
@@ -247,41 +269,45 @@ class OVFGenerator:
                                'version': '1.16-linux',
                                'uuid': '{'+str(self.VM_UUID)+'}',
                                'name': self.VM_NAME})
-        SubElement(vMachine, 'ovf:Info').text = 'Extra Virtual Machine Configuration in VirtualBoxFormat'
+        SubElement(vMachine, 'ovf:Info').text = (
+            'Extra Virtual Machine Configuration in VirtualBoxFormat'
+        )
         hw = SubElement(vMachine, 'Hardware')
-        SubElement(hw, 'CPU', {'count':str(self.CPUS)})
+        SubElement(hw, 'CPU', {'count': str(self.CPUS)})
         SubElement(hw, 'BIOS')
-        SubElement(hw, 'Memory', {'RAMSize':str(self.RAM)})
-        SubElement(hw, 'Display', {'controller':'VMSVGA',
-                                   'VRAMSize':'16',
-                                   'accelerate3D':'true'})
+        SubElement(hw, 'Memory', {'RAMSize': str(self.RAM)})
+        SubElement(hw, 'Display', {'controller': 'VMSVGA',
+                                   'VRAMSize': '16',
+                                   'accelerate3D': 'true'})
         network = SubElement(hw, 'Network')
         SubElement(network, 'Adapter',
                    {'slot': '0',
                     'enabled': 'true',
                     'type': '82540EM'}).append(Element('NAT'))
         for i in range(1, 8):
-            SubElement(network, 'Adapter', {'slot':str(i), 'type':'82540EM'})
+            SubElement(network, 'Adapter', {'slot': str(i), 'type': '82540EM'})
 
-        SubElement(hw, 'AudioAdapter', {'driver':'DirectSound',
-                                        'enabled':'true',
-                                        'enabledIn':'true',
-                                        'enabledOut':'true'})
-        SubElement(hw, 'AudioAdapter', {'driver':'CoreAudio',
-                                        'enabled':'true',
-                                        'enabledIn':'true',
-                                        'enabledOut':'true'})
-        SubElement(hw, 'AudioAdapter', {'driver':'Pulse',
-                                        'enabled':'true',
-                                        'enabledIn':'true',
-                                        'enabledOut':'true'})
+        SubElement(hw, 'AudioAdapter', {'driver': 'DirectSound',
+                                        'enabled': 'true',
+                                        'enabledIn': 'true',
+                                        'enabledOut': 'true'})
+        SubElement(hw, 'AudioAdapter', {'driver': 'CoreAudio',
+                                        'enabled': 'true',
+                                        'enabledIn': 'true',
+                                        'enabledOut': 'true'})
+        SubElement(hw, 'AudioAdapter', {'driver': 'Pulse',
+                                        'enabled': 'true',
+                                        'enabledIn': 'true',
+                                        'enabledOut': 'true'})
         # Storage Controllers section
         storage = SubElement(vMachine, 'StorageControllers')
         attach_dev = Element('AttachedDevice', {'type': 'HardDisk',
                                                 'hotpluggable': 'false',
                                                 'port': '0',
                                                 'device': '0'})
-        attach_dev.append(Element('Image', {'uuid': '{'+str(self.VOL_UUID)+'}'}))
+        attach_dev.append(
+            Element('Image', {'uuid': '{'+str(self.VOL_UUID)+'}'})
+        )
         SubElement(storage, 'StorageController',
                    {'name': 'SATA Controller',
                     'type': 'AHCI',
@@ -301,7 +327,7 @@ class OVFGenerator:
         ovf_file = self.__trim_file_type(self.IMAGE_FILE) + '.ovf'
         vmdk_file = self.__trim_file_type(self.IMAGE_FILE) + '.vmdk'
         mf_file = self.__trim_file_type(self.IMAGE_FILE) + '.mf'
-        if out_path != None:
+        if out_path is not None:
             zip_file = out_path
         else:
             zip_file = self.__trim_file_type(self.IMAGE_FILE) + '.ovf.zip'
@@ -312,11 +338,15 @@ class OVFGenerator:
 
         # Compress the disk image itself in parallel:
         with open(zip_file, "w") as f:
-            self.__run(["pigz", "--zip", "--stdout", "--keep", vmdk_file], stdout=f)
+            self.__run(["pigz", "--zip", "--stdout", "--keep", vmdk_file],
+                       stdout=f)
         # Add the other, smaller files to the archive:
         self.__run(['zip', '--junk-paths', zip_file, ovf_file, mf_file])
 
-        uncompressed_size = os.stat(ovf_file).st_size + os.stat(vmdk_file).st_size + os.stat(mf_file).st_size
+        uncompressed_size = (
+            os.stat(ovf_file).st_size + os.stat(vmdk_file).st_size +
+            os.stat(mf_file).st_size
+        )
         with open(zip_file + '.size', 'w') as size_file:
             size_file.write(str(uncompressed_size))
 
@@ -337,8 +367,11 @@ def main():
     eib.setup_logging()
 
     parser = argparse.ArgumentParser(
-    description='Import an EOS disk image into OVF format as a VM'
-                'with appropriate system configuration.')
+        description=(
+            'Import an EOS disk image into OVF format as a VM'
+            'with appropriate system configuration.'
+        ),
+    )
     parser.add_argument('-c', '--cpus', type=int, required=False,
                         help='number of virtual CPUs (default 1)')
     parser.add_argument('-m', '--memory', type=int, required=False,
@@ -347,14 +380,15 @@ def main():
                         help='extra virtual disk storage (in addition to the '
                              'image size, default 10GB)')
     parser.add_argument('image_file', metavar='IMAGE-FILE', type=str,
-                        help='image file to import (.img.xz, .img.gz, .img) ' )
+                        help='image file to import (.img.xz, .img.gz, .img)')
     parser.add_argument('output_file', metavar='OUTPUT-FILE', type=str,
-                        help='output file' )
-    args=parser.parse_args()
+                        help='output file')
+    args = parser.parse_args()
 
     ovfgen = OVFGenerator(args.image_file, args.extra_storage, args.memory,
                           args.cpus)
     ovfgen.generate_zip_archive(args.output_file)
+
 
 if __name__ == '__main__':
     main()

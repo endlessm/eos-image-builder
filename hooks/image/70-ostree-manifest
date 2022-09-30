@@ -4,11 +4,13 @@
 
 from datetime import datetime, timezone
 from gi import require_version
-require_version('OSTree', '1.0')
-from gi.repository import Gio, OSTree
 import json
 import os
 import sys
+
+require_version('OSTree', '1.0')
+from gi.repository import Gio, OSTree  # noqa: E402
+
 
 def commit_date_string(repo, checksum):
     """Get a formatted timestamp of the commit at checksum"""
@@ -20,9 +22,12 @@ def commit_date_string(repo, checksum):
     time = datetime.fromtimestamp(timestamp, timezone.utc)
     return time.strftime('%Y-%m-%dT%H:%M:%S%z')
 
+
 def ostree_get_version():
-    release_path = os.path.join(os.environ['OSTREE_DEPLOYMENT'],
-        'etc/os-release')
+    release_path = os.path.join(
+        os.environ['OSTREE_DEPLOYMENT'],
+        'etc/os-release'
+    )
     with open(release_path) as release_file:
         for release_item in release_file:
             release_item = release_item.strip()
@@ -34,10 +39,12 @@ def ostree_get_version():
 
                 return value
 
+
 def get_remote_collection_id(repo, remote):
     """Get the collection ID for the OS remote"""
     _, collection_id = repo.get_remote_option(remote, 'collection-id')
     return collection_id
+
 
 repo_path = os.path.join(os.environ['EIB_OSTREE_CHECKOUT'],
                          'ostree/repo')
@@ -60,7 +67,7 @@ data = {
 }
 
 # Get the commit and date
-_, commit = repo.resolve_rev('%s:%s' %(remote, ref), allow_noent=False)
+_, commit = repo.resolve_rev('%s:%s' % (remote, ref), allow_noent=False)
 date = commit_date_string(repo, commit)
 data['ostree']['commit'] = commit
 data['ostree']['date'] = date

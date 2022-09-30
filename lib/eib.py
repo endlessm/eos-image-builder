@@ -200,7 +200,7 @@ class ImageConfigParser(configparser.ConfigParser):
         """Convenience method to store boolean's in shell style
         true/false
         """
-        assert(isinstance(value, bool))
+        assert isinstance(value, bool)
         if value:
             value = 'true'
         else:
@@ -327,7 +327,7 @@ def add_cli_options(argparser):
     """Add command line options for eos-image-builder. This allows the
     settings to be shared between eos-image-builder and run-build.
     """
-    assert(isinstance(argparser, ArgumentParser))
+    assert isinstance(argparser, ArgumentParser)
 
     def add_argument(*args, **kwargs):
         kwargs['help'] += ' (default: {})'.format(kwargs['default'])
@@ -371,10 +371,15 @@ def add_cli_options(argparser):
                            help="don't publish images")
     argparser.add_argument('--debug', action='store_true',
                            help="enable slightly more verbose logging")
-    argparser.add_argument('--use-production', action='store_true',
-                           help="use production ostree/flatpak repos rather than staging (deprecated)")
-    argparser.add_argument('--use-production-ostree', action='store_true',
-                           help="use production ostree repos rather than staging")
+    argparser.add_argument(
+        '--use-production', action='store_true',
+        help="use production ostree/flatpak repos rather than staging "
+             "(deprecated)"
+    )
+    argparser.add_argument(
+        '--use-production-ostree', action='store_true',
+        help="use production ostree repos rather than staging"
+    )
 
     add_argument('--lock-timeout', type=int, default=LOCKTIMEOUT,
                  help='time in seconds to acquire lock before '
@@ -461,7 +466,7 @@ def retry(func, *args, max_retries=3, timeout=1, **kwargs):
     while True:
         try:
             return func(*args, **kwargs)
-        except:
+        except:  # noqa: E722
             retry += 1
             if retry > max_retries:
                 logger.error('Failed %d retries; giving up', max_retries)
@@ -545,7 +550,7 @@ def signal_root_processes(root, sig):
             # thread), it may not exist
             try:
                 pid_exe = os.readlink(os.path.join('/proc', pid, 'exe'))
-            except:
+            except:  # noqa: E722
                 pid_exe = ''
 
             # Kill it
