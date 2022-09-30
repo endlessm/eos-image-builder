@@ -1,0 +1,9 @@
+[Application]
+name=com.example.App2
+runtime=com.example.Platform/x86_64/2
+sdk=com.example.Sdk/x86_64/2
+
+[Extension com.example.App2.Locale]
+directory=share/runtime/locale
+autodelete=true
+locale-subset=true
