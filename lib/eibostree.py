@@ -22,7 +22,7 @@ import eib
 import logging
 from gi import require_version
 require_version('OSTree', '1.0')
-from gi.repository import GLib, OSTree
+from gi.repository import GLib, OSTree  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

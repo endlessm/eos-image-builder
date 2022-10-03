@@ -7,6 +7,7 @@ import json
 import os
 import sys
 
+
 def dict_merge(target, source):
     """Deep merge of dictionaries
 
@@ -39,6 +40,7 @@ def dict_merge(target, source):
             target[key] = value
 
     return target
+
 
 manifest_dir = os.environ['EIB_MANIFESTDIR']
 merged_data = {}

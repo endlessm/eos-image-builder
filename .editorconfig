@@ -1,0 +1,18 @@
+# https://EditorConfig.org
+
+root = true
+
+# Unix-style newlines with a newline ending every file.
+[*]
+end_of_line = lf
+insert_final_newline = true
+
+# Bash - Most helpers and hooks are bash, so wildcard those first and
+# override where needed below.
+[{*.sh,buildscript,stages/*,helpers/*,hooks/*/*}]
+indent_style = space
+indent_size = 2
+
+# Python
+[{*.py,eos-image-builder,run-build,helpers/{assemble-manifest,fetch-remote-collection-id,generate-ovf-files,kill-chroot-procs,kolibri-pick-content-from-channel,mutable-path,packages-manifest},hooks/{content/50-flatpak,image/{50-flatpak.chroot,62-kolibri-options,70-flatpak-manifest,70-ostree-manifest}}}]
+max_line_length = 88

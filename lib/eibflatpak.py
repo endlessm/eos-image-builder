@@ -22,20 +22,19 @@ import base64
 import codecs
 from collections import namedtuple, OrderedDict
 from configparser import ConfigParser
-from contextlib import contextmanager
 import eib
 from eibostree import fetch_remote_collection_id
 import fnmatch
 from gi import require_version
-require_version('Flatpak', '1.0')
-require_version('OSTree', '1.0')
-from gi.repository import Flatpak, GLib, OSTree
 import logging
 import os
 import sys
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
+require_version('Flatpak', '1.0')
+require_version('OSTree', '1.0')
+from gi.repository import Flatpak, GLib, OSTree  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +92,11 @@ class FlatpakFullRef(namedtuple('FlatpakFullRef', (
         """
         if self.kind == Flatpak.RefKind.APP:
             section = 'Application'
-        elif self.has_extra_data and \
-             not self.metadata.getboolean('Extra Data', 'NoRuntime',
-                                          fallback=False):
+        elif (
+            self.has_extra_data and
+            not self.metadata.getboolean('Extra Data', 'NoRuntime',
+                                         fallback=False)
+        ):
             section = 'ExtensionOf'
         else:
             return None
@@ -403,7 +404,7 @@ class FlatpakRemote(object):
             metadata = ConfigParser(strict=False)
             try:
                 metadata.read_string(metadata_str)
-            except:
+            except:  # noqa: E722
                 print('Could not read {} {} metadata:\n{}'
                       .format(self.name, ref, metadata_str),
                       file=sys.stderr)
@@ -425,7 +426,10 @@ class FlatpakRemote(object):
                                             related=related)
 
     def check_excluded(self, name):
-        logger.debug('Checking ID %s in %s against exclude list', name, self.name)
+        logger.debug(
+            'Checking ID %s in %s against exclude list',
+            name, self.name
+        )
         if name in self.exclude:
             logger.debug('ID %s matched excludes: %s', name, self.exclude)
             return True
@@ -863,13 +867,14 @@ class FlatpakManager(object):
                 full_ref.remote_ref.get_eol_rebase(),
             )
 
-        # TODO: optionally make plain EOL fatal? make this optionally non-fatal?
+        # TODO: optionally make plain EOL fatal? make this optionally
+        # non-fatal?
         if eol_rebase_refs:
             raise FlatpakError(
-                "Refusing to build image containing Flatpaks marked as eol-rebase:",
+                "Refusing to build image containing Flatpaks marked as "
+                "eol-rebase:",
                 ", ".join(full_ref.ref for full_ref in eol_rebase_refs),
             )
-
 
     @staticmethod
     def _subpaths_to_subdirs(subpaths):
@@ -949,7 +954,7 @@ class FlatpakManager(object):
                 eib.retry(self._do_pull, repo, remote, options_var, timeout=30)
 
             repo.commit_transaction()
-        except:
+        except:  # noqa: E722
             logger.error('Pull failed, aborting transaction')
             repo.abort_transaction()
             raise
@@ -984,8 +989,10 @@ class FlatpakManager(object):
                         full_ref.remote.name)
             self._log_installation_free_space()
             eib.retry(self.installation.install_full,
-                      flags=Flatpak.InstallFlags.NO_STATIC_DELTAS |
-                            Flatpak.InstallFlags.NO_TRIGGERS,
+                      flags=(
+                          Flatpak.InstallFlags.NO_STATIC_DELTAS |
+                          Flatpak.InstallFlags.NO_TRIGGERS
+                      ),
                       remote_name=full_ref.remote.name,
                       kind=full_ref.kind,
                       name=full_ref.name,

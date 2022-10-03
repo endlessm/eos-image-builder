@@ -5,13 +5,14 @@
 
 from datetime import datetime, timezone
 from gi import require_version
-require_version('Flatpak', '1.0')
-require_version('OSTree', '1.0')
-from gi.repository import Flatpak, GLib, Gio, OSTree
 import json
 import os
-import shutil
 import sys
+
+require_version('Flatpak', '1.0')
+require_version('OSTree', '1.0')
+from gi.repository import Flatpak, GLib, Gio, OSTree  # noqa: E402
+
 
 def commit_date_string(repo, checksum):
     """Get a formatted timestamp of the commit at checksum"""
@@ -23,6 +24,7 @@ def commit_date_string(repo, checksum):
     time = datetime.fromtimestamp(timestamp, timezone.utc)
     return time.strftime('%Y-%m-%dT%H:%M:%S%z')
 
+
 def write_manifest(data):
     """Write out the json to a fragment"""
     manifestdir = os.environ['EIB_MANIFESTDIR']
@@ -30,6 +32,7 @@ def write_manifest(data):
     print('Writing flatpak manifest info to', manifest_path)
     with open(manifest_path, 'w') as manifest:
         json.dump(data, manifest)
+
 
 # Build the json data structure
 data = {

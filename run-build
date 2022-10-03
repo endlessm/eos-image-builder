@@ -27,7 +27,6 @@ import glob
 import itertools
 import logging
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -35,7 +34,7 @@ from textwrap import dedent
 
 SRCDIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.join(SRCDIR, 'lib'))
-import eib
+import eib  # noqa: E402
 
 log = logging.getLogger(os.path.basename(__file__))
 
@@ -58,8 +57,8 @@ class ImageBuildRoot(object):
         packages = config['buildroot']['packages'].split()
         base = config['buildroot']['base']
         config_mounts = config['buildroot']['mounts'].split()
-        aptcache_dir = config['buildroot']['aptcache_dir']
-        aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
+        # aptcache_dir = config['buildroot']['aptcache_dir']
+        # aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
 
         # Build a list of required mounts using configuration values
         required_mounts = [
@@ -218,6 +217,7 @@ class ImageBuildRoot(object):
         log.info('Removing buildroot %s', self.builddir)
         shutil.rmtree(self.builddir)
 
+
 class ImageBuilder(object):
     # Attributes to be exported to environment
     CONFIG_ATTRS = [
@@ -298,7 +298,9 @@ class ImageBuilder(object):
                 raise eib.ImageBuildError('Machine', machine, 'not supported')
 
         if self.arch not in eib.SUPPORTED_ARCHES:
-            raise eib.ImageBuildError('Architecture', self.arch, 'not supported')
+            raise eib.ImageBuildError(
+                'Architecture', self.arch, 'not supported'
+            )
 
         if platform:
             self.platform = platform
@@ -325,7 +327,9 @@ class ImageBuilder(object):
         self.srcdir = SRCDIR
         self.cachedir = eib.CACHEDIR
         self.sysconfdir = eib.SYSCONFDIR
-        self.build_version = datetime.datetime.utcnow().strftime('%y%m%d-%H%M%S')
+        self.build_version = (
+            datetime.datetime.utcnow().strftime('%y%m%d-%H%M%S')
+        )
 
     def _get_config_paths(self, dir_path, dir_ns):
         config_files = []
@@ -580,8 +584,11 @@ class ImageBuilder(object):
         log.info('Built assets available in %s',
                  self.get_build_option('outdir'))
 
+
 def main():
-    aparser = ArgumentParser(description='Build and publish images for Endless')
+    aparser = ArgumentParser(
+        description='Build and publish images for Endless',
+    )
     eib.add_cli_options(aparser)
     args = aparser.parse_args()
 
@@ -606,6 +613,7 @@ def main():
                            dry_run=args.dry_run,
                            use_production_ostree=args.use_production_ostree)
     builder.run()
+
 
 if __name__ == '__main__':
     main()

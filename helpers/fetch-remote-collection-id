@@ -7,9 +7,7 @@ import eib
 from eibostree import fetch_remote_collection_id
 import gi
 gi.require_version('OSTree', '1.0')
-from gi.repository import Gio, OSTree
-import os
-import sys
+from gi.repository import Gio, OSTree  # noqa: E402
 
 aparser = ArgumentParser(description='Fetch OSTree remote collection ID')
 aparser.add_argument('repo', help='path to OSTree repo')
