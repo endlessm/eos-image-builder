@@ -802,7 +802,7 @@ class FlatpakManager(object):
                 checked_refs.add(full_ref.ref)
 
         for full_ref in eol_refs:
-            logger.warn(
+            logger.warning(
                 "%s in %s is marked as EOL: %s",
                 full_ref.ref,
                 full_ref.remote.name,
