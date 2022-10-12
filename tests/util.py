@@ -2,7 +2,12 @@
 
 import importlib.machinery
 import importlib.util
+import logging
 import os
+import shlex
+import subprocess
+
+logger = logging.getLogger(__name__)
 
 # Common directories
 TESTSDIR = os.path.dirname(__file__)
@@ -26,3 +31,17 @@ def import_script(name, script):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+# shlex.join added in python 3.8.
+if hasattr(shlex, 'join'):
+    _join_cmd = shlex.join
+else:
+    def _join_cmd(cmd):
+        return ' '.join([shlex.quote(arg) for arg in cmd])
+
+
+def run_command(cmd, check=True, **kwargs):
+    """subprocess.run wrapper with logging"""
+    logger.debug('$ %s', _join_cmd(cmd))
+    return subprocess.run(cmd, check=check, **kwargs)
