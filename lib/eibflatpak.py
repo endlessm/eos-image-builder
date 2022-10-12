@@ -572,19 +572,6 @@ class FlatpakManager(object):
         for remote in self.remotes.values():
             remote.deploy()
 
-    def _set_all_languages(self):
-        """Set the core.xa.languages repo option to *
-
-        Configure flatpak to fetch all languages via the core.xa.languages
-        repo config option.
-        """
-        repo = self.get_repo()
-        repo_config = repo.copy_config()
-        logger.info('Setting repo option core.xa.languages to *')
-        repo_config.set_value('core', 'xa.languages', '*')
-        repo.write_config(repo_config)
-        self.installation.drop_caches()
-
     def _remove_languages(self):
         """Remove the core.xa.languages repo option"""
         repo = self.get_repo()
@@ -627,13 +614,8 @@ class FlatpakManager(object):
         # Set languages since subpaths get calculated when calling
         # installation.list_remote_related_refs_sync().
         try:
-            if self.is_cache_repo:
-                # For the cache repo, fetch all languages in case another
-                # build could use them
-                self._set_all_languages()
-            else:
-                # Configure the extra languages for installation
-                self._set_extra_languages()
+            # Configure the extra languages for pull or install.
+            self._set_extra_languages()
             for remote in self.remotes.values():
                 remote.enumerate()
         finally:
