@@ -285,7 +285,6 @@ def test_pull(local_flatpak_installation, flatpak_config,
     )
     manager.add_remotes()
     manager.enumerate_remotes()
-    manager.resolve_refs()
     manager.pull()
 
     installed_refs = {
@@ -332,7 +331,6 @@ def test_install(local_flatpak_installation, flatpak_config,
     )
     manager.add_remotes()
     manager.enumerate_remotes()
-    manager.resolve_refs()
     manager.install()
 
     installed_refs = {
@@ -382,32 +380,191 @@ def test_install(local_flatpak_installation, flatpak_config,
         assert subpaths == ['/en', '/es']
 
 
-def test_pull_commit_only(local_flatpak_installation, flatpak_config,
-                          full_remote_flatpak_server):
-    """Pull with commit_only"""
+def test_resolve(local_flatpak_installation, flatpak_config,
+                 full_remote_flatpak_server):
     manager = eibflatpak.FlatpakManager(
         local_flatpak_installation,
         config=flatpak_config,
     )
     manager.add_remotes()
     manager.enumerate_remotes()
-    manager.resolve_refs()
-    manager.pull(commit_only=True)
+    resolved_full_refs = manager.resolve()
 
-    pull_repo = full_remote_flatpak_server['repo']
-    _, pull_repo_refs = pull_repo.list_refs(None)
+    resolved_refs = {fr.ref for fr in resolved_full_refs}
+    assert resolved_refs == {
+        'app/com.example.App1/x86_64/master',
+        'runtime/com.example.App1.Locale/x86_64/master',
+        'app/com.example.App2/x86_64/master',
+        'runtime/com.example.App2.Locale/x86_64/master',
+        'runtime/com.example.Platform/x86_64/1',
+        'runtime/com.example.Platform.Locale/x86_64/1',
+        'runtime/com.example.Platform/x86_64/2',
+        'runtime/com.example.Platform.Locale/x86_64/2',
+    }
+
+
+def test_seed(local_flatpak_installation, flatpak_config, full_remote_flatpak_server,
+              tmp_path):
+    """Seed from cache repo"""
+    cache_repo_path = tmp_path / 'cache-repo'
+    cache_repo = OSTree.Repo.new(Gio.File.new_for_path(str(cache_repo_path)))
+    cache_repo.create(OSTree.RepoMode.ARCHIVE)
+
+    remote_repo_uri = full_remote_flatpak_server['path'].as_uri()
+    app_ref = 'app/com.example.App1/x86_64/master'
+    locale_ref = 'runtime/com.example.App1.Locale/x86_64/master'
+    run_command((
+        'ostree',
+        f'--repo={cache_repo_path}',
+        'remote',
+        'add',
+        '--no-gpg-verify',
+        'origin',
+        remote_repo_uri,
+    ))
+    run_command((
+        'ostree',
+        f'--repo={cache_repo_path}',
+        'pull',
+        'origin',
+        app_ref,
+    ))
+    run_command((
+        'ostree',
+        f'--repo={cache_repo_path}',
+        'pull',
+        '--subpath=/metadata',
+        '--subpath=/files/en',
+        'origin',
+        locale_ref,
+    ))
+
+    _, cache_repo_refs = cache_repo.list_refs(None)
+    logger.debug('Cache repo refs: %s', cache_repo_refs)
+
+    manager = eibflatpak.FlatpakManager(
+        local_flatpak_installation,
+        config=flatpak_config,
+    )
+    manager.add_remotes()
+    manager.enumerate_remotes()
+    manager.seed(str(cache_repo_path), cache_repo_refs)
 
     inst_repo = get_installation_repo(local_flatpak_installation)
     _, inst_repo_refs = inst_repo.list_refs(None)
+    inst_repo_commits = {
+        OSTree.object_name_deserialize(commit_variant)[0]
+        for commit_variant in
+        inst_repo.list_commit_objects_starting_with('')[1].keys()
+    }
 
-    # There should be no refs, but all of the flatpak commits should be
-    # present.
+    # There should be no refs and only the full app commit should be
+    # seeded.
     assert inst_repo_refs == {}
-    for ref, rev in pull_repo_refs.items():
-        if ref == OSTree.REPO_METADATA_REF:
-            continue
-        logger.debug('Checking for %s commit %s', ref, rev)
-        inst_repo.resolve_rev(rev, allow_noent=False)
+    app_rev = cache_repo_refs[f'origin:{app_ref}']
+    assert inst_repo_commits == {app_rev}
+
+
+def test_install_seed(local_flatpak_installation, flatpak_config,
+                      full_remote_flatpak_server, tmp_path):
+    """Install with seeding from cache repo"""
+    cache_repo_path = tmp_path / 'cache-repo'
+    cache_repo_uri = cache_repo_path.as_uri()
+    cache_repo = OSTree.Repo.new(Gio.File.new_for_path(str(cache_repo_path)))
+    cache_repo.create(OSTree.RepoMode.ARCHIVE)
+
+    remote_repo = full_remote_flatpak_server['repo']
+    remote_repo_path = full_remote_flatpak_server['path']
+    remote_repo_uri = remote_repo_path.as_uri()
+    app_ref = 'app/com.example.App1/x86_64/master'
+    locale_ref = 'runtime/com.example.App2.Locale/x86_64/master'
+    run_command((
+        'ostree',
+        f'--repo={cache_repo_path}',
+        'remote',
+        'add',
+        '--no-gpg-verify',
+        'origin',
+        remote_repo_uri,
+    ))
+    run_command((
+        'ostree',
+        f'--repo={cache_repo_path}',
+        'pull',
+        'origin',
+        app_ref,
+    ))
+    run_command((
+        'ostree',
+        f'--repo={cache_repo_path}',
+        'pull',
+        '--subpath=/metadata',
+        '--subpath=/files/en',
+        'origin',
+        locale_ref,
+    ))
+
+    _, cache_repo_refs = cache_repo.list_refs(None)
+    logger.debug('Cache repo refs: %s', cache_repo_refs)
+
+    # Now prune the commits from the remote repo and pull back only the
+    # commit so that the cache repo is required.
+    remote_repo.set_ref_immediate(None, app_ref, None)
+    remote_repo.set_ref_immediate(None, locale_ref, None)
+    remote_repo.prune(OSTree.RepoPruneFlags.REFS_ONLY, 0)
+    app_rev = cache_repo_refs[f'origin:{app_ref}']
+    locale_rev = cache_repo_refs[f'origin:{locale_ref}']
+    run_command((
+        'ostree',
+        f'--repo={remote_repo_path}',
+        'remote',
+        'add',
+        '--no-gpg-verify',
+        'cache',
+        cache_repo_uri,
+    ))
+    run_command((
+        'ostree',
+        f'--repo={remote_repo_path}',
+        'pull',
+        '--commit-metadata-only',
+        'cache',
+        app_rev,
+    ))
+    run_command((
+        'ostree',
+        f'--repo={remote_repo_path}',
+        'pull',
+        '--commit-metadata-only',
+        'cache',
+        locale_rev,
+    ))
+    remote_repo.set_ref_immediate(None, app_ref, app_rev)
+    remote_repo.set_ref_immediate(None, locale_ref, locale_rev)
+
+    # Installing App1 should succeed as the cache repo has all the
+    # objects.
+    flatpak_config['flatpak-remote-example']['apps'] = 'com.example.App1'
+    manager = eibflatpak.FlatpakManager(
+        local_flatpak_installation,
+        config=flatpak_config,
+    )
+    manager.add_remotes()
+    manager.enumerate_remotes()
+    manager.install(str(cache_repo_path))
+
+    # Installing App2 should fail as the partial locale commit will not
+    # be seeded from the cache repo.
+    flatpak_config['flatpak-remote-example']['apps'] = 'com.example.App2'
+    manager = eibflatpak.FlatpakManager(
+        local_flatpak_installation,
+        config=flatpak_config,
+    )
+    manager.add_remotes()
+    manager.enumerate_remotes()
+    with pytest.raises(GLib.GError) as excinfo:
+        manager.install(str(cache_repo_path))
+    assert excinfo.value.matches(Flatpak.Error.quark(), Flatpak.Error.ABORTED)
 
 
 def test_deploy_remote(local_flatpak_installation, flatpak_config,
@@ -461,8 +618,25 @@ def test_exclude(local_flatpak_installation, flatpak_config,
     )
     manager.add_remotes()
     manager.enumerate_remotes()
-    with pytest.raises(eibflatpak.FlatpakError, match="Can't install runtime"):
-        manager.resolve_refs()
+    with pytest.raises(
+        eibflatpak.FlatpakError,
+        match='^Excluded refs.*runtime/com.example.Platform/x86_64/1',
+    ):
+        manager.resolve()
+
+    # An excluded related ref (extension) should not cause an error.
+    flatpak_config['flatpak-remote-example']['exclude'] = (
+        'com.example.App1.Locale'
+    )
+    manager = eibflatpak.FlatpakManager(
+        local_flatpak_installation,
+        config=flatpak_config,
+    )
+    manager.add_remotes()
+    manager.enumerate_remotes()
+    resolved_full_refs = manager.resolve()
+    resolved_refs = [fr.ref for fr in resolved_full_refs]
+    assert 'runtime/com.example.App1.Locale/x86_64/master' not in resolved_refs
 
 
 def test_extra_data(local_flatpak_installation, flatpak_config,
@@ -477,8 +651,11 @@ def test_extra_data(local_flatpak_installation, flatpak_config,
     )
     manager.add_remotes()
     manager.enumerate_remotes()
-    with pytest.raises(eibflatpak.FlatpakError, match='extra data'):
-        manager.resolve_refs()
+    with pytest.raises(
+        eibflatpak.FlatpakError,
+        match='^Extra data.*app/com.example.AppExtraData/x86_64/master',
+    ):
+        manager.resolve()
 
     flatpak_config['flatpak-remote-example'].update({
         'allow_extra_data': 'com.example.AppExtraData',
@@ -489,8 +666,9 @@ def test_extra_data(local_flatpak_installation, flatpak_config,
     )
     manager.add_remotes()
     manager.enumerate_remotes()
-    manager.resolve_refs()
-    assert 'app/com.example.AppExtraData/x86_64/master' in manager.install_refs
+    resolved_full_refs = manager.resolve()
+    resolved_refs = [fr.ref for fr in resolved_full_refs]
+    assert 'app/com.example.AppExtraData/x86_64/master' in resolved_refs
 
 
 def test_eol(local_flatpak_installation, flatpak_config, full_remote_flatpak_server,
@@ -517,13 +695,15 @@ def test_eol(local_flatpak_installation, flatpak_config, full_remote_flatpak_ser
     )
     manager.add_remotes()
     manager.enumerate_remotes()
-    manager.resolve_refs()
+    resolved_full_refs = manager.resolve()
+    resolved_refs = [fr.ref for fr in resolved_full_refs]
     expected_record = (
         eibflatpak.logger.name,
         logging.WARNING,
         'app/com.example.App1/x86_64/master in example is marked as EOL: Dead'
     )
     assert expected_record in caplog.record_tuples
+    assert ref in resolved_refs
 
     # Add EOL rebase
     run_command((
@@ -544,5 +724,8 @@ def test_eol(local_flatpak_installation, flatpak_config, full_remote_flatpak_ser
     )
     manager.add_remotes()
     manager.enumerate_remotes()
-    with pytest.raises(eibflatpak.FlatpakError, match='marked as eol-rebase'):
-        manager.resolve_refs()
+    with pytest.raises(
+        eibflatpak.FlatpakError,
+        match='^Refs marked eol-rebase.*',
+    ):
+        manager.resolve()

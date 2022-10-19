@@ -45,15 +45,9 @@ installation = Flatpak.Installation.new_for_path(installation_file,
 manager = eibflatpak.FlatpakManager(installation, config=config)
 manager.add_remotes()
 manager.enumerate_remotes()
-manager.resolve_refs()
 
-# Pull the install refs using the content repo as a cache without making
-# refs in case the resolved refs aren't the same as the installation
-# uses
-manager.pull(commit_only=True, cache_repo_path=content_repo)
-
-# Install everything
-manager.install()
+# Install everything using the content repo as a cache.
+manager.install(cache_repo_path=content_repo)
 
 # Finalize the remote URLs now that everything has been installed
 manager.deploy_remotes()
