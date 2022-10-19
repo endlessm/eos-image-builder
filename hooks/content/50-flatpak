@@ -58,7 +58,6 @@ manager = eibflatpak.FlatpakManager(installation, config=config,
                                     is_cache_repo=True)
 manager.add_remotes()
 manager.enumerate_remotes()
-manager.resolve_refs()
 manager.pull()
 
 # Prune all but the latest referenced commits. Note that doing the

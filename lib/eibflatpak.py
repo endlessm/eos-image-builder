@@ -22,6 +22,7 @@ import base64
 import codecs
 from collections import namedtuple, OrderedDict
 from configparser import ConfigParser
+from contextlib import contextmanager
 import eib
 from eibostree import fetch_remote_collection_id
 import fnmatch
@@ -34,7 +35,7 @@ from urllib.request import urlopen
 
 require_version('Flatpak', '1.0')
 require_version('OSTree', '1.0')
-from gi.repository import Flatpak, GLib, OSTree  # noqa: E402
+from gi.repository import Flatpak, GLib, Gio, OSTree  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -112,20 +113,6 @@ class FlatpakFullRef(namedtuple('FlatpakFullRef', (
     @property
     def has_extra_data(self):
         return 'Extra Data' in self.metadata
-
-
-class FlatpakInstallRef(object):
-    """Flatpak ref for installation
-
-    A wrapper around FlatpakFullRef containing a mutable subpaths
-    attribute. This is needed because the subpaths get accessed from the
-    dependent flatpak's RelatedRefs.
-    """
-    def __init__(self, full_ref):
-        self.full_ref = full_ref
-
-        # Provided later when resolving install set
-        self.subpaths = None
 
 
 class FlatpakRemote(object):
@@ -641,54 +628,73 @@ class FlatpakManager(object):
         repo.write_config(repo_config)
         self.installation.drop_caches()
 
-    def enumerate_remotes(self):
-        """Enumerate all configured remotes"""
-        # Set languages since subpaths get calculated when calling
-        # installation.list_remote_related_refs_sync().
+    def _set_masked(self):
+        """Set the core.xa.masked repo option from excluded flatpaks
+
+        This is used to filter out excluded flatpaks that would
+        automatically be added as related refs.
+
+        Unfortunately, this is a global option whereas the excluded
+        flatpaks are specified in the configuration per remote. It may
+        be better to use Flatpak.Remote.set_filter(), but the semantics
+        might not be the same.
+        """
+        excluded = set()
+        for remote in self.remotes.values():
+            excluded |= remote.exclude
+        if len(excluded) == 0:
+            return
+
+        repo = self.get_repo()
+        repo_config = repo.copy_config()
+        value = ';'.join(excluded)
+        logger.info('Setting repo option core.xa.masked to %s', value)
+        repo_config.set_value('core', 'xa.masked', value)
+        repo.write_config(repo_config)
+        self.installation.drop_caches()
+
+    def _remove_masked(self):
+        """Remove the core.xa.masked repo option"""
+        repo = self.get_repo()
+        repo_config = repo.copy_config()
+        logger.info('Removing repo option core.xa.masked')
+        try:
+            repo_config.remove_key('core', 'xa.masked')
+        except GLib.Error as err:
+            # Ignore errors for missing group or key
+            if err.matches(GLib.KeyFile.error_quark(),
+                           GLib.KeyFileError.GROUP_NOT_FOUND):
+                pass
+            elif err.matches(GLib.KeyFile.error_quark(),
+                             GLib.KeyFileError.KEY_NOT_FOUND):
+                pass
+            else:
+                raise
+        repo.write_config(repo_config)
+        self.installation.drop_caches()
+
+    @contextmanager
+    def tmp_xa_config(self):
+        """Temporary xa namespaced repo configuration"""
         try:
             # Configure the extra languages for pull or install.
             self._set_extra_languages()
-            for remote in self.remotes.values():
-                remote.enumerate()
+            self._set_masked()
+            yield
         finally:
             if self.is_cache_repo or not self.set_extra_languages:
                 # Don't leave the languages hanging around for the next build
                 # or set in the image, respectively
                 self._remove_languages()
+            self._remove_masked()
 
-    def _match_runtime(self, full_ref):
-        """Find a FlatpakFullRef's runtime
-
-        Look for the ref's runtime in any remote, preferring the ref's
-        own remote.
-        """
-        match = full_ref.remote.refs.get(full_ref.runtime)
-        if not match:
-            for name, remote in self.remotes.items():
-                if name == full_ref.remote.name:
-                    continue
-                match = remote.refs.get(full_ref.runtime)
-                if match:
-                    break
-
-        return match
-
-    def _match_related(self, full_ref, related_ref):
-        """Find a FlatpakFullRef's related ref
-
-        Look for the related ref in any remote, preferring the ref's own
-        remote.
-        """
-        match = full_ref.remote.refs.get(related_ref)
-        if not match:
-            for name, remote in self.remotes.items():
-                if name == full_ref.remote.name:
-                    continue
-                match = remote.refs.get(related_ref)
-                if match:
-                    break
-
-        return match
+    def enumerate_remotes(self):
+        """Enumerate all configured remotes"""
+        # Set languages since subpaths get calculated when calling
+        # installation.list_remote_related_refs_sync().
+        with self.tmp_xa_config():
+            for remote in self.remotes.values():
+                remote.enumerate()
 
     def _log_installation_free_space(self):
         """Write a log entry with the available installation space
@@ -704,173 +710,195 @@ class FlatpakManager(object):
                     self.installation_path, GLib.format_size(free),
                     GLib.format_size(total), percent)
 
-    def _check_excluded(self, full_ref):
-        """Verifies that full_ref may be included in images, raising an
-        exception if not."""
-        remote = full_ref.remote
-
-        if remote.check_excluded(full_ref.name):
-            raise FlatpakError(full_ref.ref, "in", remote.name,
-                               "is on excluded list")
-
-        if full_ref.has_extra_data and \
-           not remote.check_allow_extra_data(full_ref.name):
-            raise FlatpakError(full_ref.ref, "in", remote.name,
-                               "contains potentially non-redistributable",
-                               "extra data")
-
-    def resolve_refs(self):
-        """Resolve all refs needed for installation
-
-        Add the apps and runtimes required for each remote and resolve
-        all runtime and extension dependencies.
-        """
-        # Dict of FlatpakInstallRefs needed for installation keyed by
-        # the ref string.
-        self.install_refs = {}
-        eol_refs = []
-        eol_rebase_refs = []
-
-        def _check_eol(full_ref):
-            if full_ref.remote_ref.get_eol():
-                eol_refs.append(full_ref)
-
-            if full_ref.remote_ref.get_eol_rebase():
-                eol_rebase_refs.append(full_ref)
-
-        # Get required apps and runtimes
-        for remote in self.remotes.values():
-            wanted_apps = remote.apps
-            wanted_runtimes = remote.runtimes
-
-            for app in wanted_apps:
-                full_ref = remote.match(app, Flatpak.RefKind.APP)
-                if full_ref is None:
-                    raise FlatpakError('Could not find app', app, 'in',
-                                       remote.name)
-                self._check_excluded(full_ref)
-                _check_eol(full_ref)
-                logger.info('Adding app %s from %s', full_ref.ref,
-                            remote.name)
-                self.install_refs[full_ref.ref] = FlatpakInstallRef(
-                    full_ref)
-
-            for runtime in wanted_runtimes:
-                full_ref = remote.match(runtime, Flatpak.RefKind.RUNTIME)
-                if full_ref is None:
-                    raise FlatpakError('Could not find runtime',
-                                       runtime, 'in', remote.name)
-                self._check_excluded(full_ref)
-                _check_eol(full_ref)
-                logger.info('Adding runtime %s from %s', full_ref.ref,
-                            remote.name)
-                self.install_refs[full_ref.ref] = FlatpakInstallRef(
-                    full_ref)
-
-        # Add runtime and related dependencies. Keep checking until
-        # all required refs and dependencies have been resolved.
-        checked_refs = set()
-        while len(checked_refs) < len(self.install_refs):
-            for install_ref in list(self.install_refs.values()):
-                full_ref = install_ref.full_ref
-                if full_ref.ref in checked_refs:
-                    continue
-
-                if full_ref.runtime and \
-                   full_ref.runtime not in self.install_refs:
-                    runtime = self._match_runtime(full_ref)
-                    if not runtime:
-                        raise FlatpakError('Could not find runtime',
-                                           full_ref.runtime, 'for ref',
-                                           full_ref.ref)
-                    try:
-                        self._check_excluded(runtime)
-                    except FlatpakError as e:
-                        raise FlatpakError("Can't install runtime for ref",
-                                           full_ref.ref, "-", e.msg)
-                    _check_eol(runtime)
-                    logger.info('Adding %s runtime %s from %s',
-                                full_ref.ref, runtime.ref,
-                                runtime.remote.name)
-                    self.install_refs[runtime.ref] = FlatpakInstallRef(
-                        runtime)
-
-                for related in full_ref.related:
-                    if not related.should_download():
-                        logger.debug('Skipping %s related ref %s',
-                                     full_ref.name, related.get_name())
-                        continue
-
-                    related_ref = related.format_ref()
-                    install_match = self.install_refs.get(related_ref)
-                    if not install_match:
-                        match = self._match_related(full_ref,
-                                                    related_ref)
-                        if not match:
-                            logger.info(
-                                'Could not find related ref %s for %s',
-                                related_ref, full_ref.ref)
-                            continue
-                        try:
-                            self._check_excluded(match)
-                        except FlatpakError as e:
-                            logger.info("Excluding %s related ref: %s",
-                                        full_ref.ref, e)
-                            continue
-                        _check_eol(match)
-                        logger.info('Adding %s related ref %s from %s',
-                                    full_ref.ref, related_ref,
-                                    match.remote.name)
-                        install_match = FlatpakInstallRef(match)
-                        self.install_refs[related_ref] = install_match
-
-                    # Make sure subpaths are set
-                    if install_match.subpaths is None:
-                        subpaths = related.get_subpaths()
-                        logger.info('Setting %s subpaths to %s',
-                                    related_ref, ' '.join(subpaths))
-                        install_match.subpaths = subpaths
-
-                checked_refs.add(full_ref.ref)
-
-        for full_ref in eol_refs:
-            logger.warning(
-                "%s in %s is marked as EOL: %s",
-                full_ref.ref,
-                full_ref.remote.name,
-                full_ref.remote_ref.get_eol(),
+    @staticmethod
+    def _log_operations(operations):
+        logger.debug('Resolved flatpak operations:')
+        for op in operations:
+            logger.debug(
+                '%s %s:%s %s',
+                op.get_operation_type().value_nick,
+                op.get_remote(),
+                op.get_ref(),
+                op.get_commit(),
             )
 
-        for full_ref in eol_rebase_refs:
-            logger.error(
-                "%s in %s is marked as EOL, superseded by %s",
-                full_ref.ref,
-                full_ref.remote.name,
-                full_ref.remote_ref.get_eol_rebase(),
+    def _check_excluded_operations(self, operations):
+        """Verify none of the refs in the opertions are excluded"""
+        excluded = []
+        extra_data = []
+        eol = []
+        eol_rebase = []
+
+        for op in operations:
+            ref = op.get_ref()
+            remote = self.remotes[op.get_remote()]
+            full_ref = remote.refs[ref]
+            name = full_ref.name
+
+            if remote.check_excluded(name):
+                logger.error(
+                    '%s in %s is on excluded list',
+                    full_ref.ref,
+                    full_ref.remote.name,
+                )
+                excluded.append(full_ref)
+
+            if (
+                full_ref.has_extra_data
+                and not remote.check_allow_extra_data(name)
+            ):
+                logger.error(
+                    '%s in %s contains potentially non-redistributable extra data',
+                    full_ref.ref,
+                    full_ref.remote.name,
+                )
+                extra_data.append(full_ref)
+
+            if full_ref.remote_ref.get_eol():
+                logger.warning(
+                    '%s in %s is marked as EOL: %s',
+                    full_ref.ref,
+                    full_ref.remote.name,
+                    full_ref.remote_ref.get_eol(),
+                )
+                eol.append(full_ref)
+
+            if full_ref.remote_ref.get_eol_rebase():
+                logger.error(
+                    '%s in %s is marked as EOL, superseded by %s',
+                    full_ref.ref,
+                    full_ref.remote.name,
+                    full_ref.remote_ref.get_eol_rebase(),
+                )
+                eol_rebase.append(full_ref)
+
+        if excluded:
+            raise FlatpakError(
+                'Excluded refs in resolved flatpaks:',
+                ', '.join(full_ref.ref for full_ref in excluded),
+            )
+
+        if extra_data:
+            raise FlatpakError(
+                'Extra data refs in resolved flatpaks:',
+                ', '.join(full_ref.ref for full_ref in extra_data),
             )
 
         # TODO: optionally make plain EOL fatal? make this optionally
         # non-fatal?
-        if eol_rebase_refs:
+        if eol_rebase:
             raise FlatpakError(
-                "Refusing to build image containing Flatpaks marked as "
-                "eol-rebase:",
-                ", ".join(full_ref.ref for full_ref in eol_rebase_refs),
+                'Refs marked eol-rebase in resolved flatpaks:',
+                ', '.join(full_ref.ref for full_ref in eol_rebase),
             )
 
-    @staticmethod
-    def _subpaths_to_subdirs(subpaths):
-        """Convert flatpak subpaths to ostree subdirs"""
-        # Always add /metadata
-        subdirs = ['/metadata']
+    def _add_installs(self, transaction):
+        for remote in self.remotes.values():
+            for app in remote.apps:
+                ref = remote.match(app, Flatpak.RefKind.APP)
+                logger.info('Adding app %s from %s', ref.ref, remote.name)
+                transaction.add_install(remote.name, ref.ref, None)
+            for runtime in remote.runtimes:
+                ref = remote.match(runtime, Flatpak.RefKind.RUNTIME)
+                logger.info('Adding runtime %s from %s', ref.ref, remote.name)
+                transaction.add_install(remote.name, ref.ref, None)
 
-        # Configured subpaths are subdirectories of /files. Subpaths
-        # should begin with a leading /, but be safe
-        for sub in subpaths:
-            path = os.path.normpath('/'.join(('/files', sub)))
-            subdirs.append(path)
+    def _new_transaction(self):
+        txn = Flatpak.Transaction.new_for_installation(self.installation)
+        self._add_installs(txn)
+        return txn
 
-        return subdirs
+    def _on_txn_op_done(self, transaction, operation, commit, result, user_data):
+        op_str = user_data
+        if not op_str:
+            op_str = operation.get_operation_type().value_nick
+        logger.info(
+            'Flatpak %s operation done: %s:%s %s',
+            op_str,
+            operation.get_remote(),
+            operation.get_ref(),
+            operation.get_commit(),
+        )
+        self._log_installation_free_space()
+
+    def _on_pull_txn_ready(self, transaction, user_data):
+        operations = transaction.get_operations()
+        self._log_operations(operations)
+        self._check_excluded_operations(operations)
+        return True
+
+    def pull(self):
+        """Pull all refs to install
+
+        Use a no-deploy transaction to pull the commits for the desired
+        flatpaks. This is intended to be used in a cache repo.
+        """
+        with self.tmp_xa_config():
+            txn = self._new_transaction()
+            txn.set_no_deploy(True)
+            txn.connect('ready', self._on_pull_txn_ready, None)
+            txn.connect('operation-done', self._on_txn_op_done, 'pull')
+            txn.run()
+
+    def _on_inst_txn_ready(self, transaction, cache_repo_path):
+        operations = transaction.get_operations()
+        self._log_operations(operations)
+        self._check_excluded_operations(operations)
+
+        # If a cache repo was specified, seed the commits before
+        # continuing with the install.
+        if cache_repo_path:
+            refs = {
+                op.get_ref(): op.get_commit()
+                for op in operations
+            }
+            self.seed(cache_repo_path, refs)
+
+        return True
+
+    def install(self, cache_repo_path=None):
+        """Install Flatpaks
+
+        Find and order all Flatpak refs needed and install them with the
+        installation.
+        """
+        with self.tmp_xa_config():
+            txn = self._new_transaction()
+            txn.set_disable_static_deltas(True)
+            txn.connect('ready', self._on_inst_txn_ready, cache_repo_path)
+            txn.connect('operation-done', self._on_txn_op_done, 'install')
+            txn.run()
+
+    def _on_resolve_txn_ready(self, transaction):
+        # Return False to abort the transaction. Everything will be
+        # handled after the transaction ends.
+        return False
+
+    def resolve(self):
+        """Resolve all refs needed for installation"""
+        with self.tmp_xa_config():
+            txn = self._new_transaction()
+            txn.connect('ready', self._on_resolve_txn_ready)
+            try:
+                txn.run()
+            except GLib.GError as err:
+                # The transaction is expected to be aborted. Fail on
+                # anything else.
+                if not err.matches(
+                    Flatpak.Error.quark(),
+                    Flatpak.Error.ABORTED,
+                ):
+                    raise
+
+            operations = txn.get_operations()
+            self._log_operations(operations)
+            self._check_excluded_operations(operations)
+
+            full_refs = []
+            for op in operations:
+                remote = self.remotes[op.get_remote()]
+                full_refs.append(remote.refs[op.get_ref()])
+            return full_refs
 
     def _do_pull(self, repo, remote, options):
         progress = OSTree.AsyncProgress.new()
@@ -883,58 +911,57 @@ class FlatpakManager(object):
         finally:
             progress.finish()
 
-    def pull(self, commit_only=False, cache_repo_path=None):
-        """Pull all refs to install
+    def seed(self, cache_repo_path, refs):
+        """Pull commits from a cache repo to the installation repo
 
-        Use OSTree to pull all the needed refs to a repository. If
-        commit_only is True, the commit checksums are pulled without
-        creating repository refs. If cache_repo_path points to an ostree
-        repo, it will be used as a local object cache.
+        This is used during install to get as many commit objects as
+        possible into the installation repo ahead of time. It would be
+        better if you could specify the OSTree pull localcache-repos
+        option, but flatpak doesn't support that.
         """
-        if self.install_refs is None:
-            raise FlatpakError('Must run resolve_refs before pull')
+        cache_repo_file = Gio.File.new_for_path(cache_repo_path)
+        cache_repo = OSTree.Repo.new(cache_repo_file)
+        cache_repo.open()
+        revs_to_pull = []
+        for ref, rev in refs.items():
+            try:
+                _, _, state = cache_repo.load_commit(rev)
+            except GLib.GError as err:
+                if err.matches(Gio.io_error_quark(), Gio.IOErrorEnum.NOT_FOUND):
+                    logger.debug(
+                        'Skipping %s rev %s not in %s',
+                        ref, rev, cache_repo_path
+                    )
+                    continue
+                raise
 
-        # Open the OSTree repo directly
-        repo = self.get_repo()
+            # Pulling partial refs like locales would require working
+            # out the subpaths. That doesn't seem worth the effort.
+            if state != OSTree.RepoCommitState.NORMAL:
+                logger.debug(
+                    'Skipping %s rev %s in %s partial',
+                    ref, rev, cache_repo_path
+                )
+                continue
 
-        # Figure out common pull options
-        localcache_repos = (cache_repo_path,) if cache_repo_path else ()
-        common_pull_options = {
+            logger.debug('Seeding %s rev %s from %s', ref, rev, cache_repo_path)
+            revs_to_pull.append(rev)
+
+        # Figure out pull options
+        logger.info('Seeding from %s: %s', cache_repo_path, revs_to_pull)
+        remote = cache_repo_file.get_uri()
+        options = GLib.Variant('a{sv}', {
+            'refs': GLib.Variant('as', revs_to_pull),
             'depth': GLib.Variant('i', 0),
             'disable-static-deltas': GLib.Variant('b', True),
-            'localcache-repos': GLib.Variant('as', localcache_repos),
             'inherit-transaction': GLib.Variant('b', True),
-        }
+        })
 
+        repo = self.get_repo()
         repo.prepare_transaction()
         try:
-            # Pull refs one at a time
-            for ref, install_ref in sorted(self.install_refs.items()):
-                remote = install_ref.full_ref.remote.name
-
-                # Pull checksum for commit only
-                if commit_only:
-                    ref_to_pull = install_ref.full_ref.commit
-                    logger.info('Pulling %s ref %s (commit %s)', remote,
-                                ref, ref_to_pull)
-                else:
-                    ref_to_pull = install_ref.full_ref.ref
-                    logger.info('Pulling %s ref %s', remote, ref_to_pull)
-
-                options = common_pull_options.copy()
-                options['refs'] = GLib.Variant('as', (ref_to_pull,))
-                if install_ref.subpaths:
-                    subdirs = self._subpaths_to_subdirs(
-                        install_ref.subpaths)
-                    logger.info('Pulling %s ref %s subdirs %s', remote,
-                                ref, ' '.join(subdirs))
-                    options.update({
-                        'subdirs': GLib.Variant('as', subdirs),
-                    })
-                options_var = GLib.Variant('a{sv}', options)
-                self._log_installation_free_space()
-                eib.retry(self._do_pull, repo, remote, options_var, timeout=30)
-
+            self._log_installation_free_space()
+            eib.retry(self._do_pull, repo, remote, options, timeout=30)
             repo.commit_transaction()
         except:  # noqa: E722
             logger.error('Pull failed, aborting transaction')
@@ -942,44 +969,3 @@ class FlatpakManager(object):
             raise
 
         self.installation.drop_caches()
-
-    def install(self):
-        """Install Flatpak refs
-
-        Find and order all Flatpak refs needed and install them with the
-        installation.
-        """
-        if self.install_refs is None:
-            raise FlatpakError('Must run resolve_refs before pull')
-
-        # Try to order refs so dependencies are installed first. This
-        # simply installs refs with no runtime dependencies first and
-        # assumes flatpak won't error for any issues with extensions
-        # being installed before the ref they extend.
-        refs_with_runtime = []
-        refs_without_runtime = []
-        for _, install_ref in sorted(self.install_refs.items()):
-            if install_ref.full_ref.runtime:
-                refs_with_runtime.append(install_ref)
-            else:
-                refs_without_runtime.append(install_ref)
-        refs_to_install = refs_without_runtime + refs_with_runtime
-
-        for install_ref in refs_to_install:
-            full_ref = install_ref.full_ref
-            logger.info('Installing %s from %s', full_ref.ref,
-                        full_ref.remote.name)
-            self._log_installation_free_space()
-            eib.retry(self.installation.install_full,
-                      flags=(
-                          Flatpak.InstallFlags.NO_STATIC_DELTAS |
-                          Flatpak.InstallFlags.NO_TRIGGERS
-                      ),
-                      remote_name=full_ref.remote.name,
-                      kind=full_ref.kind,
-                      name=full_ref.name,
-                      arch=full_ref.arch,
-                      branch=full_ref.branch,
-                      subpaths=install_ref.subpaths)
-
-        self.installation.run_triggers()
