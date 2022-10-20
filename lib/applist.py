@@ -259,7 +259,7 @@ def show_apps(config, excess, by, stream):
     os.makedirs(installation_path, exist_ok=True)
     installation_file = Gio.File.new_for_path(installation_path)
     installation = Flatpak.Installation.new_for_path(
-        installation_file, user=False)
+        installation_file, user=True)
 
     # Enumerate remotes and resolve all refs needed for installation
     manager = eibflatpak.FlatpakManager(installation, config)
