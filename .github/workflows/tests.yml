@@ -10,9 +10,12 @@ on:
 jobs:
   tests:
     strategy:
+      # Let other configurations continue if one fails.
+      fail-fast: false
       matrix:
         os:
           - ubuntu-20.04
+          - ubuntu-22.04
         flatpak-deps:
           - true
         include:
