@@ -70,10 +70,6 @@ def local_flatpak_installation_path(tmp_path):
 
 @pytest.fixture
 def local_flatpak_installation(local_flatpak_installation_path):
-    # import gi
-    # gi.require_version('Flatpak', '1.0')
-    # from gi.repository import Flatpak, Gio
-
     inst_file = Gio.File.new_for_path(str(local_flatpak_installation_path))
     inst = Flatpak.Installation.new_for_path(inst_file, user=True)
     return inst
@@ -88,10 +84,6 @@ def remote_flatpak_repo_path(tmp_path):
 
 @pytest.fixture
 def remote_flatpak_repo(remote_flatpak_repo_path):
-    # import gi
-    # gi.require_version('OSTree', '1.0')
-    # from gi.repository import Gio, OSTree
-
     repo_file = Gio.File.new_for_path(str(remote_flatpak_repo_path))
     repo = OSTree.Repo.new(repo_file)
     repo.set_collection_id('com.example.FlatpakRepo')

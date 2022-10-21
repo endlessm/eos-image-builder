@@ -723,7 +723,7 @@ class FlatpakManager(object):
             )
 
     def _check_excluded_operations(self, operations):
-        """Verify none of the refs in the opertions are excluded"""
+        """Verify none of the refs in the operations are excluded"""
         excluded = []
         extra_data = []
         eol = []
