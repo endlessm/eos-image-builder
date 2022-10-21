@@ -1,0 +1,5 @@
+[Runtime]
+name = com.example.App2.Locale
+
+[ExtensionOf]
+ref = app/com.example.App2/x86_64/master

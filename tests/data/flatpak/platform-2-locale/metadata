@@ -1,0 +1,5 @@
+[Runtime]
+name = com.example.Platform.Locale
+
+[ExtensionOf]
+ref = runtime/com.example.Platform/x86_64/2

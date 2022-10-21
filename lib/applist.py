@@ -259,13 +259,13 @@ def show_apps(config, excess, by, stream):
     os.makedirs(installation_path, exist_ok=True)
     installation_file = Gio.File.new_for_path(installation_path)
     installation = Flatpak.Installation.new_for_path(
-        installation_file, user=False)
+        installation_file, user=True)
 
     # Enumerate remotes and resolve all refs needed for installation
     manager = eibflatpak.FlatpakManager(installation, config)
     manager.add_remotes()
     manager.enumerate_remotes()
-    manager.resolve_refs()
+    full_refs = manager.resolve()
 
     # Make a simple list of FlatpakFullRefs sorted by descending
     # download size order, then by app name
@@ -276,8 +276,7 @@ def show_apps(config, excess, by, stream):
     # below com.endlessm.math.pt (25.5 MB) because the app size (3.2 MB) is the
     # effective sort key (
     refs = sorted(
-        [install_ref.full_ref for install_ref in
-         manager.install_refs.values()],
+        full_refs,
         key=lambda ref: (- ref.download_size, ref.name)
     )
     total_installed = sum(ref.installed_size for ref in refs)
