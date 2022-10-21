@@ -522,7 +522,7 @@ class FlatpakManager(object):
 
         # Get locales configuration from generic flatpak section
         self.locales = self.config.get('flatpak', 'locales',
-                                       fallback=[]).split()
+                                       fallback='').split()
         if self.locales:
             logger.info('Using flatpak locales %s',
                         ' '.join(self.locales))
@@ -723,7 +723,7 @@ class FlatpakManager(object):
             )
 
     def _check_excluded_operations(self, operations):
-        """Verify none of the refs in the opertions are excluded"""
+        """Verify none of the refs in the operations are excluded"""
         excluded = []
         extra_data = []
         eol = []
