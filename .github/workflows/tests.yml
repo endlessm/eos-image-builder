@@ -10,10 +10,18 @@ on:
 jobs:
   tests:
     strategy:
+      # Let other configurations continue if one fails.
+      fail-fast: false
       matrix:
         os:
-          - ubuntu-18.04
           - ubuntu-20.04
+          - ubuntu-22.04
+        flatpak-deps:
+          - true
+        include:
+          - os: ubuntu-18.04
+            # Flatpak on 18.04 is too old.
+            flatpak-deps: false
     runs-on: ${{ matrix.os }}
     name: Run tests
     steps:
@@ -21,9 +29,19 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            gir1.2-glib-2.0 \
+            gir1.2-ostree-1.0 \
             gpg \
             gpgv \
+            ostree \
+            python3-gi \
             python3-pip
+      - if: ${{ matrix.flatpak-deps }}
+        name: System flatpak dependencies
+        run: |
+          sudo apt-get install -y \
+            flatpak \
+            gir1.2-flatpak-1.0
       - name: Python dependencies
         run: |
           python3 -m pip install pytest

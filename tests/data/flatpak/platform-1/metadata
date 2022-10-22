@@ -1,0 +1,9 @@
+[Runtime]
+name=com.example.Platform
+runtime=com.example.Platform/x86_64/1
+sdk=com.example.Sdk/x86_64/1
+
+[Extension com.example.Platform.Locale]
+directory=share/runtime/locale
+autodelete=true
+locale-subset=true
