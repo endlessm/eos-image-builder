@@ -95,11 +95,23 @@ class ImageBuildRoot(object):
         repo_path = config['ostree']['repodir']
         remote = config['ostree']['remote']
         ref = config['ostree']['ref']
+
+        # If we are on an OSTree system, use the system repo as an additional cache.
+        # In the case of an Endless OS developer system booted into the same or similar
+        # ref as we are building an image of, this saves pulling over the network. In
+        # other cases it is harmless.
+        system_ostree_repo = '/ostree/repo'
+        if os.path.isdir(system_ostree_repo):
+            extra_pull_args = ['--localcache-repo', system_ostree_repo]
+        else:
+            extra_pull_args = []
+
         log.info(f'Pulling OSTree ref {remote}:{ref}')
         eib.retry(subprocess.check_call, [
             'ostree',
             f'--repo={repo_path}',
             'pull',
+            *extra_pull_args,
             remote,
             ref,
         ])
