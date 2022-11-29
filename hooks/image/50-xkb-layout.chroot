@@ -10,6 +10,15 @@ if [ -n "${EIB_IMAGE_XKB_LAYOUT}" ]; then
 		Identifier "system-keyboard"
 		MatchIsKeyboard "on"
 		Option "XkbLayout" "${EIB_IMAGE_XKB_LAYOUT}"
+	EOF
+
+	if [ -n "${EIB_IMAGE_XKB_VARIANT}" ]; then
+		cat <<- EOF > ${TARGET_PATH}/00-keyboard.conf
+			Option "XkbVariant" "${EIB_IMAGE_XKB_VARIANT}"
+		EOF
+	fi
+
+	cat <<- EOF > ${TARGET_PATH}/00-keyboard.conf
 	EndSection
 	EOF
 fi
