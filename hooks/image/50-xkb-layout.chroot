@@ -1,6 +1,7 @@
 #Customize the standard keyboard layout
 
 TARGET_PATH=/etc/X11/xorg.conf.d
+DEBIAN_DEFAULTS_PATH=/etc/default
 
 if [ -n "${EIB_IMAGE_XKB_LAYOUT}" ]; then
 	mkdir -p ${TARGET_PATH}
@@ -10,6 +11,28 @@ if [ -n "${EIB_IMAGE_XKB_LAYOUT}" ]; then
 		Identifier "system-keyboard"
 		MatchIsKeyboard "on"
 		Option "XkbLayout" "${EIB_IMAGE_XKB_LAYOUT}"
+	EOF
+
+	if [ -n "${EIB_IMAGE_XKB_VARIANT}" ]; then
+		cat <<- EOF > ${TARGET_PATH}/00-keyboard.conf
+			Option "XkbVariant" "${EIB_IMAGE_XKB_VARIANT}"
+		EOF
+	fi
+
+	cat <<- EOF > ${TARGET_PATH}/00-keyboard.conf
 	EndSection
 	EOF
+
+	# Write to /etc/default/keyboard too, Debian patches
+	# localed to read and write from this location
+
+	cat <<- EOF >> ${DEBIAN_DEFAULTS_PATH}/keyboard
+	XKBLAYOUT=${EIB_IMAGE_XKB_LAYOUT}
+	EOF
+
+	if [ -n "${EIB_IMAGE_XKB_VARIANT}" ]; then
+		cat <<- EOF >> ${DEBIAN_DEFAULTS_PATH}/keyboard
+		XKBVARIANT=${EIB_IMAGE_XKB_VARIANT}
+		EOF
+	fi
 fi
