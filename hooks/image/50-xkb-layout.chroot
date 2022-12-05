@@ -19,7 +19,7 @@ if [ -n "${EIB_IMAGE_XKB_LAYOUT}" ]; then
 		EOF
 	fi
 
-	cat <<- EOF > ${TARGET_PATH}/00-keyboard.conf
+	cat <<- EOF >> ${TARGET_PATH}/00-keyboard.conf
 	EndSection
 	EOF
 
