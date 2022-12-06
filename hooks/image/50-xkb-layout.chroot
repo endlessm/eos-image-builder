@@ -14,7 +14,7 @@ if [ -n "${EIB_IMAGE_XKB_LAYOUT}" ]; then
 	EOF
 
 	if [ -n "${EIB_IMAGE_XKB_VARIANT}" ]; then
-		cat <<- EOF > ${TARGET_PATH}/00-keyboard.conf
+		cat <<- EOF >> ${TARGET_PATH}/00-keyboard.conf
 			Option "XkbVariant" "${EIB_IMAGE_XKB_VARIANT}"
 		EOF
 	fi
