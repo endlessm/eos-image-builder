@@ -40,7 +40,8 @@ import_kolibri_channel()
   fi
 
   kolibri manage importchannel network "${channel_id}"
-  kolibri manage importcontent "${importcontent_opts[@]}" \
+  EIB_RETRY_ATTEMPTS=2 EIB_RETRY_INTERVAL=30 eib_retry \
+    kolibri manage importcontent "${importcontent_opts[@]}" \
     network "${importcontent_network_opts[@]}" "${channel_id}"
 }
 
