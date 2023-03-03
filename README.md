@@ -97,6 +97,13 @@ such as S3. See the
 [AWS documentation](http://docs.aws.amazon.com/cli/latest/userguide/cli-config-files.html)
 for details on this file.
 
+Netrc authentication
+--------------------
+
+Authentication credentials for various remote servers are stored in a
+netrc(5) file at `/etc/eos-image-builder/netrc`. This can be passed to
+`curl` or parsed with the `netrc` `python` module.
+
 Configuration
 =============
 
