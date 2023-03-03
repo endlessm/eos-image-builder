@@ -14,6 +14,6 @@ indent_style = space
 indent_size = 2
 
 # Python
-[{*.py,eos-image-builder,run-build,helpers/{assemble-manifest,fetch-remote-collection-id,generate-ovf-files,kill-chroot-procs,kolibri-pick-content-from-channel,mutable-path,packages-manifest},hooks/{content/50-flatpak,image/{50-flatpak.chroot,62-kolibri-options,70-flatpak-manifest,70-ostree-manifest}}}]
+[{*.py,eos-image-builder,run-build,helpers/{assemble-manifest,fetch-remote-collection-id,generate-ovf-files,kill-chroot-procs,kolibri-pick-content-from-channel,mutable-path,packages-manifest},hooks/{content/{50-flatpak,50-kolibri-content},image/{50-flatpak.chroot,62-kolibri-options,70-flatpak-manifest,70-ostree-manifest}}}]
 indent_size = 4
 max_line_length = 88
