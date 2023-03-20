@@ -1,7 +1,12 @@
 # Populate cache of gnome-software screenshots and thumbnails
 
-EXTRA_APPSTREAM_DIR=${OSTREE_VAR}/cache/app-info/xmls/
-EXTRA_APPSTREAM_FILE=org.gnome.Software-eos-extra.xml
+# Determine the eos-extra AppStream catalog installation path.
+# gnome-software hashes the URL to allow multiple external AppStream
+# catalogs with the same basename.
+EXTRA_APPSTREAM_DIR=${OSTREE_VAR}/cache/swcatalog/xml
+EXTRA_APPSTREAM_URL="https://appstream.endlessos.org/app-info/eos-extra.xml.gz"
+EXTRA_APPSTREAM_URL_HASH=$(echo -n "$EXTRA_APPSTREAM_URL" | sha1sum | awk '{print $1}')
+EXTRA_APPSTREAM_FILE="org.gnome.Software-${EXTRA_APPSTREAM_URL_HASH}-eos-extra.xml"
 
 clone_dir=${EIB_CONTENTDIR}/gnome-software-data
 pushd $clone_dir
@@ -11,7 +16,11 @@ pushd $clone_dir
   cp -a screenshots/* ${OSTREE_VAR}/cache/gnome-software/screenshots
   cp -a thumbnails/* ${OSTREE_VAR}/cache/gnome-software/eos-popular-app-thumbnails
 
-  # Include the eos-extra AppStream file
+  # Install the eos-extra AppStream catalog. Ideally we'd just run
+  # gnome-software-cmd refresh, but at the moment that requires a UI so
+  # the process is mimiced here.
+  #
+  # https://gitlab.gnome.org/GNOME/gnome-software/-/issues/2122
   mkdir -p ${EXTRA_APPSTREAM_DIR}
   cp app-info/eos-extra.xml ${EXTRA_APPSTREAM_DIR}/${EXTRA_APPSTREAM_FILE}
   gzip ${EXTRA_APPSTREAM_DIR}/${EXTRA_APPSTREAM_FILE}
