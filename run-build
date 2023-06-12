@@ -342,10 +342,12 @@ class ImageBuilder(object):
         config_attrs = ('product', 'branch', 'arch', 'platform',
                         'personality')
         for attr in config_attrs:
-            path = os.path.join(dir_path, attr,
-                                getattr(self, attr) + '.ini')
-            namespace = dir_ns + '_'.join((attr, getattr(self, attr)))
-            config_files.append((path, namespace))
+            value = getattr(self, attr)
+            while value:
+                path = os.path.join(dir_path, attr, value + '.ini')
+                namespace = dir_ns + '_'.join((attr, value))
+                config_files.append((path, namespace))
+                value = value.rpartition('_')[0]
 
         # Add combinations of per-attribute config directories
         for attr1, attr2 in itertools.combinations(config_attrs, 2):
