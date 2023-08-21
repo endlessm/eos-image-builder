@@ -5,11 +5,8 @@
 import configparser
 import functools
 import os
+import shutil
 from pathlib import Path
-
-OSTREE_VAR = Path(os.environ.get("OSTREE_VAR"))
-KOLIBRI_HOME = Path(OSTREE_VAR, "lib/kolibri/data")
-OPTIONS_FILE_PATH = Path(KOLIBRI_HOME, "options.ini")
 
 EIB_KOLIBRI_REGULAR_USERS_CAN_MANAGE_CONTENT = os.environ.get(
     "EIB_KOLIBRI_REGULAR_USERS_CAN_MANAGE_CONTENT"
@@ -32,6 +29,18 @@ config_count = functools.reduce(
     lambda total, section: total + len(section), config.values(), 0
 )
 
+EIB_TMPDIR = Path(os.environ.get("EIB_TMPDIR"))
+TMP_OPTIONS_FILE_PATH = Path(EIB_TMPDIR, "options.ini")
 if config_count > 0:
-    with open(OPTIONS_FILE_PATH, "w") as options_file:
+    with open(TMP_OPTIONS_FILE_PATH, "w") as options_file:
         config.write(options_file)
+
+    if "EIB_KOLIBRI_INSTALL_CHANNELS" in os.environ:
+        OSTREE_VAR = Path(os.environ.get("OSTREE_VAR"))
+        KOLIBRI_HOME = Path(OSTREE_VAR, "lib/kolibri/data")
+        shutil.copy(TMP_OPTIONS_FILE_PATH, KOLIBRI_HOME)
+
+    if "EIB_ENDLESSKEY_INSTALL_CHANNELS" in os.environ:
+        OSTREE_VAR = Path(os.environ.get("OSTREE_VAR"))
+        KOLIBRI_HOME = Path(OSTREE_VAR, "lib/endless-key/data")
+        shutil.copy(TMP_OPTIONS_FILE_PATH, KOLIBRI_HOME)

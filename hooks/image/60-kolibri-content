@@ -1,6 +1,7 @@
 # Populate the Kolibri home directory
 
-if [ -z "${EIB_KOLIBRI_INSTALL_CHANNELS}" ]; then
+if [ -z "${EIB_KOLIBRI_INSTALL_CHANNELS}" ] &&
+   [ -z "${EIB_ENDLESSKEY_INSTALL_CHANNELS}" ]; then
   exit 0
 fi
 
@@ -15,9 +16,19 @@ export KOLIBRI_STATIC_USE_SYMLINKS=0
 
 import_kolibri_channel()
 {
-  local channel_id=$1
-  local channel_include_node_ids_var="EIB_KOLIBRI_${channel_id^^}_INCLUDE_NODE_IDS"
-  local channel_exclude_node_ids_var="EIB_KOLIBRI_${channel_id^^}_EXCLUDE_NODE_IDS"
+  local app_name=$1
+  local channel_id=$2
+
+  if [ ${app_name} == "kolibri" ]; then
+    local channel_include_node_ids_var="EIB_KOLIBRI_${channel_id^^}_INCLUDE_NODE_IDS"
+    local channel_exclude_node_ids_var="EIB_KOLIBRI_${channel_id^^}_EXCLUDE_NODE_IDS"
+  elif [ ${app_name} == "endless-key" ]; then
+    local channel_include_node_ids_var="EIB_ENDLESSKEY_${channel_id^^}_INCLUDE_NODE_IDS"
+    local channel_exclude_node_ids_var="EIB_ENDLESSKEY_${channel_id^^}_EXCLUDE_NODE_IDS"
+  else
+    exit 1
+  fi
+
   local importcontent_opts=(
     # Normally importcontent ignores download errors. Make it fail so we
     # can be sure we've fully provisioned channels.
@@ -45,42 +56,62 @@ import_kolibri_channel()
     network "${importcontent_network_opts[@]}" "${channel_id}"
 }
 
-# Needs to be kept in sync with hooks/image/61-kolibri-content-install
-KOLIBRI_CONTENT_DIR="${EIB_CONTENTDIR}/kolibri-content"
-# FIXME: For now, we need to remove old content that may exist from previous
-# runs to prevent images accidentally getting extra channels that are not in
-# their configuration. However, this defeats the purpose of the image builder
-# saving the contents of EIB_CONTENTDIR between runs to improve its performance.
-# At some point we should revisit this to try to make the caching work properly.
-rm -rf "${KOLIBRI_CONTENT_DIR}"
-mkdir -p "${KOLIBRI_CONTENT_DIR}"
+prepare_kolibri_env()
+{
+  local app_name=$1
+  # Needs to be kept in sync with hooks/image/61-kolibri-content-install
+  KOLIBRI_CONTENT_DIR="${EIB_CONTENTDIR}/${app_name}-content"
+  # FIXME: For now, we need to remove old content that may exist from previous
+  # runs to prevent images accidentally getting extra channels that are not in
+  # their configuration. However, this defeats the purpose of the image builder
+  # saving the contents of EIB_CONTENTDIR between runs to improve its performance.
+  # At some point we should revisit this to try to make the caching work properly.
+  rm -rf "${KOLIBRI_CONTENT_DIR}"
+  mkdir -p "${KOLIBRI_CONTENT_DIR}"
 
-venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
-python3 -m venv ${venv_dir}
-source ${venv_dir}/bin/activate
+  venv_dir="${EIB_TMPDIR}/${app_name}-content-venv"
+  python3 -m venv ${venv_dir}
+  source ${venv_dir}/bin/activate
 
-pip install kolibri==${EIB_KOLIBRI_APP_VERSION}
-pip install kolibri-app-desktop-xdg-plugin==${EIB_KOLIBRI_APP_DESKTOP_XDG_PLUGIN_VERSION}
-pip install kolibri-desktop-auth-plugin==${EIB_KOLIBRI_DESKTOP_AUTH_PLUGIN_VERSION}
+  pip install kolibri==${EIB_KOLIBRI_APP_VERSION}
+  pip install kolibri-app-desktop-xdg-plugin==${EIB_KOLIBRI_APP_DESKTOP_XDG_PLUGIN_VERSION}
+  pip install kolibri-desktop-auth-plugin==${EIB_KOLIBRI_DESKTOP_AUTH_PLUGIN_VERSION}
 
-export KOLIBRI_HOME="${KOLIBRI_CONTENT_DIR}"
+  export KOLIBRI_HOME="${KOLIBRI_CONTENT_DIR}"
 
-kolibri plugin enable kolibri.plugins.app
-kolibri plugin enable kolibri_app_desktop_xdg_plugin
-kolibri plugin enable kolibri_desktop_auth_plugin
+  kolibri plugin enable kolibri.plugins.app
+  kolibri plugin enable kolibri_app_desktop_xdg_plugin
+  kolibri plugin enable kolibri_desktop_auth_plugin
 
-for channel_id in ${EIB_KOLIBRI_INSTALL_CHANNELS}; do
-  import_kolibri_channel "${channel_id}"
-done
+  if [ ${app_name} == "kolibri" ]; then
+    INSTALL_CHANNELS=("${EIB_KOLIBRI_INSTALL_CHANNELS[@]}")
+  elif [ ${app_name} == "endless-key" ]; then
+    INSTALL_CHANNELS=("${EIB_ENDLESSKEY_INSTALL_CHANNELS[@]}")
+  else
+    exit 1
+  fi
 
-# Sort channels in the same order as in EIB_KOLIBRI_INSTALL_CHANNELS
-position=1
-for channel_id in ${EIB_KOLIBRI_INSTALL_CHANNELS}; do
-  kolibri manage setchannelposition ${channel_id} ${position} || true
-  let position=position+1
-done
+  for channel_id in ${INSTALL_CHANNELS}; do
+    import_kolibri_channel "${app_name}" "${channel_id}"
+  done
 
-# Empty the user database, and ensure that each instance of this image has a
-# unique Facility ID.
-# <https://kolibri.readthedocs.io/en/latest/install/provision.html#prepare-the-kolibri-folder-for-copying>
-(echo yes; echo yes) | kolibri manage deprovision
+  # Sort channels in the same order as in INSTALL_CHANNELS
+  position=1
+  for channel_id in ${INSTALL_CHANNELS}; do
+    kolibri manage setchannelposition ${channel_id} ${position} || true
+    let position=position+1
+  done
+
+  # Empty the user database, and ensure that each instance of this image has a
+  # unique Facility ID.
+  # <https://kolibri.readthedocs.io/en/latest/install/provision.html#prepare-the-kolibri-folder-for-copying>
+  (echo yes; echo yes) | kolibri manage deprovision
+}
+
+if [ -n "${EIB_KOLIBRI_INSTALL_CHANNELS}" ]; then
+  prepare_kolibri_env "kolibri"
+fi
+
+if [ -n "${EIB_ENDLESSKEY_INSTALL_CHANNELS}" ]; then
+  prepare_kolibri_env "endless-key"
+fi

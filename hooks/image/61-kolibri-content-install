@@ -1,12 +1,32 @@
 # Install the Kolibri home directory to the right location in the image
 
-if [ -z "${EIB_KOLIBRI_INSTALL_CHANNELS}" ]; then
+if [ -z "${EIB_KOLIBRI_INSTALL_CHANNELS}" ] &&
+   [ -z "${EIB_ENDLESSKEY_INSTALL_CHANNELS}" ]; then
   exit 0
 fi
 
-# Needs to be kept in sync with hooks/image/60-kolibri-content
-KOLIBRI_CONTENT_DIR="${EIB_CONTENTDIR}/kolibri-content"
+install_content()
+{
+  local app_name=$1
 
-mkdir -p "${OSTREE_VAR}"/lib/kolibri
+  if [ ${app_name} == "kolibri" ]; then
+    TARGET="${OSTREE_VAR}"/lib/kolibri
+  elif [ ${app_name} == "endless-key" ]; then
+    TARGET="${OSTREE_VAR}"/lib/endless-key
+  else
+    exit 1
+  fi
+  mkdir -p "${TARGET}"
 
-cp -rl "${KOLIBRI_CONTENT_DIR}" "${OSTREE_VAR}"/lib/kolibri/data
+  # Needs to be kept in sync with hooks/image/60-kolibri-content
+  KOLIBRI_CONTENT_DIR="${EIB_CONTENTDIR}/${app_name}-content"
+  cp -rl "${KOLIBRI_CONTENT_DIR}" "${TARGET}"/data
+}
+
+if [ -n "${EIB_KOLIBRI_INSTALL_CHANNELS}" ]; then
+  install_content "kolibri"
+fi
+
+if [ -n "${EIB_ENDLESSKEY_INSTALL_CHANNELS}" ]; then
+  install_content "endless-key"
+fi
