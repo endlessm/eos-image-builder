@@ -14,6 +14,16 @@ fi
 # Do not create symlinks for static files inside the image builder.
 export KOLIBRI_STATIC_USE_SYMLINKS=0
 
+download_file() {
+  local url=${1:?No url supplied to ${FUNCNAME}}
+  local output=${2:?No output supplied to ${FUNCNAME}}
+  if [ -e "${output}" ]; then
+    curl -L --output "${output}" --time-cond "${output}" "${url}"
+  else
+    curl -L --output "${output}" "${url}"
+  fi
+}
+
 import_kolibri_channel()
 {
   local app_name=$1
@@ -143,4 +153,35 @@ fi
 
 if [ -n "${EIB_ENDLESSKEY_INSTALL_CHANNELS}" ]; then
   prepare_kolibri_env "endless-key"
+  apps_url=$(
+    curl -sSL https://api.github.com/repos/endlessm/kolibri-explore-plugin/releases/latest |
+    jq -r '.assets[] | select(.name == "apps-bundle.zip") | .browser_download_url'
+  )
+  collections_url=$(
+    curl -sSL https://api.github.com/repos/endlessm/endless-key-collections/releases/latest |
+    jq -r '.tarball_url'
+  )
+
+  PLUGIN_LOCATION=`pip3 show kolibri-explore-plugin | grep Location  | awk '{ print $2 }'`
+  APPS_LOCATION="${PLUGIN_LOCATION}/kolibri_explore_plugin"
+  COLLECTIONS_LOCATION="${PLUGIN_LOCATION}/kolibri_explore_plugin/static/collections/"
+
+  # Install apps bundle
+  download_file "${apps_url}" "${EIB_TMPDIR}/apps-bundle.zip"
+  unzip -o -d "${APPS_LOCATION}" "${EIB_TMPDIR}/apps-bundle.zip"
+  rm "${EIB_TMPDIR}/apps-bundle.zip"
+
+  # And install the collections metadata
+  download_file "${collections_url}" "${EIB_TMPDIR}/collections-bundle.tar.gz"
+  rm -f "${COLLECTIONS_LOCATION}/*.json"
+  mkdir -p "${COLLECTIONS_LOCATION}"
+  tar --extract \
+      --verbose \
+      --gzip \
+      --file "${EIB_TMPDIR}/collections-bundle.tar.gz" \
+      --directory="${COLLECTIONS_LOCATION}" \
+      --strip-components=2 \
+      --wildcards \
+      'endlessm-endless-key-collections-*/json/'
+  rm "${EIB_TMPDIR}/collections-bundle.tar.gz"
 fi
