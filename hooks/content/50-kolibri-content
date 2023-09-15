@@ -91,9 +91,14 @@ def main():
     eib.setup_logging()
     config = eib.get_config()
 
-    channels_var = config.get('kolibri', 'install_channels', fallback='')
-    if not channels_var.strip():
+    kolibri_channels_var = config.get('kolibri', 'install_channels', fallback='')
+    if not kolibri_channels_var.strip():
         logger.info('No Kolibri channels to import')
+        return
+
+    ek_channels_var = config.get('endlesskey', 'install_channels', fallback='')
+    if not ek_channels_var.strip():
+        logger.info('No Endless Key channels to import')
         return
 
     base_url = config.get('kolibri', 'central_content_base_url', fallback=None)
@@ -116,21 +121,21 @@ def main():
 
     # Build a dict of channel ID keys and option dict values.
     channels = {}
-    for channel in channels_var.split():
+    for channel in ' '.join([kolibri_channels_var, ek_channels_var]).split():
         channels[channel] = {}
-        options = f'kolibri-{channel}'
-        if config.has_section(options):
-            node_ids = config.get(options, 'include_node_ids', fallback='')
-            if node_ids:
-                channels[channel]['node_ids'] = node_ids.split()
+        for options in [f'kolibri-{channel}', f'endlesskey-{channel}']:
+            if config.has_section(options):
+                node_ids = config.get(options, 'include_node_ids', fallback='')
+                if node_ids:
+                    channels[channel]['node_ids'] = node_ids.split()
 
-            exclude_node_ids = config.get(
-                options,
-                'exclude_node_ids',
-                fallback='',
-            )
-            if exclude_node_ids:
-                channels[channel]['exclude_node_ids'] = exclude_node_ids.split()
+                exclude_ids = config.get(
+                    options,
+                    'exclude_node_ids',
+                    fallback='',
+                )
+                if exclude_ids:
+                    channels[channel]['exclude_node_ids'] = exclude_ids.split()
 
     # Start a requests session with the credentials.
     session = requests.Session()
