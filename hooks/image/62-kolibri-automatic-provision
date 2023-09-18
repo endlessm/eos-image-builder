@@ -1,11 +1,12 @@
 # Configure Kolibri automatic provisioning if enabled
 
-if [ "${EIB_KOLIBRI_AUTOMATIC_PROVISION}" != "true" ] &&
-   [ "${EIB_ENDLESSKEY_AUTOMATIC_PROVISION}" != "true" ]; then
+if [ "${EIB_KOLIBRI_AUTOMATIC_PROVISION}" != "true" ]; then
   exit 0
 fi
 
-cat <<EOF > "${EIB_TMPDIR}"/automatic_provision.json
+mkdir -p "${OSTREE_VAR}"/lib/kolibri/data
+
+cat <<EOF > "${OSTREE_VAR}"/lib/kolibri/data/automatic_provision.json
 {
   "facility_name": "${EIB_KOLIBRI_AUTOMATIC_PROVISION_FACILITY_NAME}",
   "superuser": {
@@ -26,13 +27,3 @@ cat <<EOF > "${EIB_TMPDIR}"/automatic_provision.json
   }
 }
 EOF
-
-if [ "${EIB_KOLIBRI_AUTOMATIC_PROVISION}" == "true" ]; then
-  mkdir -p "${OSTREE_VAR}"/lib/kolibri/data
-  cp "${EIB_TMPDIR}"/automatic_provision.json "${OSTREE_VAR}"/lib/kolibri/data
-fi
-
-if [ "${EIB_ENDLESSKEY_AUTOMATIC_PROVISION}" == "true" ]; then
-  mkdir -p "${OSTREE_VAR}"/lib/endless-key/data
-  cp "${EIB_TMPDIR}"/automatic_provision.json "${OSTREE_VAR}"/lib/endless-key/data
-fi
