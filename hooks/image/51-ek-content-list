@@ -1,0 +1,15 @@
+# Populate the Endless Key home directory
+
+if [[ ! "${EIB_FLATPAK_REMOTE_FLATHUB_APPS}" =~ .*"org.endlessos.Key".* ]]; then
+  exit 0
+fi
+
+# This file is used by hooks/image/52-ek-content-cache and
+# hooks/image/53-ek-content-preload
+EK_CHANNELS_FILE="${EIB_TMPDIR}"/ek-channels
+
+rm -f "${EK_CHANNELS_FILE}"
+collections="${OSTREE_VAR}"/lib/flatpak/app/org.endlessos.Key/current/active/files/share/endless-key/collections/*.json
+for collection in ${collections}; do
+  jq -r '.channels[].id' "${collection}" >> "${EK_CHANNELS_FILE}"
+done
