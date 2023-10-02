@@ -17,7 +17,7 @@ export KOLIBRI_STATIC_USE_SYMLINKS=0
 venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
 python3 -m venv ${venv_dir}
 source ${venv_dir}/bin/activate
-pip install kolibri==${EIB_KOLIBRI_APP_VERSION}
+pip install "${EIB_ENDLESSKEY_KOLIBRI_PKGSPEC}"
 
 export KOLIBRI_HOME="${OSTREE_VAR}"/lib/endless-key/data
 mkdir -p "${KOLIBRI_HOME}"
