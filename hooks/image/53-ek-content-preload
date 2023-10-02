@@ -1,0 +1,35 @@
+# Populate the Endless Key home directory
+
+# This file gets populated by hooks/image/51-ek-content-list
+if [ ! -f "${EIB_TMPDIR}"/ek-channels ]; then
+  exit 0
+fi
+
+# Use a separate content URL if configured.
+if [ -n "${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}" ]; then
+  KOLIBRI_CENTRAL_CONTENT_BASE_URL="${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}"
+  export KOLIBRI_CENTRAL_CONTENT_BASE_URL
+fi
+
+# Do not create symlinks for static files inside the image builder.
+export KOLIBRI_STATIC_USE_SYMLINKS=0
+
+venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
+python3 -m venv ${venv_dir}
+source ${venv_dir}/bin/activate
+pip install "${EIB_ENDLESSKEY_KOLIBRI_PKGSPEC}"
+
+export KOLIBRI_HOME="${OSTREE_VAR}"/lib/endless-key/data
+mkdir -p "${KOLIBRI_HOME}"
+
+channels=$(sort -u "${EIB_TMPDIR}"/ek-channels)
+for channel in $channels; do
+  kolibri manage importchannel network "${channel}"
+  EIB_RETRY_ATTEMPTS=2 EIB_RETRY_INTERVAL=30 eib_retry \
+    kolibri manage importcontent --fail-on-error network "${channel}"
+done
+
+# Empty the user database, and ensure that each instance of this image has a
+# unique Facility ID.
+# <https://kolibri.readthedocs.io/en/latest/install/provision.html#prepare-the-kolibri-folder-for-copying>
+(echo yes; echo yes) | kolibri manage deprovision
