@@ -12,13 +12,16 @@ fi
 # hooks/image/53-ek-content-preload
 EK_CHANNELS_FILE="${EIB_TMPDIR}"/ek-channels
 
-rm -f "${EK_CHANNELS_FILE}"
+rm -f "${EK_CHANNELS_FILE}" "${EK_CHANNELS_FILE}.tmp"
 collections="${OSTREE_VAR}"/lib/flatpak/app/org.endlessos.Key/current/active/files/share/endless-key/collections/*.json
 for collection in ${collections}; do
   # Check if the file basename stripped off of -0001.json is part of the list
   # of collections to be installed.
   bn=$(basename ${collection})
   if [[ "${EIB_ENDLESSKEY_COLLECTIONS}" =~ .*"${bn%-????.json}".* ]] ; then
-    jq -r '.channels[].id' "${collection}" >> "${EK_CHANNELS_FILE}"
+    jq -r '.channels[].id' "${collection}" >> "${EK_CHANNELS_FILE}.tmp"
   fi
 done
+if [ -f "${EK_CHANNELS_FILE}.tmp" ]; then
+  sort -u "${EK_CHANNELS_FILE}.tmp" > "${EK_CHANNELS_FILE}"
+fi
