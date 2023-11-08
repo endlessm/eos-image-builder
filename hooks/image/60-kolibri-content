@@ -10,6 +10,11 @@ import_kolibri_channel()
   local channel_include_node_ids_var="EIB_KOLIBRI_${channel_id^^}_INCLUDE_NODE_IDS"
   local channel_exclude_node_ids_var="EIB_KOLIBRI_${channel_id^^}_EXCLUDE_NODE_IDS"
   local importcontent_opts=(
+    # By default, importcontent skips content nodes that it doesn't
+    # think are renderable. Since we don't know what renderers will be
+    # available at runtime, request everything.
+    --include-unrenderable-content
+
     # Normally importcontent ignores download errors. Make it fail so we
     # can be sure we've fully provisioned channels.
     --fail-on-error

@@ -29,7 +29,9 @@ channels=$(sort -u "${EIB_TMPDIR}"/ek-channels)
 for channel in $channels; do
   kolibri manage --skip-update importchannel network "${channel}"
   EIB_RETRY_ATTEMPTS=2 EIB_RETRY_INTERVAL=30 eib_retry \
-    kolibri manage --skip-update importcontent --fail-on-error network "${channel}"
+    kolibri manage --skip-update \
+    importcontent --include-unrenderable-content --fail-on-error \
+    network "${channel}"
 done
 
 # Empty the user database, and ensure that each instance of this image has a
