@@ -66,6 +66,8 @@ def import_content(session, base_url, channel_id):
     url = urljoin(base_url, 'api/tasks/tasks/startremotecontentimport/')
     data = {
         'channel_id': channel_id,
+        # Fetch all nodes so that the channel is fully mirrored.
+        'renderable_only': False,
         'fail_on_error': True,
         'timeout': 300,
     }
