@@ -4,15 +4,6 @@ if [ -z "${EIB_KOLIBRI_INSTALL_CHANNELS}" ]; then
   exit 0
 fi
 
-# Use a separate content URL if configured.
-if [ -n "${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}" ]; then
-  KOLIBRI_CENTRAL_CONTENT_BASE_URL="${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}"
-  export KOLIBRI_CENTRAL_CONTENT_BASE_URL
-fi
-
-# Do not create symlinks for static files inside the image builder.
-export KOLIBRI_STATIC_USE_SYMLINKS=0
-
 import_kolibri_channel()
 {
   local channel_id=$1
@@ -39,9 +30,9 @@ import_kolibri_channel()
     importcontent_opts+=(--exclude_node_ids="${importcontent_exclude_nodes}")
   fi
 
-  kolibri manage importchannel network "${channel_id}"
+  kolibri manage --skip-update importchannel network "${channel_id}"
   EIB_RETRY_ATTEMPTS=2 EIB_RETRY_INTERVAL=30 eib_retry \
-    kolibri manage importcontent "${importcontent_opts[@]}" \
+    kolibri manage --skip-update importcontent "${importcontent_opts[@]}" \
     network "${importcontent_network_opts[@]}" "${channel_id}"
 }
 
@@ -69,6 +60,19 @@ kolibri plugin enable kolibri.plugins.app
 kolibri plugin enable kolibri_app_desktop_xdg_plugin
 kolibri plugin enable kolibri_desktop_auth_plugin
 
+# Setup the homedir before setting any environment variables so they
+# don't persist into the options file.
+kolibri configure setup
+
+# Use a separate content URL if configured.
+if [ -n "${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}" ]; then
+  KOLIBRI_CENTRAL_CONTENT_BASE_URL="${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}"
+  export KOLIBRI_CENTRAL_CONTENT_BASE_URL
+fi
+
+# Do not create symlinks for static files inside the image builder.
+export KOLIBRI_STATIC_USE_SYMLINKS=0
+
 for channel_id in ${EIB_KOLIBRI_INSTALL_CHANNELS}; do
   import_kolibri_channel "${channel_id}"
 done
@@ -76,11 +80,11 @@ done
 # Sort channels in the same order as in EIB_KOLIBRI_INSTALL_CHANNELS
 position=1
 for channel_id in ${EIB_KOLIBRI_INSTALL_CHANNELS}; do
-  kolibri manage setchannelposition ${channel_id} ${position} || true
+  kolibri manage --skip-update setchannelposition ${channel_id} ${position} || true
   let position=position+1
 done
 
 # Empty the user database, and ensure that each instance of this image has a
 # unique Facility ID.
 # <https://kolibri.readthedocs.io/en/latest/install/provision.html#prepare-the-kolibri-folder-for-copying>
-(echo yes; echo yes) | kolibri manage deprovision
+(echo yes; echo yes) | kolibri manage --skip-update deprovision
