@@ -34,6 +34,34 @@ def write_manifest(data):
         json.dump(data, manifest)
 
 
+def get_data_for_ref(
+    repo: OSTree.Repo,
+    installed_ref: Flatpak.InstalledRef,
+) -> dict:
+    name = installed_ref.get_name()
+    arch = installed_ref.get_arch()
+    branch = installed_ref.get_branch()
+    key = '{}/{}/{}'.format(name, arch, branch)
+    remote = installed_ref.get_origin()
+    commit = installed_ref.get_commit()
+    size = installed_ref.get_installed_size()
+    ref = installed_ref.format_ref()
+    date = commit_date_string(repo, commit)
+    version = installed_ref.get_appdata_version()
+
+    return key, {
+        'name': name,
+        'arch': arch,
+        'branch': branch,
+        'remote': remote,
+        'commit': commit,
+        'size': size,
+        'ref': ref,
+        'date': date,
+        'version': version,
+    }
+
+
 def main():
     # Build the json data structure
     data = {
@@ -81,60 +109,22 @@ def main():
 
     runtimes = system.list_installed_refs_by_kind(Flatpak.RefKind.RUNTIME)
     for runtime in runtimes:
-        name = runtime.get_name()
-        arch = runtime.get_arch()
-        branch = runtime.get_branch()
-        key = '{}/{}/{}'.format(name, arch, branch)
-        remote = runtime.get_origin()
-        commit = runtime.get_commit()
-        size = runtime.get_installed_size()
-        ref = runtime.format_ref()
-        date = commit_date_string(repo, commit)
-        version = runtime.get_appdata_version()
-
-        data['flatpak']['runtimes'][key] = {
-            'name': name,
-            'arch': arch,
-            'branch': branch,
-            'remote': remote,
-            'commit': commit,
-            'size': size,
-            'ref': ref,
-            'date': date,
-            'version': version,
-        }
+        key, runtime_data = get_data_for_ref(repo, runtime)
+        data['flatpak']['runtimes'][key] = runtime_data
 
     apps = system.list_installed_refs_by_kind(Flatpak.RefKind.APP)
     for app in apps:
-        name = app.get_name()
-        arch = app.get_arch()
-        branch = app.get_branch()
-        key = '{}/{}/{}'.format(name, arch, branch)
-        remote = app.get_origin()
-        commit = app.get_commit()
-        size = app.get_installed_size()
-        ref = app.format_ref()
-        date = commit_date_string(repo, commit)
-        version = app.get_appdata_version()
+        key, app_data = get_data_for_ref(repo, app)
+
         metadata = GLib.KeyFile()
         metadata.load_from_bytes(app.load_metadata(), GLib.KeyFileFlags.NONE)
         try:
             runtime = metadata.get_string('Application', 'runtime')
         except GLib.GError:
             runtime = None
+        app_data['runtime'] = runtime
 
-        data['flatpak']['apps'][key] = {
-            'name': name,
-            'arch': arch,
-            'branch': branch,
-            'remote': remote,
-            'commit': commit,
-            'size': size,
-            'ref': ref,
-            'date': date,
-            'version': version,
-            'runtime': runtime,
-        }
+        data['flatpak']['apps'][key] = app_data
 
     # Now write out the json to a fragment
     write_manifest(data)
