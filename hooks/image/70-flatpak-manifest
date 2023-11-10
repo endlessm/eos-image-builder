@@ -34,106 +34,111 @@ def write_manifest(data):
         json.dump(data, manifest)
 
 
-# Build the json data structure
-data = {
-    'flatpak': {
-        'remotes': {},
-        'runtimes': {},
-        'apps': {},
+def main():
+    # Build the json data structure
+    data = {
+        'flatpak': {
+            'remotes': {},
+            'runtimes': {},
+            'apps': {},
+        }
     }
-}
 
-if os.environ.get('EIB_FLATPAK_ENABLE', 'false') != 'true':
-    # Write out an empty manifest so it always exists
+    if os.environ.get('EIB_FLATPAK_ENABLE', 'false') != 'true':
+        # Write out an empty manifest so it always exists
+        write_manifest(data)
+        return
+
+    # Open the flatpak installation in the OS /var/lib/flatpak.
+    system_path = os.path.join(os.environ['OSTREE_VAR'], 'lib/flatpak')
+    print('Opening flatpak installation in', system_path)
+    system_file = Gio.File.new_for_path(system_path)
+    system = Flatpak.Installation.new_for_path(system_file, user=False)
+
+    repo_file = system_file.get_child('repo')
+    print('Opening ostree repo in', repo_file.get_path())
+    repo = OSTree.Repo.new(repo_file)
+    repo.open()
+
+    remotes = system.list_remotes()
+    for remote in remotes:
+        name = remote.get_name()
+        url = remote.get_url()
+        collection_id = remote.get_collection_id()
+
+        # Skip disabled remotes
+        if remote.get_disabled():
+            continue
+
+        # Skip local remotes (e.g., external apps)
+        if url.startswith('file://'):
+            continue
+
+        data['flatpak']['remotes'][name] = {
+            'url': url,
+            'collection-id': collection_id,
+        }
+
+    runtimes = system.list_installed_refs_by_kind(Flatpak.RefKind.RUNTIME)
+    for runtime in runtimes:
+        name = runtime.get_name()
+        arch = runtime.get_arch()
+        branch = runtime.get_branch()
+        key = '{}/{}/{}'.format(name, arch, branch)
+        remote = runtime.get_origin()
+        commit = runtime.get_commit()
+        size = runtime.get_installed_size()
+        ref = runtime.format_ref()
+        date = commit_date_string(repo, commit)
+        version = runtime.get_appdata_version()
+
+        data['flatpak']['runtimes'][key] = {
+            'name': name,
+            'arch': arch,
+            'branch': branch,
+            'remote': remote,
+            'commit': commit,
+            'size': size,
+            'ref': ref,
+            'date': date,
+            'version': version,
+        }
+
+    apps = system.list_installed_refs_by_kind(Flatpak.RefKind.APP)
+    for app in apps:
+        name = app.get_name()
+        arch = app.get_arch()
+        branch = app.get_branch()
+        key = '{}/{}/{}'.format(name, arch, branch)
+        remote = app.get_origin()
+        commit = app.get_commit()
+        size = app.get_installed_size()
+        ref = app.format_ref()
+        date = commit_date_string(repo, commit)
+        version = app.get_appdata_version()
+        metadata = GLib.KeyFile()
+        metadata.load_from_bytes(app.load_metadata(), GLib.KeyFileFlags.NONE)
+        try:
+            runtime = metadata.get_string('Application', 'runtime')
+        except GLib.GError:
+            runtime = None
+
+        data['flatpak']['apps'][key] = {
+            'name': name,
+            'arch': arch,
+            'branch': branch,
+            'remote': remote,
+            'commit': commit,
+            'size': size,
+            'ref': ref,
+            'date': date,
+            'version': version,
+            'runtime': runtime,
+        }
+
+    # Now write out the json to a fragment
     write_manifest(data)
-    exit(0)
 
-# Open the flatpak installation in the OS /var/lib/flatpak.
-system_path = os.path.join(os.environ['OSTREE_VAR'], 'lib/flatpak')
-print('Opening flatpak installation in', system_path)
-system_file = Gio.File.new_for_path(system_path)
-system = Flatpak.Installation.new_for_path(system_file, user=False)
 
-repo_file = system_file.get_child('repo')
-print('Opening ostree repo in', repo_file.get_path())
-repo = OSTree.Repo.new(repo_file)
-repo.open()
-
-remotes = system.list_remotes()
-for remote in remotes:
-    name = remote.get_name()
-    url = remote.get_url()
-    collection_id = remote.get_collection_id()
-
-    # Skip disabled remotes
-    if remote.get_disabled():
-        continue
-
-    # Skip local remotes (e.g., external apps)
-    if url.startswith('file://'):
-        continue
-
-    data['flatpak']['remotes'][name] = {
-        'url': url,
-        'collection-id': collection_id,
-    }
-
-runtimes = system.list_installed_refs_by_kind(Flatpak.RefKind.RUNTIME)
-for runtime in runtimes:
-    name = runtime.get_name()
-    arch = runtime.get_arch()
-    branch = runtime.get_branch()
-    key = '{}/{}/{}'.format(name, arch, branch)
-    remote = runtime.get_origin()
-    commit = runtime.get_commit()
-    size = runtime.get_installed_size()
-    ref = runtime.format_ref()
-    date = commit_date_string(repo, commit)
-    version = runtime.get_appdata_version()
-
-    data['flatpak']['runtimes'][key] = {
-        'name': name,
-        'arch': arch,
-        'branch': branch,
-        'remote': remote,
-        'commit': commit,
-        'size': size,
-        'ref': ref,
-        'date': date,
-        'version': version,
-    }
-
-apps = system.list_installed_refs_by_kind(Flatpak.RefKind.APP)
-for app in apps:
-    name = app.get_name()
-    arch = app.get_arch()
-    branch = app.get_branch()
-    key = '{}/{}/{}'.format(name, arch, branch)
-    remote = app.get_origin()
-    commit = app.get_commit()
-    size = app.get_installed_size()
-    ref = app.format_ref()
-    date = commit_date_string(repo, commit)
-    version = app.get_appdata_version()
-    metadata = GLib.KeyFile()
-    metadata.load_from_bytes(app.load_metadata(), GLib.KeyFileFlags.NONE)
-    try:
-        runtime = metadata.get_string('Application', 'runtime')
-    except GLib.GError:
-        runtime = None
-
-    data['flatpak']['apps'][key] = {
-        'name': name,
-        'arch': arch,
-        'branch': branch,
-        'remote': remote,
-        'commit': commit,
-        'size': size,
-        'ref': ref,
-        'date': date,
-        'version': version,
-        'runtime': runtime,
-    }
-
-# Now write out the json to a fragment
-write_manifest(data)
+if __name__ == '__main__':
+    main()
