@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+
+# Construct AppStream XML for preinstalled apps
+
+import logging
+import os
+import subprocess
+
+from xml.etree import ElementTree
+
+import gi
+
+gi.require_version("Flatpak", "1.0")
+from gi.repository import GLib, Gio, Flatpak  # noqa: E402
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="+ %(asctime)s %(levelname)s %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger(os.path.basename(__file__))
+
+APPSTREAM_VERSION = "0.8"
+
+
+def main():
+    GLib.set_prgname(os.path.basename(__file__))
+
+    image_version = os.environ["EIB_OUTVERSION"]
+    appstream_filename = image_version + ".appstream.xml"
+    appstream_path = os.path.join(os.environ["EIB_OUTDIR"], appstream_filename)
+
+    catalog = ElementTree.Element(
+        "components", version=APPSTREAM_VERSION, origin=image_version
+    )
+
+    system_path = os.path.join(os.environ["OSTREE_VAR"], "lib/flatpak")
+    logger.info("Opening Flatpak installation in %s", system_path)
+    system_file = Gio.File.new_for_path(system_path)
+    system = Flatpak.Installation.new_for_path(system_file, user=False)
+
+    installed_refs_by_origin_arch = {}
+    for ref in system.list_installed_refs():
+        key = (ref.get_origin(), ref.get_arch())
+        installed_refs_by_origin_arch.setdefault(key, set()).add(ref.format_ref())
+
+    for (origin, arch), installed_refs in installed_refs_by_origin_arch.items():
+        path = os.path.join(
+            system_path, "appstream", origin, arch, "active", "appstream.xml"
+        )
+
+        try:
+            remote_catalog = ElementTree.parse(path).getroot()
+        except ElementTree.ParseError as e:
+            # TODO: Should this be fatal?
+            logger.warning("Failed to parse %s: %s", path, e)
+            continue
+
+        metainfo_version = remote_catalog.attrib["version"]
+        if metainfo_version != APPSTREAM_VERSION:
+            logger.warning(
+                "Remote %s %s has AppStream version %s, not %s",
+                origin,
+                arch,
+                metainfo_version,
+                APPSTREAM_VERSION,
+            )
+
+        logger.info("Adding components from %s", path)
+        for component in remote_catalog:
+            bundle = component.find("bundle[@type='flatpak']")
+            try:
+                installed_refs.remove(bundle.text)
+            except KeyError:
+                pass  # Not installed
+            else:
+                catalog.append(component)
+
+        # Anything left in the set is unexpectedly not present in the AppStream for the
+        # remote it came from. It is normal for runtimes to not have metainfo; for
+        # example, .Locale extensions never do.
+        for ref in installed_refs:
+            if ref.startswith("app/"):
+                # TODO: Should this be fatal?
+                logger.warning("No component found for %s from %s", ref, origin)
+
+    tree = ElementTree.ElementTree(catalog)
+    tree.write(appstream_path, encoding="unicode", xml_declaration=True)
+
+    logger.info("Compressing %s to %s.gz", appstream_path, appstream_path)
+    subprocess.run(["pigz", "-9", "-f", appstream_path], check=True)
+
+
+if __name__ == "__main__":
+    main()

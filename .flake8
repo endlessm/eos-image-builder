@@ -17,6 +17,7 @@ filename =
     ./hooks/content/50-kolibri-content,
     ./hooks/image/50-flatpak.chroot,
     ./hooks/image/62-kolibri-options,
+    ./hooks/image/70-flatpak-appstream-catalog,
     ./hooks/image/70-flatpak-manifest,
     ./hooks/image/70-ostree-manifest,
     ./run-build
