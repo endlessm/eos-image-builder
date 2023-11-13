@@ -592,8 +592,8 @@ class ImageBuilder(object):
         else:
             remote_url = self.config['ostree']['dev_pull_url']
 
-        # Make sure the keyring is created
-        keyring = eib.get_keyring(self.config)
+        # Get the list of ostree trusted keys.
+        keys = eib.get_ostree_trusted_keys(self.config)
 
         # Recreate the remote setup to ensure there aren't any stale settings. Don't
         # bother GPG verifying the summary if it's being fetched over HTTPS. This often
@@ -611,17 +611,20 @@ class ImageBuilder(object):
             '--if-exists',
             remote,
         ])
-        subprocess.check_call([
+        remote_add_cmd = [
             'ostree',
             f'--repo={repo_path}',
             'remote',
             'add',
             f'--set=gpg-verify-summary={gpg_verify_summary_str}',
-            f'--gpg-import={keyring}',
+        ]
+        remote_add_cmd += [f'--gpg-import={key}' for key in keys]
+        remote_add_cmd += [
             remote,
             remote_url,
             self.config['ostree']['ref'],
-        ])
+        ]
+        subprocess.check_call(remote_add_cmd)
 
         # Prune the builder's ostree to keep the local repo from growing unbounded. Only
         # the latest commit on each ref is needed to minimize the pull size.
