@@ -40,7 +40,6 @@ import signal
 import struct
 import subprocess
 import sys
-import tempfile
 import time
 
 logger = logging.getLogger(__name__)
@@ -402,49 +401,27 @@ def setup_logging():
     logging.basicConfig(level=level, format=log_format, datefmt=date_format)
 
 
-def get_keyring(config):
-    """Get the path to the temporary GPG keyring
+def get_ostree_trusted_keys(config):
+    """Get the paths to all ostree GPG trusted keys
 
-    If it doesn't exist, it will be created.
+    All GPG keys in data/keys/*.asc and <localdir>/data/keys/*.asc are
+    included.
     """
-    keyring = config['build']['keyring']
+    keyspaths = [os.path.join(config['build']['datadir'], 'keys')]
+    if 'localdatadir' in config['build']:
+        keyspaths.append(os.path.join(config['build']['localdatadir'], 'keys'))
 
-    if not os.path.isfile(keyring):
-        logger.info('Creating temporary GPG keyring %s', keyring)
+    keysdirs = list(filter(os.path.isdir, keyspaths))
+    if len(keysdirs) == 0:
+        raise ImageBuildError('No gpg keys directories in', ' '.join(keyspaths))
 
-        keyspaths = [os.path.join(config['build']['datadir'], 'keys')]
-        if 'localdatadir' in config['build']:
-            keyspaths.append(os.path.join(config['build']['localdatadir'],
-                                          'keys'))
+    keys = sorted(itertools.chain.from_iterable(
+        glob.iglob(os.path.join(d, '*.asc')) for d in keysdirs
+    ))
+    if len(keys) == 0:
+        raise ImageBuildError('No gpg keys in', ' '.join(keysdirs))
 
-        keysdirs = list(filter(os.path.isdir, keyspaths))
-        if len(keysdirs) == 0:
-            raise ImageBuildError('No gpg keys directories at',
-                                  ' or '.join(keyspaths))
-
-        keys = list(itertools.chain.from_iterable(
-            [glob.iglob(os.path.join(d, '*.asc')) for d in keysdirs]
-        ))
-        if len(keys) == 0:
-            raise ImageBuildError('No gpg keys in', ' or '.join(keysdirs))
-
-        # Use a temporary gpg homedir
-        with tempfile.TemporaryDirectory(dir=config['build']['tmpdir'],
-                                         prefix='eib-keyring') as homedir:
-            # Import the keys
-            for key in keys:
-                logger.info('Importing GPG key %s', key)
-                subprocess.check_call(['gpg', '--batch', '--quiet',
-                                       '--homedir', homedir,
-                                       '--import', key])
-
-            # Export all the keys as a normal PGP stream since newer
-            # gnupg imports to a keybox.
-            subprocess.check_call(['gpg', '--batch', '--quiet',
-                                   '--homedir', homedir,
-                                   '--export', '--output', keyring])
-
-    return keyring
+    return keys
 
 
 def disk_usage(path):
