@@ -52,8 +52,8 @@ class ImageBuildRoot(object):
         # Get the config parameters
         packages = config['buildroot']['packages'].split()
         config_mounts = config['buildroot']['mounts'].split()
-        # aptcache_dir = config['buildroot']['aptcache_dir']
-        # aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
+        aptcache_dir = config['buildroot']['aptcache_dir']
+        aptcache_max_size = int(config['buildroot']['aptcache_max_size'])
 
         # Build a list of required mounts using configuration values
         required_mounts = [
@@ -68,6 +68,7 @@ class ImageBuildRoot(object):
             # Required builder directories
             config['build']['cachedir'],
             config['build']['srcdir'],
+            aptcache_dir,
         ]
 
         # Optional mounts dependent on existence on the host
@@ -80,19 +81,13 @@ class ImageBuildRoot(object):
             required_mounts.append(config['build']['localdir'])
 
         # Wipe the apt cache directory if it's grown too large.
-        #
-        # FIXME: This is currently commented because mmdebstrap throws
-        # an error if you seed /var/cache/apt/archives in the root
-        # before it runs. To make this work something like apt-cacher is
-        # needed to handle it at the HTTP level.
-        #
-        # if os.path.exists(aptcache_dir):
-        #     aptcache_size = eib.disk_usage(aptcache_dir)
-        #     if aptcache_size >= aptcache_max_size:
-        #         log.info('Apt cache directory uses %d bytes, removing',
-        #                  aptcache_size)
-        #         shutil.rmtree(aptcache_dir)
-        # os.makedirs(os.path.join(aptcache_dir), exist_ok=True)
+        if os.path.exists(aptcache_dir):
+            aptcache_size = eib.disk_usage(aptcache_dir)
+            if aptcache_size >= aptcache_max_size:
+                log.info('Apt cache directory uses %d bytes, removing',
+                         aptcache_size)
+                shutil.rmtree(aptcache_dir)
+        os.makedirs(aptcache_dir, exist_ok=True)
 
         # Pull the ostree. Ideally the eosminbase ostree would be used to
         # minimize the buildroot, but that's not released and would fail with
@@ -184,7 +179,7 @@ class ImageBuildRoot(object):
         apt_conf_path = os.path.join(self.builddir, 'etc/apt/apt.conf.d/99eib.conf')
         os.makedirs(os.path.dirname(apt_conf_path), exist_ok=True)
         with open(apt_conf_path, 'w') as f:
-            f.write(dedent("""\
+            f.write(dedent(f"""\
             # Assume yes for all apt questions.
             APT::Get::Assume-Yes "true";
             # Disable recommends like when building the OS.
@@ -193,10 +188,12 @@ class ImageBuildRoot(object):
             Acquire::AllowReleaseInfoChange "true";
             # Don't fetch any translations.
             Acquire::Languages "none";
-            DPkg::Options {
+            # Use our apt archive cache.
+            Dir::Cache::archives "{aptcache_dir}/";
+            DPkg::Options {{
                 # Always use the new version of a config file when upgrading.
                 "--force-confnew";
-            };
+            }};
             """))
         apt_cmd = ['chroot', self.builddir, 'apt-get', 'update']
         subprocess.check_call(apt_cmd, env=apt_env)
