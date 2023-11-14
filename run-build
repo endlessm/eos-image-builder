@@ -109,31 +109,29 @@ class ImageBuildRoot(object):
             ref,
         ])
 
-        # Checkout the commit.
+        # Checkout the commit. The checkout is going to be mutated, so copy the
+        # objects instead of hardlinking to ensure they aren't corrupted.
         log.info(f'Checking out OSTree ref {remote}:{ref} to {self.builddir}')
         shutil.rmtree(self.builddir)
         subprocess.check_call([
             'ostree',
             f'--repo={repo_path}',
             'checkout',
+            '--force-copy',
             f'{remote}:{ref}',
             self.builddir,
         ])
 
-        # Adjust the checkout a bit so it works for execution. /usr/etc is
-        # copied to /etc rather than renamed so that any modifications don't
-        # affect the repo objects.
+        # Adjust the checkout a bit so it works for execution.
         #
         # /home, /root, /opt and /usr/local are all symlinks into persistent
         # storage that aren't needed here and may mess with bind mounts.
         log.debug(
-            f'Copying OSTree {self.builddir}/usr/etc to {self.builddir}/etc'
+            f'Moving OSTree {self.builddir}/usr/etc to {self.builddir}/etc'
         )
-        shutil.copytree(
+        os.rename(
             os.path.join(self.builddir, 'usr/etc'),
             os.path.join(self.builddir, 'etc'),
-            # Copy symlinks as is.
-            symlinks=True,
         )
         for path in ('home', 'root', 'opt', 'usr/local'):
             build_path = os.path.join(self.builddir, path)
