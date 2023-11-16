@@ -41,6 +41,11 @@ for f in "${src}"/*; do
     *.asc)
       opts+=(--content-disposition=attachment)
       ;;
+
+    *.xml.gz)
+      # By default S3 will serve the file with Content-Type: application/xml
+      opts+=(--content-type=application/gzip)
+      ;;
   esac
   aws --region="${region}" s3 cp "${opts[@]}" "${f}" "${dest}/"
 done
