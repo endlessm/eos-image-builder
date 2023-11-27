@@ -1,0 +1,119 @@
+#!/usr/bin/python3 -u
+import gi
+import logging
+import os
+import subprocess
+import re
+import concurrent.futures
+
+from typing import Dict, List
+
+gi.require_version("Flatpak", "1.0")
+from gi.repository import Flatpak
+
+
+# These symbols are present in builds of libffmpeg.so which do not actually contain
+# H.264 support
+WHITELISTED_SYMBOLS = [
+    "ff_h264_pred_init",
+    "ff_h264_pred_init_x86",
+    "ff_h264_profiles",
+    # TODO: expand this, there are definitely other benign symbols that match our rather
+    # crude heuristic
+    "avpriv_h264_has_num_reorder_frames",  # ???
+
+    "gst_plugin_openh264_get_desc",
+    "gst_plugin_openh264_register",
+]
+
+
+def looks_like_a_shared_object(filename: str) -> bool:
+    if not re.search(r"\.so(\.\d+)*$", filename):
+        return False
+
+    if os.path.islink(filename):
+        # Some Flatpaks contain absolute links to paths in /app
+        # which won't work outside the app sandbox
+        return False
+
+    # TODO: exclude linker scripts (which nm rightly rejects as not being ELF files)
+    # and re-enable check=True below
+    return True
+
+
+def get_concerning_symbols(filepath: str) -> List[str]:
+    # TODO: parse the output more rigorously
+    result = subprocess.run(
+        ["nm", "-gDC", "--defined-only", filepath],
+        capture_output=True,
+        # TODO: exclude linker scripts and re-enable this
+        # check=True,
+        text="ascii",
+    )
+
+    concerning_symbols = []
+    for line in result.stdout.splitlines():
+        addr, type_, name = line.split(" ", 2)
+        name = name.split("@@")[0]
+
+        if re.search(r"[hHx]264", name) and name not in WHITELISTED_SYMBOLS:
+            concerning_symbols.append(line)
+
+    return concerning_symbols
+
+
+def check_ref(deploy_dir: str) -> Dict[str, List[str]]:
+    concerning_files = {}
+    for dirpath, dirnames, filenames in os.walk(deploy_dir):
+        for filename in filenames:
+            filepath = os.path.join(dirpath, filename)
+            if looks_like_a_shared_object(filepath):
+                concerning_symbols = get_concerning_symbols(filepath)
+                if concerning_symbols:
+                    relative_path = os.path.relpath(filepath, deploy_dir)
+                    concerning_files[relative_path] = concerning_symbols[:5]
+
+    return concerning_files
+
+
+def check_installed_refs() -> Dict[str, Dict[str, List[str]]]:
+    concerning_refs = {}
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        installed_refs = {
+            installed_ref: installed_ref.get_deploy_dir()
+            for installation in Flatpak.get_system_installations()
+            for installed_ref in installation.list_installed_refs()
+        }
+
+        for installed_ref, concerning_files in zip(
+            installed_refs.keys(),
+            executor.map(check_ref, installed_refs.values())
+        ):
+            if concerning_files:
+                concerning_refs[installed_ref.format_ref()] = concerning_files
+
+    return concerning_refs
+
+
+def main():
+    concerning_refs = check_installed_refs()
+    if concerning_refs:
+        n = len(concerning_refs)
+        print(f"Found {n} Flatpak(s) which probably contain encumbered codecs")
+        print()
+
+        for ref, concerning_files in concerning_refs.items():
+            print(f"== {ref} ==")
+            for filepath, symbols in concerning_files.items():
+                print(f"{filepath}:")
+                for symbol in symbols:
+                    print(symbol)
+                print()
+            print()
+
+        exit(1)
+
+
+if __name__ == "__main__":
+    main()
