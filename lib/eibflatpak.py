@@ -794,14 +794,17 @@ class FlatpakManager(object):
 
     def _add_installs(self, transaction):
         for remote in self.remotes.values():
-            for app in remote.apps:
-                ref = remote.match(app, Flatpak.RefKind.APP)
-                logger.info('Adding app %s from %s', ref.ref, remote.name)
-                transaction.add_install(remote.name, ref.ref, None)
-            for runtime in remote.runtimes:
-                ref = remote.match(runtime, Flatpak.RefKind.RUNTIME)
-                logger.info('Adding runtime %s from %s', ref.ref, remote.name)
-                transaction.add_install(remote.name, ref.ref, None)
+            for kind, ref_strs in (
+                (Flatpak.RefKind.APP, remote.apps),
+                (Flatpak.RefKind.RUNTIME, remote.runtimes),
+            ):
+                kind_str = kind.value_nick
+                for ref_str in ref_strs:
+                    ref = remote.match(ref_str, kind)
+                    logger.info(
+                        'Adding %s %s from %s', kind_str, ref.ref, remote.name
+                    )
+                    transaction.add_install(remote.name, ref.ref, None)
 
     def _new_transaction(self):
         txn = Flatpak.Transaction.new_for_installation(self.installation)
