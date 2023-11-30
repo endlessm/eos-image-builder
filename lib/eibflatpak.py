@@ -793,15 +793,32 @@ class FlatpakManager(object):
             )
 
     def _add_installs(self, transaction):
+        missing = []
+
         for remote in self.remotes.values():
-            for app in remote.apps:
-                ref = remote.match(app, Flatpak.RefKind.APP)
-                logger.info('Adding app %s from %s', ref.ref, remote.name)
-                transaction.add_install(remote.name, ref.ref, None)
-            for runtime in remote.runtimes:
-                ref = remote.match(runtime, Flatpak.RefKind.RUNTIME)
-                logger.info('Adding runtime %s from %s', ref.ref, remote.name)
-                transaction.add_install(remote.name, ref.ref, None)
+            for kind, ref_strs in (
+                (Flatpak.RefKind.APP, remote.apps),
+                (Flatpak.RefKind.RUNTIME, remote.runtimes),
+            ):
+                kind_str = kind.value_nick
+                for ref_str in ref_strs:
+                    ref = remote.match(ref_str, kind)
+                    if ref is not None:
+                        logger.info(
+                            'Adding %s %s from %s', kind_str, ref.ref, remote.name
+                        )
+                        transaction.add_install(remote.name, ref.ref, None)
+                    else:
+                        logger.error(
+                            '%s %s not found from %s', kind_str, ref_str, remote.name
+                        )
+                        missing.append(ref_str)
+
+        if missing:
+            raise FlatpakError(
+                'Could not find listed flatpaks:',
+                ', '.join(missing)
+            )
 
     def _new_transaction(self):
         txn = Flatpak.Transaction.new_for_installation(self.installation)
