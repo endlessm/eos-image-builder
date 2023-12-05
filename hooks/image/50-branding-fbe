@@ -24,8 +24,3 @@ CONFIG_BASENAME=$(basename "${EIB_IMAGE_BRANDING_FBE_CONFIG}")
 for SUBST_VAR in ${EIB_IMAGE_BRANDING_SUBST_VARS}; do
     sed -i "s|@${SUBST_VAR}@|${!SUBST_VAR}|g" "${CONFIG_DIR}"/"${CONFIG_BASENAME}"
 done
-
-# The skipped pages file and the logo are optional
-if [ -n "${EIB_IMAGE_BRANDING_FBE_SKIP_PAGES_FILE}" ]; then
-    cp "${EIB_IMAGE_BRANDING_FBE_SKIP_PAGES_FILE}" "${CONFIG_DIR}"/
-fi
