@@ -13,6 +13,7 @@ filename =
     ./helpers/kolibri-pick-content-from-channel,
     ./helpers/mutable-path,
     ./helpers/packages-manifest,
+    ./helpers/seed-kolibri-channels,
     ./hooks/content/50-flatpak,
     ./hooks/content/50-kolibri-content,
     ./hooks/image/50-flatpak.chroot,
