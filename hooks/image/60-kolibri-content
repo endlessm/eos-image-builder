@@ -41,16 +41,6 @@ import_kolibri_channel()
     network "${importcontent_network_opts[@]}" "${channel_id}"
 }
 
-# Needs to be kept in sync with hooks/image/61-kolibri-content-install
-KOLIBRI_CONTENT_DIR="${EIB_CONTENTDIR}/kolibri-content"
-# FIXME: For now, we need to remove old content that may exist from previous
-# runs to prevent images accidentally getting extra channels that are not in
-# their configuration. However, this defeats the purpose of the image builder
-# saving the contents of EIB_CONTENTDIR between runs to improve its performance.
-# At some point we should revisit this to try to make the caching work properly.
-rm -rf "${KOLIBRI_CONTENT_DIR}"
-mkdir -p "${KOLIBRI_CONTENT_DIR}"
-
 venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
 python3 -m venv ${venv_dir}
 source ${venv_dir}/bin/activate
@@ -59,7 +49,9 @@ pip install kolibri==${EIB_KOLIBRI_APP_VERSION}
 pip install kolibri-app-desktop-xdg-plugin==${EIB_KOLIBRI_APP_DESKTOP_XDG_PLUGIN_VERSION}
 pip install kolibri-desktop-auth-plugin==${EIB_KOLIBRI_DESKTOP_AUTH_PLUGIN_VERSION}
 
-export KOLIBRI_HOME="${KOLIBRI_CONTENT_DIR}"
+export KOLIBRI_HOME="${OSTREE_VAR}"/lib/kolibri/data
+rm -rf "${KOLIBRI_HOME}"
+mkdir -p "${KOLIBRI_HOME}"
 
 kolibri plugin enable kolibri.plugins.app
 kolibri plugin enable kolibri_app_desktop_xdg_plugin
