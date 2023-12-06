@@ -63,6 +63,22 @@ def wait_for_job(session, base_url, job_id):
             last_marker = marker
 
 
+def channel_exists(session, base_url, channel_id):
+    """Check if channel exists on remote Kolibri server"""
+    url = urljoin(base_url, f'api/content/channel/{channel_id}/')
+    logger.debug(f'Checking if channel {channel_id} exists')
+    with session.get(url) as resp:
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError:
+            if resp.status_code == 404:
+                return False
+            logger.error('Failed to check channel existence: %s', resp.json())
+            raise
+        else:
+            return True
+
+
 def import_channel(session, base_url, channel_id):
     """Import channel on remote Kolibri server"""
     url = urljoin(base_url, 'api/tasks/tasks/startremotechannelimport/')
@@ -99,6 +115,43 @@ def import_content(session, base_url, channel_id):
     wait_for_job(session, base_url, job['id'])
 
 
+def diff_channel(session, base_url, channel_id):
+    """Generate channel diff on remote Kolibri server"""
+    url = urljoin(base_url, 'api/tasks/tasks/channeldiffstats/')
+    data = {'channel_id': channel_id, 'method': 'network'}
+    logger.info(f'Generating channel {channel_id} diff')
+    with session.post(url, json=data) as resp:
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError:
+            logger.error('Failed to generate channel diff: %s', resp.json())
+            raise
+        job = resp.json()
+    wait_for_job(session, base_url, job['id'])
+
+
+def update_channel(session, base_url, channel_id):
+    """Update channel on remote Kolibri server"""
+    url = urljoin(base_url, 'api/tasks/tasks/startchannelupdate/')
+    data = {
+        'channel_id': channel_id,
+        'sourcetype': 'remote',
+        # Fetch all nodes so that the channel is fully mirrored.
+        'renderable_only': False,
+        'fail_on_error': True,
+        'timeout': 300,
+    }
+    logger.info(f'Updating channel {channel_id} content')
+    with session.post(url, json=data) as resp:
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError:
+            logger.error('Failed to update channel: %s', resp.json())
+            raise
+        job = resp.json()
+    wait_for_job(session, base_url, job['id'])
+
+
 def seed_remote_channels(channel_ids):
     """Import channels and content on remote Kolibri server"""
     config = eib.get_config()
@@ -130,5 +183,12 @@ def seed_remote_channels(channel_ids):
 
     for channel in channel_ids:
         logger.info(f'Seeding channel {channel} on {host}')
-        import_channel(session, base_url, channel)
-        import_content(session, base_url, channel)
+
+        # If the channel exists, update it since Kolibri won't import
+        # new content nodes otherwise.
+        if channel_exists(session, base_url, channel):
+            diff_channel(session, base_url, channel)
+            update_channel(session, base_url, channel)
+        else:
+            import_channel(session, base_url, channel)
+            import_content(session, base_url, channel)
