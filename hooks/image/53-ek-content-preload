@@ -22,9 +22,6 @@ if [ -n "${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}" ]; then
   export KOLIBRI_CENTRAL_CONTENT_BASE_URL
 fi
 
-# Do not create symlinks for static files inside the image builder.
-export KOLIBRI_STATIC_USE_SYMLINKS=0
-
 channels=$(sort -u "${EIB_TMPDIR}"/ek-channels)
 for channel in $channels; do
   kolibri manage --skip-update importchannel network "${channel}"
