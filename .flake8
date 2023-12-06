@@ -15,7 +15,6 @@ filename =
     ./helpers/packages-manifest,
     ./helpers/seed-kolibri-channels,
     ./hooks/content/50-flatpak,
-    ./hooks/content/50-kolibri-content,
     ./hooks/image/50-flatpak.chroot,
     ./hooks/image/62-kolibri-options,
     ./hooks/image/70-flatpak-appstream-catalog,

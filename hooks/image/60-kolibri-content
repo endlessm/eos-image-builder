@@ -41,6 +41,9 @@ import_kolibri_channel()
     network "${importcontent_network_opts[@]}" "${channel_id}"
 }
 
+# Seed the needed channels on the content server.
+"${EIB_HELPERSDIR}"/seed-kolibri-channels ${EIB_KOLIBRI_INSTALL_CHANNELS}
+
 venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
 python3 -m venv ${venv_dir}
 source ${venv_dir}/bin/activate
