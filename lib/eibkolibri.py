@@ -106,7 +106,6 @@ def import_content(session, base_url, channel_id):
         # Fetch all nodes so that the channel is fully mirrored.
         'renderable_only': False,
         'fail_on_error': True,
-        'timeout': 300,
     }
     logger.info(f'Importing channel {channel_id} content')
     with session.post(url, json=data) as resp:
@@ -143,7 +142,6 @@ def update_channel(session, base_url, channel_id):
         # Fetch all nodes so that the channel is fully mirrored.
         'renderable_only': False,
         'fail_on_error': True,
-        'timeout': 300,
     }
     logger.info(f'Updating channel {channel_id} content')
     with session.post(url, json=data) as resp:
