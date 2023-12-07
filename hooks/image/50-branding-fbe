@@ -1,7 +1,6 @@
-# Adds the configuration file and assets to customize the welcome page of the FBE.
+# Adds a configuration file to customise GNOME Initial Setup.
 #
-# The file will live in /var/lib/eos-image-defaults/branding/gnome-initial-setup.conf,
-# and any related resources (e.g. logo) under /var/lib/eos-image-defaults/branding/assets.
+# The file will live in /etc/gnome-initial-setup/vendor.conf.
 
 if [ -z "${EIB_IMAGE_BRANDING_FBE_CONFIG}" ]; then
     exit 0
@@ -14,18 +13,7 @@ if [ "$CHECK" != OK ]; then
     exit 1
 fi
 
-CONFIG_DIR="${OSTREE_VAR}"/lib/eos-image-defaults/branding
+CONFIG_PATH="${OSTREE_DEPLOYMENT}"/etc/gnome-initial-setup/vendor.conf
 
-mkdir -p "${CONFIG_DIR}"
-cp "${EIB_IMAGE_BRANDING_FBE_CONFIG}" "${CONFIG_DIR}"/
-
-CONFIG_BASENAME=$(basename "${EIB_IMAGE_BRANDING_FBE_CONFIG}")
-
-for SUBST_VAR in ${EIB_IMAGE_BRANDING_SUBST_VARS}; do
-    sed -i "s|@${SUBST_VAR}@|${!SUBST_VAR}|g" "${CONFIG_DIR}"/"${CONFIG_BASENAME}"
-done
-
-# The skipped pages file and the logo are optional
-if [ -n "${EIB_IMAGE_BRANDING_FBE_SKIP_PAGES_FILE}" ]; then
-    cp "${EIB_IMAGE_BRANDING_FBE_SKIP_PAGES_FILE}" "${CONFIG_DIR}"/
-fi
+mkdir -p "$(dirname "$CONFIG_PATH")"
+cp "${EIB_IMAGE_BRANDING_FBE_CONFIG}" "$CONFIG_PATH"
