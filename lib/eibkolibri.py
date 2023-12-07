@@ -21,6 +21,7 @@ import logging
 from netrc import netrc
 import os
 import requests
+from time import sleep
 from urllib.parse import urljoin, urlparse
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,9 @@ def wait_for_job(session, base_url, job_id):
         if last_marker is None or marker > last_marker:
             logger.info(f'Progress: {pct}%')
             last_marker = marker
+
+        # Wait a bit before checking the status again.
+        sleep(0.5)
 
 
 def channel_exists(session, base_url, channel_id):
@@ -170,7 +174,7 @@ def seed_remote_channels(channel_ids):
     host = urlparse(base_url).netloc
     creds = netrc_creds.authenticators(host)
     if not creds:
-        logger.info(f'No credentials for {host}')
+        logger.info(f'No credentials for {host} in {netrc_path}')
         return
     username, _, password = creds
 
