@@ -1,9 +1,35 @@
 # Populate the Endless Key home directory
 
-# This file gets populated by hooks/image/51-ek-content-list
-if [ ! -f "${EIB_TMPDIR}"/ek-channels ]; then
+if [ -z "${EIB_ENDLESSKEY_COLLECTIONS}" ]; then
   exit 0
 fi
+
+if [[ ! "${EIB_FLATPAK_REMOTE_FLATHUB_APPS}" =~ .*"org.endlessos.Key".* ]]; then
+  exit 0
+fi
+
+# Get the list of channels to preload.
+channels_file="${EIB_TMPDIR}"/ek-channels
+rm -f "${channels_file}"
+touch "${channels_file}"
+collections="${OSTREE_VAR}"/lib/flatpak/app/org.endlessos.Key/current/active/files/share/endless-key/collections/*.json
+for collection in ${collections}; do
+  # Check if the file basename stripped off of -0001.json is part of the list
+  # of collections to be installed.
+  bn=$(basename ${collection})
+  if [[ "${EIB_ENDLESSKEY_COLLECTIONS}" =~ .*"${bn%-????.json}".* ]] ; then
+    jq -r '.channels[].id' "${collection}" >> "${channels_file}"
+  fi
+done
+
+channels=$(sort -u "${channels_file}")
+if [ -z "${channels}" ]; then
+  echo "No Kolibri channels to preload"
+  exit 0
+fi
+
+# Seed the needed channels on the content server.
+"${EIB_HELPERSDIR}"/seed-kolibri-channels ${channels}
 
 venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
 python3 -m venv ${venv_dir}
@@ -22,10 +48,6 @@ if [ -n "${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}" ]; then
   export KOLIBRI_CENTRAL_CONTENT_BASE_URL
 fi
 
-# Do not create symlinks for static files inside the image builder.
-export KOLIBRI_STATIC_USE_SYMLINKS=0
-
-channels=$(sort -u "${EIB_TMPDIR}"/ek-channels)
 for channel in $channels; do
   kolibri manage --skip-update importchannel network "${channel}"
   EIB_RETRY_ATTEMPTS=2 EIB_RETRY_INTERVAL=30 eib_retry \

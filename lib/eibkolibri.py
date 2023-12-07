@@ -1,7 +1,20 @@
-#!/usr/bin/python3
-
-# Instruct the Kolibri content server to import Endless Key channels needed for
-# this build.
+# Endless image builder library - Kolibri utilities
+#
+# Copyright © 2023 Endless OS Foundation LLC
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import eib
 import logging
@@ -10,10 +23,11 @@ import os
 import requests
 from urllib.parse import urljoin, urlparse
 
-logger = logging.getLogger(os.path.basename(__file__))
+logger = logging.getLogger(__name__)
 
 
 def get_job_status(session, base_url, job_id):
+    """Get remote Kolibri job status"""
     url = urljoin(base_url, f'api/tasks/tasks/{job_id}/')
     with session.get(url) as resp:
         resp.raise_for_status()
@@ -21,6 +35,7 @@ def get_job_status(session, base_url, job_id):
 
 
 def wait_for_job(session, base_url, job_id):
+    """Wait for remote Kolibri job to complete"""
     logger.debug(f'Waiting for job {job_id} to complete')
     last_marker = None
     while True:
@@ -48,7 +63,24 @@ def wait_for_job(session, base_url, job_id):
             last_marker = marker
 
 
+def channel_exists(session, base_url, channel_id):
+    """Check if channel exists on remote Kolibri server"""
+    url = urljoin(base_url, f'api/content/channel/{channel_id}/')
+    logger.debug(f'Checking if channel {channel_id} exists')
+    with session.get(url) as resp:
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError:
+            if resp.status_code == 404:
+                return False
+            logger.error('Failed to check channel existence: %s', resp.json())
+            raise
+        else:
+            return True
+
+
 def import_channel(session, base_url, channel_id):
+    """Import channel on remote Kolibri server"""
     url = urljoin(base_url, 'api/tasks/tasks/startremotechannelimport/')
     data = {'channel_id': channel_id}
     logger.info(f'Importing channel {channel_id} metadata')
@@ -63,6 +95,7 @@ def import_channel(session, base_url, channel_id):
 
 
 def import_content(session, base_url, channel_id):
+    """Import channel content on remote Kolibri server"""
     url = urljoin(base_url, 'api/tasks/tasks/startremotecontentimport/')
     data = {
         'channel_id': channel_id,
@@ -82,8 +115,45 @@ def import_content(session, base_url, channel_id):
     wait_for_job(session, base_url, job['id'])
 
 
-def main():
-    eib.setup_logging()
+def diff_channel(session, base_url, channel_id):
+    """Generate channel diff on remote Kolibri server"""
+    url = urljoin(base_url, 'api/tasks/tasks/channeldiffstats/')
+    data = {'channel_id': channel_id, 'method': 'network'}
+    logger.info(f'Generating channel {channel_id} diff')
+    with session.post(url, json=data) as resp:
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError:
+            logger.error('Failed to generate channel diff: %s', resp.json())
+            raise
+        job = resp.json()
+    wait_for_job(session, base_url, job['id'])
+
+
+def update_channel(session, base_url, channel_id):
+    """Update channel on remote Kolibri server"""
+    url = urljoin(base_url, 'api/tasks/tasks/startchannelupdate/')
+    data = {
+        'channel_id': channel_id,
+        'sourcetype': 'remote',
+        # Fetch all nodes so that the channel is fully mirrored.
+        'renderable_only': False,
+        'fail_on_error': True,
+        'timeout': 300,
+    }
+    logger.info(f'Updating channel {channel_id} content')
+    with session.post(url, json=data) as resp:
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError:
+            logger.error('Failed to update channel: %s', resp.json())
+            raise
+        job = resp.json()
+    wait_for_job(session, base_url, job['id'])
+
+
+def seed_remote_channels(channel_ids):
+    """Import channels and content on remote Kolibri server"""
     config = eib.get_config()
 
     base_url = config.get('kolibri', 'central_content_base_url', fallback=None)
@@ -94,12 +164,6 @@ def main():
     netrc_path = os.path.join(eib.SYSCONFDIR, 'netrc')
     if not os.path.exists(netrc_path):
         logger.info(f'No credentials in {netrc_path}')
-        return
-
-    # This file gets populated by hooks/image/51-ek-content-list
-    channels_path = os.path.join(os.environ['EIB_TMPDIR'], 'ek-channels')
-    if not os.path.exists(channels_path):
-        logger.info(f'No channel list in {channels_path}')
         return
 
     netrc_creds = netrc(netrc_path)
@@ -117,12 +181,14 @@ def main():
         'Content-Type': 'application/json',
     })
 
-    with open(channels_path) as channels_file:
-        for line in channels_file:
-            channel = line.strip()
+    for channel in channel_ids:
+        logger.info(f'Seeding channel {channel} on {host}')
+
+        # If the channel exists, update it since Kolibri won't import
+        # new content nodes otherwise.
+        if channel_exists(session, base_url, channel):
+            diff_channel(session, base_url, channel)
+            update_channel(session, base_url, channel)
+        else:
             import_channel(session, base_url, channel)
             import_content(session, base_url, channel)
-
-
-if __name__ == '__main__':
-    main()
