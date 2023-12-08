@@ -1,3 +1,5 @@
 # Python requirements for testing
 flake8
 pytest
+requests
+requests-mock
