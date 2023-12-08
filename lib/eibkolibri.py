@@ -17,6 +17,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import eib
+import enum
 import logging
 from netrc import netrc
 import os
@@ -29,6 +30,12 @@ logger = logging.getLogger(__name__)
 
 class RemoteKolibri:
     """Kolibri remote instance"""
+
+    class Series(enum.Enum):
+        """Supported Kolibri server series"""
+        KOLIBRI_0_15 = enum.auto()
+        KOLIBRI_0_16 = enum.auto()
+
     def __init__(self, base_url, username, password):
         self.base_url = base_url
 
@@ -39,8 +46,19 @@ class RemoteKolibri:
             'Content-Type': 'application/json',
         })
 
+        self.series = self._get_server_series()
+
     def import_channel(self, channel_id):
         """Import channel and content on remote Kolibri server"""
+        if self.series == self.Series.KOLIBRI_0_15:
+            return self._import_channel_0_15(channel_id)
+        elif self.series == self.Series.KOLIBRI_0_16:
+            return self._import_channel_0_16(channel_id)
+
+        raise AssertionError('Unsupported server series')
+
+    def _import_channel_0_15(self, channel_id):
+        """Import channel and content on remote Kolibri 0.15 server"""
         # Import channel metadata.
         url = urljoin(
             self.base_url,
@@ -78,8 +96,39 @@ class RemoteKolibri:
             job = resp.json()
         self._wait_for_job(job['id'])
 
+    def _import_channel_0_16(self, channel_id, update=False):
+        """Import channel and content on remote Kolibri 0.16 server"""
+        url = urljoin(self.base_url, 'api/tasks/tasks/')
+        data = {
+            'type': 'kolibri.core.content.tasks.remoteimport',
+            'channel_id': channel_id,
+            'channel_name': 'unknown',
+            'update': update,
+            # Fetch all nodes so that the channel is fully mirrored.
+            'renderable_only': False,
+            'fail_on_error': True,
+        }
+        logger.info(f'Importing channel {channel_id}')
+        with self.session.post(url, json=data) as resp:
+            try:
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError:
+                logger.error('Failed to import channel: %s', resp.json())
+                raise
+            job = resp.json()
+        self._wait_for_job(job['id'])
+
     def update_channel(self, channel_id):
         """Update channel and content on remote Kolibri server"""
+        if self.series == self.Series.KOLIBRI_0_15:
+            return self._update_channel_0_15(channel_id)
+        elif self.series == self.Series.KOLIBRI_0_16:
+            return self._update_channel_0_16(channel_id)
+
+        raise AssertionError('Unsupported server series')
+
+    def _update_channel_0_15(self, channel_id):
+        """Update channel and content on remote Kolibri 0.15 server"""
         # Generate channel diff stats.
         url = urljoin(self.base_url, 'api/tasks/tasks/channeldiffstats/')
         data = {'channel_id': channel_id, 'method': 'network'}
@@ -115,6 +164,28 @@ class RemoteKolibri:
             job = resp.json()
         self._wait_for_job(job['id'])
 
+    def _update_channel_0_16(self, channel_id):
+        """Update channel and content on remote Kolibri 0.15 server"""
+        # Generate channel diff stats.
+        url = urljoin(self.base_url, 'api/tasks/tasks/')
+        data = {
+            'type': 'kolibri.core.content.tasks.remotechanneldiffstats',
+            'channel_id': channel_id,
+            'channel_name': 'unknown',
+        }
+        logger.info(f'Generating channel {channel_id} diff')
+        with self.session.post(url, json=data) as resp:
+            try:
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError:
+                logger.error('Failed to generate channel diff: %s', resp.json())
+                raise
+            job = resp.json()
+        self._wait_for_job(job['id'])
+
+        # Update channel metadata and content.
+        self._import_channel_0_16(channel_id, update=True)
+
     def seed_channel(self, channel_id):
         """Import or update channel and content on remote Kolibri server
 
@@ -125,6 +196,22 @@ class RemoteKolibri:
             self.update_channel(channel_id)
         else:
             self.import_channel(channel_id)
+
+    def _get_server_series(self):
+        """Determine the server Kolibri series"""
+        url = urljoin(self.base_url, 'api/public/info/')
+        with self.session.get(url) as resp:
+            resp.raise_for_status()
+            info = resp.json()
+
+        kolibri_version = info.get('kolibri_version', '')
+        logger.debug(f'Server Kolibri version: "{kolibri_version}"')
+        if kolibri_version.startswith('0.15.'):
+            return self.Series.KOLIBRI_0_15
+        elif kolibri_version.startswith('0.16.'):
+            return self.Series.KOLIBRI_0_16
+
+        raise Exception(f'Unsupported remote Kolibri version "{kolibri_version}"')
 
     def _get_job_status(self, job_id):
         """Get remote Kolibri job status"""
