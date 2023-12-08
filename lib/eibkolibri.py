@@ -155,25 +155,30 @@ def update_channel(session, base_url, channel_id):
 
 
 def seed_remote_channels(channel_ids):
-    """Import channels and content on remote Kolibri server"""
+    """Import channels and content on remote Kolibri server
+
+    Seeding is skipped if a custom content server is not used or there
+    are no credentials for the server. Returns True when channels were
+    seeded and False otherwise.
+    """
     config = eib.get_config()
 
     base_url = config.get('kolibri', 'central_content_base_url', fallback=None)
     if not base_url:
         logger.info('Not using custom Kolibri content server')
-        return
+        return False
 
     netrc_path = os.path.join(eib.SYSCONFDIR, 'netrc')
     if not os.path.exists(netrc_path):
         logger.info(f'No credentials in {netrc_path}')
-        return
+        return False
 
     netrc_creds = netrc(netrc_path)
     host = urlparse(base_url).netloc
     creds = netrc_creds.authenticators(host)
     if not creds:
         logger.info(f'No credentials for {host} in {netrc_path}')
-        return
+        return False
     username, _, password = creds
 
     # Start a requests session with the credentials.
@@ -194,3 +199,5 @@ def seed_remote_channels(channel_ids):
         else:
             import_channel(session, base_url, channel)
             import_content(session, base_url, channel)
+
+    return True
