@@ -53,7 +53,7 @@ def wait_for_job(session, base_url, job_id):
         elif status == 'CANCELED':
             raise Exception(f'Job {job_id} cancelled')
         elif status == 'COMPLETED':
-            if last_marker < 100:
+            if last_marker is None or last_marker < 100:
                 logger.info('Progress: 100%')
             break
 
