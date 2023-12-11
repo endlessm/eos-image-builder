@@ -32,11 +32,11 @@ jobs:
             ostree \
             python3-gi \
             python3-pip
-      - name: Python dependencies
-        run: |
-          python3 -m pip install flake8 pytest
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Python dependencies
+        run: |
+          python3 -m pip install -r requirements-test.txt
       - name: Lint
         run: |
           python3 -m flake8

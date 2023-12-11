@@ -394,8 +394,9 @@ Testing
 =======
 
 Some parts of the image builder can be tested with [pytest][pytest-url].
-After installing pytest, run `pytest` (or `pytest-3` if `pytest` is for
-python 2) from the root of the checkout.
+Install the testing dependencies with `pip3 install -r
+requirements-test.txt`. After installing pytest, run `pytest` (or
+`pytest-3` if `pytest` is for python 2) from the root of the checkout.
 
 Various options can be passed to `pytest` to control how the tests are
 run. See the pytest [usage][pytest-usage] documentation for details.
