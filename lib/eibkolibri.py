@@ -190,12 +190,13 @@ class RemoteKolibri:
         """Import or update channel and content on remote Kolibri server
 
         If the channel exists, it will be updated since Kolibri won't
-        import new content nodes otherwise.
+        import new content nodes otherwise. An import is always run to
+        ensure any nodes missed because of a previous failure are
+        imported.
         """
         if self._channel_exists(channel_id):
             self.update_channel(channel_id)
-        else:
-            self.import_channel(channel_id)
+        self.import_channel(channel_id)
 
     def _get_server_series(self):
         """Determine the server Kolibri series"""
