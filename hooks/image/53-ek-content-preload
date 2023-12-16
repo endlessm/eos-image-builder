@@ -50,8 +50,14 @@ if [ -n "${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}" ]; then
   export KOLIBRI_CENTRAL_CONTENT_BASE_URL
 fi
 
+# Import all channel metadata and thumbnails for all channels
 for channel in $all_channels; do
   kolibri manage --skip-update importchannel network "${channel}"
+  EIB_RETRY_ATTEMPTS=2 EIB_RETRY_INTERVAL=30 eib_retry \
+    kolibri manage --skip-update \
+    importcontent --include-unrenderable-content --fail-on-error \
+    --node_ids="" --all-thumbnails \
+    network "${channel}"
 done
 
 if [ "${EIB_ENDLESSKEY_INCLUDE_FULL_CHANNELS}" == true ]; then
