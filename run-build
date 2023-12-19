@@ -189,6 +189,9 @@ class ImageBuildRoot(object):
             os.path.join(self.builddir, 'var/lib/dpkg'),
         )
 
+        # update-catalog requires /var/lib/sgml-base to exist
+        os.makedirs(os.path.join(self.builddir, 'var/lib/sgml-base'))
+
         log.info('Installing buildroot packages')
         apt_env = os.environ.copy()
         apt_env['DEBIAN_FRONTEND'] = 'noninteractive'
