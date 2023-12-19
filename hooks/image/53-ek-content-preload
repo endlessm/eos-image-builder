@@ -8,28 +8,30 @@ if [[ ! "${EIB_FLATPAK_REMOTE_FLATHUB_APPS}" =~ .*"org.endlessos.Key".* ]]; then
   exit 0
 fi
 
-# Get the list of channels to preload.
+selected_collection_files=()
+
 channels_file="${EIB_TMPDIR}"/ek-channels
 rm -f "${channels_file}"
 touch "${channels_file}"
-collections="${OSTREE_VAR}"/lib/flatpak/app/org.endlessos.Key/current/active/files/share/endless-key/collections/*.json
-for collection in ${collections}; do
+all_collection_files="${OSTREE_VAR}"/lib/flatpak/app/org.endlessos.Key/current/active/files/share/endless-key/collections/*.json
+for collection_file in ${all_collection_files}; do
   # Check if the file basename stripped off of -0001.json is part of the list
   # of collections to be installed.
-  bn=$(basename ${collection})
+  bn=$(basename ${collection_file})
   if [[ "${EIB_ENDLESSKEY_COLLECTIONS}" =~ .*"${bn%-????.json}".* ]] ; then
-    jq -r '.channels[].id' "${collection}" >> "${channels_file}"
+    selected_collection_files+=("${collection_file}")
+    jq -r '.channels[].id' "${collection_file}" >> "${channels_file}"
   fi
 done
 
-channels=$(sort -u "${channels_file}")
-if [ -z "${channels}" ]; then
+all_channels=$(sort -u "${channels_file}")
+if [ -z "${all_channels}" ]; then
   echo "No Kolibri channels to preload"
   exit 0
 fi
 
 # Seed the needed channels on the content server.
-"${EIB_HELPERSDIR}"/seed-kolibri-channels ${channels}
+"${EIB_HELPERSDIR}"/seed-kolibri-channels ${all_channels}
 
 venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
 python3 -m venv ${venv_dir}
@@ -48,13 +50,34 @@ if [ -n "${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}" ]; then
   export KOLIBRI_CENTRAL_CONTENT_BASE_URL
 fi
 
-for channel in $channels; do
+# Import all channel metadata and thumbnails for all channels
+for channel in $all_channels; do
   kolibri manage --skip-update importchannel network "${channel}"
   EIB_RETRY_ATTEMPTS=2 EIB_RETRY_INTERVAL=30 eib_retry \
     kolibri manage --skip-update \
     importcontent --include-unrenderable-content --fail-on-error \
+    --node_ids="" --all-thumbnails \
     network "${channel}"
 done
+
+if [ "${EIB_ENDLESSKEY_INCLUDE_FULL_CHANNELS}" == true ]; then
+  for channel in $all_channels; do
+    EIB_RETRY_ATTEMPTS=2 EIB_RETRY_INTERVAL=30 eib_retry \
+      kolibri manage --skip-update \
+      importcontent --include-unrenderable-content --fail-on-error \
+      network "${channel}"
+  done
+else
+  for collection_file in "${selected_collection_files[@]}"; do
+    collection_channels=$(jq -r '.channels[].id' "${collection_file}")
+    for channel in $collection_channels; do
+      EIB_RETRY_ATTEMPTS=2 EIB_RETRY_INTERVAL=30 eib_retry \
+        kolibri manage --skip-update \
+        importcontent --include-unrenderable-content --fail-on-error \
+        --manifest="${collection_file}" network "${channel}"
+    done
+  done
+fi
 
 # Empty the user database, and ensure that each instance of this image has a
 # unique Facility ID.
