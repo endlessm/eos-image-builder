@@ -42,7 +42,7 @@ log = logging.getLogger(os.path.basename(__file__))
 class ImageBuildRoot(object):
     """Build root for performing actual image build
 
-    A temporary build root is created with mmdebstrap at builddir. The
+    A temporary build root is created with ostree at builddir. The
     options in the config section buildroot control what gets installed
     and mounted in the buildroot.
     """
