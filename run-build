@@ -42,7 +42,7 @@ log = logging.getLogger(os.path.basename(__file__))
 class ImageBuildRoot(object):
     """Build root for performing actual image build
 
-    A temporary build root is created with mmdebstrap at builddir. The
+    A temporary build root is created with ostree at builddir. The
     options in the config section buildroot control what gets installed
     and mounted in the buildroot.
     """
@@ -173,6 +173,28 @@ class ImageBuildRoot(object):
         for path in to_mount:
             self.mount(path)
 
+        # Remove the tmpfiles.d snippet that sets up symlinks for changes we have
+        # just reversed, and for the dpkg database we are about to move back
+        os.unlink(os.path.join(self.builddir, 'usr/lib/tmpfiles.d/ostree.conf'))
+
+        # Create any files that would normally be handled at runtime. This is
+        # particularly important for /var since it's likely that it was removed
+        # from the ostree commit. Run this inside the chroot to avoid depending on
+        # systemd-tmpfiles on the host system.
+        self._run(['systemd-tmpfiles', '--create', '--remove', '--boot', '-E'])
+
+        # Move the dpkg database back to its normal location
+        os.rename(
+            os.path.join(self.builddir, 'usr/share/dpkg/database'),
+            os.path.join(self.builddir, 'var/lib/dpkg'),
+        )
+
+        # update-catalog requires /var/lib/sgml-base to exist
+        os.makedirs(os.path.join(self.builddir, 'var/lib/sgml-base'))
+
+        # update-xmlcatalog requires /var/lib/xml-core to exist
+        os.makedirs(os.path.join(self.builddir, 'var/lib/xml-core'))
+
         log.info('Installing buildroot packages')
         apt_env = os.environ.copy()
         apt_env['DEBIAN_FRONTEND'] = 'noninteractive'
@@ -195,11 +217,13 @@ class ImageBuildRoot(object):
                 "--force-confnew";
             }};
             """))
-        apt_cmd = ['chroot', self.builddir, 'apt-get', 'update']
-        subprocess.check_call(apt_cmd, env=apt_env)
-        apt_cmd = ['chroot', self.builddir, 'apt-get', 'install', '-y']
+        self._run(['apt-get', 'update'],  env=apt_env)
+        apt_cmd = ['apt-get', 'install', '-y']
         apt_cmd += packages
-        subprocess.check_call(apt_cmd, env=apt_env)
+        self._run(apt_cmd, env=apt_env)
+
+    def _run(self, cmd, env=None):
+        subprocess.check_call(['chroot', self.builddir] + cmd, env=env)
 
     def mount(self, path, target=None):
         """Bind mount path in the build directory"""
