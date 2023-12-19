@@ -173,6 +173,22 @@ class ImageBuildRoot(object):
         for path in to_mount:
             self.mount(path)
 
+        # Remove the tmpfiles.d snippet that sets up symlinks for changes we have
+        # just reversed, and for the dpkg database we are about to move back
+        os.unlink(os.path.join(self.builddir, 'usr/lib/tmpfiles.d/ostree.conf'))
+
+        # Create any files that would normally be handled at runtime. This is
+        # particularly important for /var since it's likely that it was removed
+        # from the ostree commit. Run this inside the chroot to avoid depending on
+        # systemd-tmpfiles on the host system.
+        self._run(['systemd-tmpfiles', '--create', '--remove', '--boot', '-E'])
+
+        # Move the dpkg database back to its normal location
+        os.rename(
+            os.path.join(self.builddir, 'usr/share/dpkg/database'),
+            os.path.join(self.builddir, 'var/lib/dpkg'),
+        )
+
         log.info('Installing buildroot packages')
         apt_env = os.environ.copy()
         apt_env['DEBIAN_FRONTEND'] = 'noninteractive'
