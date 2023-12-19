@@ -195,11 +195,13 @@ class ImageBuildRoot(object):
                 "--force-confnew";
             }};
             """))
-        apt_cmd = ['chroot', self.builddir, 'apt-get', 'update']
-        subprocess.check_call(apt_cmd, env=apt_env)
-        apt_cmd = ['chroot', self.builddir, 'apt-get', 'install', '-y']
+        self._run(['apt-get', 'update'],  env=apt_env)
+        apt_cmd = ['apt-get', 'install', '-y']
         apt_cmd += packages
-        subprocess.check_call(apt_cmd, env=apt_env)
+        self._run(apt_cmd, env=apt_env)
+
+    def _run(self, cmd, env=None):
+        subprocess.check_call(['chroot', self.builddir] + cmd, env=env)
 
     def mount(self, path, target=None):
         """Bind mount path in the build directory"""
