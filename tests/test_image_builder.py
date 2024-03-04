@@ -103,10 +103,6 @@ RELEASE_TARGETS = [
     'eos-arm64-rpi4-en',
     'eos-arm64-pinebookpro-base',
     'eos-arm64-pinebookpro-en',
-    'eos-arm64-vim2-base',
-    'eos-arm64-vim2-en',
-    'eos-arm64-libretechcc-base',
-    'eos-arm64-libretechcc-en',
     'eosinstaller-amd64-amd64-base',
 ]
 CUSTOM_TARGETS = [
