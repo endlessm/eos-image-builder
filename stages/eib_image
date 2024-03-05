@@ -155,16 +155,11 @@ if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
   unset sdboot_esp_img_loop
 fi
 
-# Output package list using the dpkg database from the deployment's /var
-dpkgdir="${OSTREE_DEPLOYMENT}"/var/lib/dpkg
+# Output package list using the dpkg database from the deployment's
+# immutable copy in /usr/share/dpkg/database.
+dpkgdir="${OSTREE_DEPLOYMENT}"/usr/share/dpkg/database
 packageinfo="${EIB_TMPDIR}"/packages.txt
 dpkg-query -W --admindir="${dpkgdir}" > "${packageinfo}"
-
-# Add package info to manifest using helper. This needs to be run here
-# rather than in an image hook because the dpkg database will be masked
-# by the OS /var mount.
-pkg_manifest="${EIB_MANIFESTDIR}"/packages.json
-"${EIB_HELPERSDIR}"/packages-manifest > "${pkg_manifest}"
 
 run_hooks content "${OSTREE_DEPLOYMENT}"
 
