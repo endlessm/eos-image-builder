@@ -122,7 +122,6 @@ class ImageConfigParser(configparser.ConfigParser):
         ('flatpak-remote-*', 'runtimes'),
         ('flatpak-remote-*', 'exclude'),
         ('flatpak-remote-*', 'allow_extra_data'),
-        ('image', 'branding_subst_vars'),
         ('image', 'hooks'),
         ('image', 'icon_grid'),
         ('image', 'settings'),
