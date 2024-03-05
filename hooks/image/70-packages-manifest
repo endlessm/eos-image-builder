@@ -35,5 +35,9 @@ for pkg in sorted(cache):
         'size': pkg.installed.installed_size,
     }
 
-# Print out the json
-print(json.dumps(data, sort_keys=True))
+# Now write out the json to a fragment
+manifestdir = os.environ['EIB_MANIFESTDIR']
+manifest_path = os.path.join(manifestdir, 'packages.json')
+print('Writing packages manifest info to', manifest_path)
+with open(manifest_path, 'w') as manifest:
+    json.dump(data, manifest, sort_keys=True)
