@@ -155,8 +155,9 @@ if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
   unset sdboot_esp_img_loop
 fi
 
-# Output package list using the dpkg database from the deployment's /var
-dpkgdir="${OSTREE_DEPLOYMENT}"/var/lib/dpkg
+# Output package list using the dpkg database from the deployment's
+# immutable copy in /usr/share/dpkg/database.
+dpkgdir="${OSTREE_DEPLOYMENT}"/usr/share/dpkg/database
 packageinfo="${EIB_TMPDIR}"/packages.txt
 dpkg-query -W --admindir="${dpkgdir}" > "${packageinfo}"
 

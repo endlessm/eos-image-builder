@@ -12,7 +12,7 @@ apt_pkg.init()
 
 # Use the dpkg status file from the ostree deployment
 dpkg_status = os.path.join(os.environ['OSTREE_DEPLOYMENT'],
-                           'var/lib/dpkg/status')
+                           'usr/share/dpkg/database/status')
 apt_pkg.config.set('Dir::State::status', dpkg_status)
 
 # Open an apt Cache and output data for each installed package
