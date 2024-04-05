@@ -12,7 +12,6 @@ filename =
     ./helpers/kill-chroot-procs,
     ./helpers/kolibri-pick-content-from-channel,
     ./helpers/mutable-path,
-    ./helpers/packages-manifest,
     ./helpers/seed-kolibri-channels,
     ./hooks/content/50-flatpak,
     ./hooks/image/50-flatpak.chroot,
@@ -20,4 +19,5 @@ filename =
     ./hooks/image/70-flatpak-appstream-catalog,
     ./hooks/image/70-flatpak-manifest,
     ./hooks/image/70-ostree-manifest,
+    ./hooks/image/70-packages-manifest,
     ./run-build
