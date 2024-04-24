@@ -597,6 +597,27 @@ EOF
     "${EIB_HELPERSDIR}"/create-vm-image "$(eib_outfile ovf.zip)" "${img}"
   fi
 
+  # Create qcow2 image if required.
+  if [ "${EIB_IMAGE_QCOW2}" = true ]; then
+    local qcow2
+
+    # Convert the raw image to qcow2 with compression (-c). This uses
+    # zlib, but it would be better to use zstd with -o
+    # compression_type=zstd. zstd support was added as an option in QEMU
+    # 5.1 in 2020, but we'd want to make sure zstd support was included
+    # in any distros/flatpaks we cared about.
+    qcow2=$(eib_outfile qcow2)
+    qemu-img convert -c -f raw -O qcow2 "${img}" "${qcow2}"
+
+    # Since the format is copy-on-write, we can grow it as much as we
+    # want without increasing the download size. Add 10 GiB.
+    qemu-img resize -f qcow2 "${qcow2}" +10G
+
+    stat -c "%s" "${qcow2}" > "${qcow2}.size"
+    sign_file "${qcow2}" &
+    checksum_file "${qcow2}" &
+  fi
+
   # Await signing and checksumming subprocesses
   wait
 
