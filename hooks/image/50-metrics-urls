@@ -1,0 +1,15 @@
+# Set custom metrics server URLs.
+
+if [ -n "${EIB_IMAGE_METRICS_SERVER_URL}" ]; then
+  conf_file="${OSTREE_DEPLOYMENT}"/etc/metrics/eos-metrics-permissions.conf
+  [ -f "${conf_file}" ] || echo "[global]" > "${conf_file}"
+  sed -i '/^server_url *=/d' "${conf_file}"
+  echo "server_url=${EIB_IMAGE_METRICS_SERVER_URL}" >> "${conf_file}"
+fi
+
+if [ -n "${EIB_IMAGE_ACTIVATION_SERVER_URL}" ]; then
+  conf_file="${OSTREE_DEPLOYMENT}"/etc/eos-phone-home.conf
+  [ -f "${conf_file}" ] || echo "[global]" > "${conf_file}"
+  sed -i '/^host *=/d' "${conf_file}"
+  echo "host=${EIB_IMAGE_ACTIVATION_SERVER_URL}" >> "${conf_file}"
+fi
