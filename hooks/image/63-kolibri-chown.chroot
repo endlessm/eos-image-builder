@@ -1,0 +1,5 @@
+# Chown all Kolibri data files to the kolibri user. This also happens at
+# runtime via the eos-kolibri.conf tmpfiles.d configuration.
+if [ -d /var/lib/kolibri ]; then
+  chown -R kolibri:kolibri /var/lib/kolibri
+fi

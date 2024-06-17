@@ -83,3 +83,9 @@ fi
 # unique Facility ID.
 # <https://kolibri.readthedocs.io/en/latest/install/provision.html#prepare-the-kolibri-folder-for-copying>
 (echo yes; echo yes) | kolibri manage --skip-update deprovision
+
+# Chown all the files to the kolibri user. This also happens at runtime
+# via the endless-key.conf tmpfiles.d configuration.
+kolibri_uid=$(ostree_uid kolibri)
+kolibri_gid=$(ostree_gid kolibri)
+chown -R "${kolibri_uid}:${kolibri_gid}" "${OSTREE_VAR}"/lib/endless-key
