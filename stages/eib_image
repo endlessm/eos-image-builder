@@ -209,8 +209,10 @@ create_image() {
       i386|amd64)
         # EFI system partition
         echo "size=${esp_size}MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
-        # GRUB BIOS BOOT partition
-        echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
+        if [[ "${EIB_IMAGE_SDBOOT}" != "true" ]]; then
+          # GRUB BIOS BOOT partition
+          echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
+        fi
         ;;
     esac
 
@@ -273,9 +275,14 @@ create_image() {
 
   case "${EIB_ARCH}" in
     i386|amd64)
-      esp_loop=${img_loop}p1
-      bios_boot_loop=${img_loop}p2
-      root_loop=${img_loop}p3
+      if [[ "${EIB_IMAGE_SDBOOT}" == "true" ]]; then
+        esp_loop=${img_loop}p1
+        root_loop=${img_loop}p2
+      else
+        esp_loop=${img_loop}p1
+        bios_boot_loop=${img_loop}p2
+        root_loop=${img_loop}p3
+      fi
       ext4_opts="dir_index,^huge_file"
       ESP="${ROOT}"/boot/efi
       if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
