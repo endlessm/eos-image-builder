@@ -380,45 +380,44 @@ EOF
       esac
       ;;
     i386|amd64)
-      # MBR bootloader install
-      > "${DEPLOY}"/img
-      mount --bind "${img}" "${DEPLOY}"/img
-      mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
-      mount --bind /dev "${DEPLOY}"/dev
-      mount --bind /proc "${DEPLOY}"/proc
-      mount --bind /sys "${DEPLOY}"/sys
-
-      # Install the real MBR bootloader
-      chroot "${DEPLOY}" /usr/sbin/grub-install \
-                   --modules="ext2 part_msdos part_gpt search" \
-                   --directory=/usr/lib/grub/i386-pc \
-                   --config=/usr/lib/grub/conf/grub_embedded_bios.cfg \
-                   /img
-
-      # Copy grub.cfg
-      cp "${DEPLOY}/usr/lib/grub/conf/grub.cfg" "${DEPLOY}/boot/grub/grub.cfg"
-
-      if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
-        local boot_zip_dir=${EIB_TMPDIR}/boot_zip
-        mkdir "${boot_zip_dir}"
-
-        # Generate GRUB standalone images and eosldr
-        "${EIB_HELPERSDIR}"/create-grub-images "${DEPLOY}" "${boot_zip_dir}"
-
-        # Capture second-stage config and modules
-        cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
-      fi
-
-      "${EIB_HELPERSDIR}"/kill-chroot-procs "${DEPLOY}"
-      umount "${DEPLOY}"/{boot,dev,img,proc,sys}
-      rm -f "${DEPLOY}"/img
-
-      # UEFI bootloader install
-      if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
+      if [[ "${EIB_IMAGE_SDBOOT}" == "true" ]]; then
         # PAYG uses systemd-boot, install only that
         mkdir -p "${ESP}/EFI/BOOT/"
         cp -r "${DEPLOY}/usr/lib/systemd/boot/efi/systemd-bootx64.efi" "${ESP}/EFI/BOOT/BOOTX64.efi"
       else
+        # MBR bootloader install
+        > "${DEPLOY}"/img
+        mount --bind "${img}" "${DEPLOY}"/img
+        mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
+        mount --bind /dev "${DEPLOY}"/dev
+        mount --bind /proc "${DEPLOY}"/proc
+        mount --bind /sys "${DEPLOY}"/sys
+
+        # Install the real MBR bootloader
+        chroot "${DEPLOY}" /usr/sbin/grub-install \
+                     --modules="ext2 part_msdos part_gpt search" \
+                     --directory=/usr/lib/grub/i386-pc \
+                     --config=/usr/lib/grub/conf/grub_embedded_bios.cfg \
+                     /img
+
+        # Copy grub.cfg
+        cp "${DEPLOY}/usr/lib/grub/conf/grub.cfg" "${DEPLOY}/boot/grub/grub.cfg"
+
+        if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
+          local boot_zip_dir=${EIB_TMPDIR}/boot_zip
+          mkdir "${boot_zip_dir}"
+
+          # Generate GRUB standalone images and eosldr
+          "${EIB_HELPERSDIR}"/create-grub-images "${DEPLOY}" "${boot_zip_dir}"
+
+          # Capture second-stage config and modules
+          cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
+        fi
+
+        "${EIB_HELPERSDIR}"/kill-chroot-procs "${DEPLOY}"
+        umount "${DEPLOY}"/{boot,dev,img,proc,sys}
+        rm -f "${DEPLOY}"/img
+
         # Standard endless system - grub, shim, all that kind of thing
         cp -r "${DEPLOY}"/usr/lib/efi_binaries/EFI "${ESP}"
       fi
