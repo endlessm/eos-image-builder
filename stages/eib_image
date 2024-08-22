@@ -195,93 +195,76 @@ create_image() {
   rm -f "${img}"
   truncate -s ${img_size} "${img}"
 
-  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ]; then
-    # Setup as described in the u-boot documentation at doc/README.chromium
-    cgpt create "${img}"
-    cgpt add -b 34 -s 32768 -P 1 -S 1 -t kernel "${img}"
-    local rootfs_size=$(cgpt show "$img" | awk '/Sec GPT table/ { print $1 }')
-    (( rootfs_size -= 32802 ))
-    cgpt add  -b 32802 -s "${rootfs_size}" -t rootfs "${img}"
-    cgpt boot -p "${img}"
-
-    # Set resize marker
-    if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
-      local rootfs_attrs="GUID:55"
+  (
+    if [ "${EIB_PLATFORM}" == "pinebookpro" ]; then
+        # Rockchip's boot partition starts at 32768
+        # http://opensource.rock-chips.com/wiki_Partitions#Default_storage_map
+        echo -n "start=32768, "
+    else
+        # Empty space up to 1mb (for GPT, and for uboot on ARM)
+        echo -n "start=2048, "
     fi
 
-    # Mark the partition where /boot is as LegacyBIOSBootable as required by
-    # the distro booting protocol (see doc/README.distro)
-    sfdisk --part-attrs "${img}" 2 "${rootfs_attrs} LegacyBIOSBootable"
-  else
-   (
-     if [ "${EIB_PLATFORM}" == "pinebookpro" ]; then
-         # Rockchip's boot partition starts at 32768
-         # http://opensource.rock-chips.com/wiki_Partitions#Default_storage_map
-         echo -n "start=32768, "
-     else
-         # Empty space up to 1mb (for GPT, and for uboot on ARM)
-         echo -n "start=2048, "
-     fi
+    case "${EIB_ARCH}" in
+      i386|amd64)
+        # EFI system partition
+        echo "size=${esp_size}MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+        if [[ "${EIB_IMAGE_SDBOOT}" != "true" ]]; then
+          # GRUB BIOS BOOT partition
+          echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
+        fi
+        ;;
+    esac
 
-     case "${EIB_ARCH}" in
-       i386|amd64)
-         # EFI system partition
-         echo "size=${esp_size}MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
-         # GRUB BIOS BOOT partition
-         echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
-         ;;
-     esac
+    # Raspberry Pi'ss GPU starts the boot process by loading bootloader blobs
+    # from the first partition which must be VFAT.
+    if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
+        # BOOT Partition
+        echo "size=100MiB, type=c"
+    fi
 
-     # Raspberry Pi'ss GPU starts the boot process by loading bootloader blobs
-     # from the first partition which must be VFAT.
-     if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
-         # BOOT Partition
-         echo "size=100MiB, type=c"
-     fi
+    if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
+      part_type="83"
+    else
+      # Partition Type GUIDs
+      # https://www.freedesktop.org/wiki/Specifications/DiscoverablePartitionsSpec/
+      case "${EIB_ARCH}" in
+        i386|amd64)
+          # Root Partition (x86-64)
+          part_type="4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
+          ;;
+        arm64)
+          # Root Partition (64-bit ARM)
+          part_type="b921b045-1df0-41c3-af44-4c6f280d3fae"
+          ;;
+        *)
+          echo "Unrecognized architecture ${EIB_ARCH}" >&2
+          return 1
+          ;;
+      esac
+    fi
 
-     if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
-       part_type="83"
-     else
-       # Partition Type GUIDs
-       # https://www.freedesktop.org/wiki/Specifications/DiscoverablePartitionsSpec/
-       case "${EIB_ARCH}" in
-         i386|amd64)
-           # Root Partition (x86-64)
-           part_type="4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
-           ;;
-         arm64)
-           # Root Partition (64-bit ARM)
-           part_type="b921b045-1df0-41c3-af44-4c6f280d3fae"
-           ;;
-         *)
-           echo "Unrecognized architecture ${EIB_ARCH}" >&2
-           return 1
-           ;;
-       esac
-     fi
+    if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
+      # Remaining space is root fs, with special the special 55 attr as a
+      # marker indicating the partition should be resized later
+      # attrs=... is unused for DOS partition table so it's safe to leave it here
+      rootfs_attrs="GUID:55"
+    fi
 
-     if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
-       # Remaining space is root fs, with special the special 55 attr as a
-       # marker indicating the partition should be resized later
-       # attrs=... is unused for DOS partition table so it's safe to leave it here
-       rootfs_attrs="GUID:55"
-     fi
+    if [[ "${EIB_PLATFORM:0:3}" == "rpi" ]]; then
+      # Make u-boot find the bootable partition which is rootfs for Raspberry Pi
+      echo -n "bootable "
+    fi
 
-     if [[ "${EIB_PLATFORM:0:3}" == "rpi" ]]; then
-       # Make u-boot find the bootable partition which is rootfs for Raspberry Pi
-       echo -n "bootable "
-     fi
+    # We need to escape attrs= otherwise sfdisk complains when passing an empty string
+    echo "type=${part_type}, attrs=\"${rootfs_attrs}\""
 
-     # We need to escape attrs= otherwise sfdisk complains when passing an empty string
-     echo "type=${part_type}, attrs=\"${rootfs_attrs}\""
+  ) | sfdisk --force --label "${EIB_IMAGE_PARTITION_TABLE}" "${img}"
 
-   ) | sfdisk --force --label "${EIB_IMAGE_PARTITION_TABLE}" "${img}"
-
-   if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ] && [ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]; then
-     # With the latest 'sfdisk' we are not allowed anymore to create a 0B partition
-     # Bypass this limitation directly hacking into the MBR to set the marker
-     printf "\xdd" | dd of=${img} bs=1 count=1 seek=498 conv=notrunc
-   fi
+  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ] && [ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]; then
+    # With the latest 'sfdisk' we are not allowed anymore to create a 0B partition
+    # Bypass this limitation directly hacking into the MBR to set the marker
+    printf "\xdd" | dd of=${img} bs=1 count=1 seek=498 conv=notrunc
   fi
 
   img_loop=$(losetup -f --show "${img}")
@@ -292,9 +275,14 @@ create_image() {
 
   case "${EIB_ARCH}" in
     i386|amd64)
-      esp_loop=${img_loop}p1
-      bios_boot_loop=${img_loop}p2
-      root_loop=${img_loop}p3
+      if [[ "${EIB_IMAGE_SDBOOT}" == "true" ]]; then
+        esp_loop=${img_loop}p1
+        root_loop=${img_loop}p2
+      else
+        esp_loop=${img_loop}p1
+        bios_boot_loop=${img_loop}p2
+        root_loop=${img_loop}p3
+      fi
       ext4_opts="dir_index,^huge_file"
       ESP="${ROOT}"/boot/efi
       if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
@@ -306,7 +294,7 @@ create_image() {
     *)
       # On ARM disable 64bit ext4 option
       ext4_opts="dir_index,^huge_file,^64bit"
-      if [ "${EIB_IMAGE_PARTITION_TABLE}" == "cros" ] || [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
+      if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
         boot_loop=${img_loop}p1
         root_loop=${img_loop}p2
       else
@@ -399,45 +387,44 @@ EOF
       esac
       ;;
     i386|amd64)
-      # MBR bootloader install
-      > "${DEPLOY}"/img
-      mount --bind "${img}" "${DEPLOY}"/img
-      mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
-      mount --bind /dev "${DEPLOY}"/dev
-      mount --bind /proc "${DEPLOY}"/proc
-      mount --bind /sys "${DEPLOY}"/sys
-
-      # Install the real MBR bootloader
-      chroot "${DEPLOY}" /usr/sbin/grub-install \
-                   --modules="ext2 part_msdos part_gpt search" \
-                   --directory=/usr/lib/grub/i386-pc \
-                   --config=/usr/lib/grub/conf/grub_embedded_bios.cfg \
-                   /img
-
-      # Copy grub.cfg
-      cp "${DEPLOY}/usr/lib/grub/conf/grub.cfg" "${DEPLOY}/boot/grub/grub.cfg"
-
-      if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
-        local boot_zip_dir=${EIB_TMPDIR}/boot_zip
-        mkdir "${boot_zip_dir}"
-
-        # Generate GRUB standalone images and eosldr
-        "${EIB_HELPERSDIR}"/create-grub-images "${DEPLOY}" "${boot_zip_dir}"
-
-        # Capture second-stage config and modules
-        cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
-      fi
-
-      "${EIB_HELPERSDIR}"/kill-chroot-procs "${DEPLOY}"
-      umount "${DEPLOY}"/{boot,dev,img,proc,sys}
-      rm -f "${DEPLOY}"/img
-
-      # UEFI bootloader install
-      if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
+      if [[ "${EIB_IMAGE_SDBOOT}" == "true" ]]; then
         # PAYG uses systemd-boot, install only that
         mkdir -p "${ESP}/EFI/BOOT/"
         cp -r "${DEPLOY}/usr/lib/systemd/boot/efi/systemd-bootx64.efi" "${ESP}/EFI/BOOT/BOOTX64.efi"
       else
+        # MBR bootloader install
+        > "${DEPLOY}"/img
+        mount --bind "${img}" "${DEPLOY}"/img
+        mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
+        mount --bind /dev "${DEPLOY}"/dev
+        mount --bind /proc "${DEPLOY}"/proc
+        mount --bind /sys "${DEPLOY}"/sys
+
+        # Install the real MBR bootloader
+        chroot "${DEPLOY}" /usr/sbin/grub-install \
+                     --modules="ext2 part_msdos part_gpt search" \
+                     --directory=/usr/lib/grub/i386-pc \
+                     --config=/usr/lib/grub/conf/grub_embedded_bios.cfg \
+                     /img
+
+        # Copy grub.cfg
+        cp "${DEPLOY}/usr/lib/grub/conf/grub.cfg" "${DEPLOY}/boot/grub/grub.cfg"
+
+        if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
+          local boot_zip_dir=${EIB_TMPDIR}/boot_zip
+          mkdir "${boot_zip_dir}"
+
+          # Generate GRUB standalone images and eosldr
+          "${EIB_HELPERSDIR}"/create-grub-images "${DEPLOY}" "${boot_zip_dir}"
+
+          # Capture second-stage config and modules
+          cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
+        fi
+
+        "${EIB_HELPERSDIR}"/kill-chroot-procs "${DEPLOY}"
+        umount "${DEPLOY}"/{boot,dev,img,proc,sys}
+        rm -f "${DEPLOY}"/img
+
         # Standard endless system - grub, shim, all that kind of thing
         cp -r "${DEPLOY}"/usr/lib/efi_binaries/EFI "${ESP}"
       fi
