@@ -1,0 +1,8 @@
+# Expose Endless Key launchers in the app grid (once a specific content pack has been downloaded)
+
+cat <<- 'EOF' > "${OSTREE_DEPLOYMENT}/etc/systemd/user-environment-generators/62-endless-key.sh"
+	#!/bin/bash
+
+	XDG_DATA_DIRS="/var/lib/endless-key/data/content/xdg/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+	echo "XDG_DATA_DIRS=$XDG_DATA_DIRS"
+EOF
