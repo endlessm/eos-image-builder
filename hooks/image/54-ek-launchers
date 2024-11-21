@@ -1,5 +1,6 @@
 # Expose Endless Key launchers in the app grid (once a specific content pack has been downloaded)
 
+mkdir -p "${OSTREE_DEPLOYMENT}/etc/systemd/user-environment-generators"
 cat <<- 'EOF' > "${OSTREE_DEPLOYMENT}/etc/systemd/user-environment-generators/62-endless-key.sh"
 	#!/bin/bash
 
