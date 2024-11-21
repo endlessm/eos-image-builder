@@ -387,6 +387,27 @@ class ImageBuilder(object):
             datetime.datetime.utcnow().strftime('%y%m%d-%H%M%S')
         )
 
+    @staticmethod
+    def _get_prefixes(value):
+        """Yields all prefixes of value split by _, including the whole string.
+
+        >>> list(ImageBuilder._get_prefixes("en_GB_orkney"))
+        ["en", "en_GB", "en_GB_orkney"]
+        """
+        parts = value.split("_")
+        for i in range(1, len(parts) + 1):
+            yield "_".join(parts[:i])
+
+    def _get_attr_values(self, attr):
+        """Yields one or more values for attr. For most properties this is a single
+        value, but for "personality" this yields a series of values to implement
+        inheritance."""
+        value = getattr(self, attr)
+        if attr == "personality":
+            yield from self._get_prefixes(value)
+        else:
+            yield value
+
     def _get_config_paths(self, dir_path, dir_ns):
         config_files = []
 
@@ -398,20 +419,20 @@ class ImageBuilder(object):
         config_attrs = ('product', 'branch', 'arch', 'platform',
                         'personality')
         for attr in config_attrs:
-            path = os.path.join(dir_path, attr,
-                                getattr(self, attr) + '.ini')
-            namespace = dir_ns + '_'.join((attr, getattr(self, attr)))
-            config_files.append((path, namespace))
+            for value in self._get_attr_values(attr):
+                path = os.path.join(dir_path, attr, value + '.ini')
+                namespace = dir_ns + '_'.join((attr, value))
+                config_files.append((path, namespace))
 
         # Add combinations of per-attribute config directories
         for attr1, attr2 in itertools.combinations(config_attrs, 2):
-            ini_name = (getattr(self, attr1) + '-' +
-                        getattr(self, attr2) + '.ini')
-            path = os.path.join(dir_path, attr1 + '-' + attr2, ini_name)
-            namespace = (dir_ns +
-                         '_'.join((attr1, attr2, getattr(self, attr1),
-                                   getattr(self, attr2))))
-            config_files.append((path, namespace))
+            for (value1, value2) in itertools.product(self._get_attr_values(attr1),
+                                                      self._get_attr_values(attr2)):
+                ini_name = (value1 + '-' + value2 + '.ini')
+                path = os.path.join(dir_path, attr1 + '-' + attr2, ini_name)
+                namespace = (dir_ns +
+                             '_'.join((attr1, attr2, value1, value2)))
+                config_files.append((path, namespace))
 
         return config_files
 
