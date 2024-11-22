@@ -116,6 +116,7 @@ class ImageConfigParser(configparser.ConfigParser):
         ('buildroot', 'packages'),
         ('check', 'hooks'),
         ('content', 'hooks'),
+        ('endlesskey', 'collections'),
         ('error', 'hooks'),
         ('flatpak', 'locales'),
         ('flatpak-remote-*', 'apps'),
@@ -126,6 +127,9 @@ class ImageConfigParser(configparser.ConfigParser):
         ('image', 'icon_grid'),
         ('image', 'settings'),
         ('image', 'settings_locks'),
+        ('kolibri', 'install_channels'),
+        ('kolibri-*', 'exclude_node_ids'),
+        ('kolibri-*', 'include_node_ids'),
         ('manifest', 'hooks'),
         ('publish', 'hooks'),
     ]
