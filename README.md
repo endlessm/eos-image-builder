@@ -190,6 +190,10 @@ with key suffixes as follows:
  * `_required`: `true` means that the key must be set
  * `_values`: the value, if set, must be within the space-separated list
    of values here
+ * `_type`: `path` means the value, if set, must be the path to a file which
+   exists
+ * `_type`: `paths` means the value, if set, must be a space-separated list of
+   path to files which exist
 
 Merged options
 --------------
