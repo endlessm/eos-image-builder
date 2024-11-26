@@ -281,6 +281,54 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     _run_test()
 
 
+def test_config_inheritance(make_builder, tmp_path, tmp_builder_paths, caplog):
+    """Test that personality en_GB_orkney also loads settings from en and en_GB."""
+    configdir = tmp_path / 'config'
+    personalitydir = configdir / 'personality'
+    personalitydir.mkdir(parents=True, exist_ok=True)
+
+    en = personalitydir / 'en.ini'
+    en.write_text(dedent("""\
+    [image]
+    language = en_US.utf8
+
+    [flatpak-remote-eos-apps]
+    apps_add =
+      com.endlessm.encyclopedia.en
+      com.endlessm.football.en
+    """))
+
+    en_GB = personalitydir / 'en_GB.ini'
+    en_GB.write_text(dedent("""\
+    [image]
+    language = en_GB.utf8
+
+    [flatpak-remote-eos-apps]
+    # Football means something else in the UK
+    apps_del =
+      com.endlessm.football.en
+    apps_add =
+      com.endlessm.football.en_GB
+    """))
+
+    en_GB_orkney = personalitydir / 'en_GB_orkney.ini'
+    en_GB_orkney.write_text(dedent("""\
+    [flatpak-remote-eos-apps]
+    apps_add =
+      com.endlessm.orkneyingasaga
+    """))
+
+    builder = make_builder(configdir=str(configdir), personality="en_GB_orkney")
+    builder.configure()
+
+    assert builder.config['image']['language'] == "en_GB.utf8"
+    assert builder.config['flatpak-remote-eos-apps']['apps'] == "\n".join([
+      "com.endlessm.encyclopedia.en",
+      "com.endlessm.football.en_GB",
+      "com.endlessm.orkneyingasaga",
+    ])
+
+
 def test_localdir(make_builder, tmp_path, tmp_builder_paths, caplog):
     """Test use of local settings directory"""
     # Build without localdir
