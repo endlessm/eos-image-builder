@@ -327,3 +327,52 @@ def test_localdir(make_builder, tmp_path, tmp_builder_paths, caplog):
     assert (builder.config['image']['branding_desktop_logo'] ==
             str(localdir / 'data' / 'desktop.png'))
     assert builder.config['image']['signing_key'] == 'foobar'
+
+
+def test_path_validation(make_builder, tmp_path):
+    configdir = tmp_path / 'config'
+    configdir.mkdir()
+
+    # Schema
+    schema = configdir / 'schema.ini'
+    schema.write_text(dedent("""\
+    [image]
+    singular_type = path
+    plural_type = paths
+    """))
+
+    # Some config
+    defaults = configdir / 'defaults.ini'
+    defaults.write_text(dedent("""\
+    [image]
+    singular = ${build:localdatadir}/a.txt
+    plural = ${build:localdatadir}/b.txt ${build:localdatadir}/c.txt
+    """))
+
+    localdir = tmp_path / 'local'
+    localdatadir = localdir / 'data'
+    localdatadir.mkdir(parents=True)
+
+    a = localdatadir / 'a.txt'
+    a.touch()
+
+    b = localdatadir / 'b.txt'
+    b.touch()
+
+    c = localdatadir / 'c.txt'
+    c.touch()
+
+    builder = make_builder(configdir=str(configdir), localdir=str(localdir))
+    builder.configure()
+
+    # All paths exist
+    builder.check_config()
+
+    b.unlink()
+    with pytest.raises(eib.ImageBuildError, match=r'plural.*b.txt'):
+        builder.check_config()
+
+    b.touch()
+    a.unlink()
+    with pytest.raises(eib.ImageBuildError, match=r'singular.*a.txt'):
+        builder.check_config()
