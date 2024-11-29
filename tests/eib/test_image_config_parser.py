@@ -119,8 +119,8 @@ def test_merged_option(config):
 
     assert set(sect) == {'opt'}
 
-    # The values will be sorted and newline separated
-    assert sect['opt'] == 'baz\nfoo'
+    # The values will be newline separated in the order they appeared.
+    assert sect['opt'] == 'foo\nbaz'
 
     # Now that the merged option exists, it will override any further
     # add/del.
@@ -129,7 +129,7 @@ def test_merged_option(config):
     config.merge()
 
     assert set(sect) == {'opt'}
-    assert sect['opt'] == 'baz\nfoo'
+    assert sect['opt'] == 'foo\nbaz'
 
 
 def test_merged_option_interpolation(config):
@@ -277,7 +277,7 @@ def test_merged_files(tmp_path, config):
     config.merge()
 
     assert set(config['sect']) == {'opt'}
-    assert config['sect']['opt'] == 'baz\nfoo'
+    assert config['sect']['opt'] == 'foo\nbaz'
     assert set(config['sect-a']) == {'opt'}
     assert config['sect-a']['opt'] == ''
     assert set(config['sect-b']) == {'opt'}
