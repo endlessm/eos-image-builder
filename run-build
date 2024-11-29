@@ -536,6 +536,26 @@ class ImageBuilder(object):
                 raise eib.ImageBuildError(
                     'Configuration key [%s] %s has invalid value: %s'
                     % (section, option, self.config[section][option]))
+        elif option.endswith('_type'):
+            real_option = option[:-len('_type')]
+            if real_option in self.config[section]:
+                real_value = self.config[section][real_option].strip()
+                if value == "path":
+                    paths = [real_value] if real_value else []
+                elif value == "paths":
+                    paths = real_value.split()
+                else:
+                    raise eib.ImageBuildError(
+                        f'Schema key [{section}] {option} has invalid value: '
+                        f'{value}'
+                    )
+
+                for path in paths:
+                    if not os.path.exists(path):
+                        raise eib.ImageBuildError(
+                            f'Configuration key [{section}] {real_option} refers to '
+                            f'nonexistent path: {path}'
+                        )
 
     def check_config(self):
         """Check loaded configuration against schema for validity."""
