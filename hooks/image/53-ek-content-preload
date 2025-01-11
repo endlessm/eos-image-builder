@@ -17,8 +17,8 @@ all_collection_files="${OSTREE_VAR}"/lib/flatpak/app/org.endlessos.Key/current/a
 for collection_file in ${all_collection_files}; do
   # Check if the file basename stripped off of -0001.json is part of the list
   # of collections to be installed.
-  bn=$(basename ${collection_file})
-  if [[ "${EIB_ENDLESSKEY_COLLECTIONS}" =~ .*"${bn%-????.json}".* ]] ; then
+  bn=$(basename "${collection_file%-????.json}")
+  if [[ " ${EIB_ENDLESSKEY_COLLECTIONS} "  =~ [[:space:]]${bn}[[:space:]] ]] ; then
     selected_collection_files+=("${collection_file}")
     jq -r '.channels[].id' "${collection_file}" >> "${channels_file}"
   fi
