@@ -37,11 +37,13 @@ venv_dir="${EIB_TMPDIR}/kolibri-content-venv"
 python3 -m venv ${venv_dir}
 source ${venv_dir}/bin/activate
 pip install "${EIB_ENDLESSKEY_KOLIBRI_PKGSPEC}"
+pip install kolibri-app-desktop-xdg-plugin==${EIB_ENDLESSKEY_KOLIBRI_APP_DESKTOP_XDG_PLUGIN_VERSION}
 
 # Setup the homedir before setting any environment variables so they
 # don't persist into the options file.
 export KOLIBRI_HOME="${OSTREE_VAR}"/lib/endless-key/data
 mkdir -p "${KOLIBRI_HOME}"
+kolibri plugin enable kolibri_app_desktop_xdg_plugin
 kolibri configure setup
 
 # Use a separate content URL if configured.
@@ -49,6 +51,11 @@ if [ -n "${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}" ]; then
   KOLIBRI_CENTRAL_CONTENT_BASE_URL="${EIB_KOLIBRI_CENTRAL_CONTENT_BASE_URL}"
   export KOLIBRI_CENTRAL_CONTENT_BASE_URL
 fi
+
+# kolibri-app-desktop-xdg-plugin uses FLATPAK_ID to determine how to name the
+# launchers it creates. This is set by Flatpak when running the app, but we are
+# not running kolibri from within the Endless Key Flatpak here.
+export FLATPAK_ID=org.endlessos.Key
 
 # Import all channel metadata and thumbnails for all channels
 for channel in $all_channels; do
@@ -83,6 +90,16 @@ fi
 # unique Facility ID.
 # <https://kolibri.readthedocs.io/en/latest/install/provision.html#prepare-the-kolibri-folder-for-copying>
 (echo yes; echo yes) | kolibri manage --skip-update deprovision
+
+# Hack the .desktop files to work around them being generated differently when
+# the xdg plugin is running in the Flatpak, which it is not here.
+for desktop_file in "${OSTREE_VAR}"/lib/endless-key/data/content/xdg/share/applications/*.desktop; do
+    sed -i -e 's/x-kolibri-dispatch:/x-endless-key-dispatch:/g' "${desktop_file}"
+    desktop-file-edit \
+        --set-key=TryExec \
+        --set-value=/var/lib/flatpak/app/org.endlessos.Key/current/active/files/bin/kolibri-gnome \
+        "${desktop_file}"
+done
 
 # Chown all the files to the kolibri user. This also happens at runtime
 # via the endless-key.conf tmpfiles.d configuration.
