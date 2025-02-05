@@ -1,6 +1,0 @@
-# Create stamp file to indicate that
-# eos-boot-helper/eos-fix-home-dir-permissions.service does not need to run on
-# new images.
-
-mkdir -p ${OSTREE_VAR}/lib/misc
-touch    ${OSTREE_VAR}/lib/misc/eos-dir-mode-700
