@@ -90,7 +90,7 @@ if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
   esp_size=500
   rm -f "${sdboot_esp_img}"
   truncate -s ${esp_size}M "${sdboot_esp_img}"
-  mkfs.vfat "${sdboot_esp_img}"
+  mkfs.vfat "${sdboot_esp_img}" -n EFI
   sdboot_esp_img_loop=$(losetup -f --show "${sdboot_esp_img}")
   # Currently our ostree + sd-boot implementation creates fake
   # symlinks on vfat. We need the vfat ESP to be mounted at
@@ -282,7 +282,7 @@ create_image() {
       if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
         dd conv=notrunc if="${sdboot_esp_img}" of="${esp_loop}" bs=1M
       else
-        mkfs.vfat "${esp_loop}"
+        mkfs.vfat "${esp_loop}" -n EFI
       fi
       ;;
     *)
