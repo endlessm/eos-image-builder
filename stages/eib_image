@@ -103,7 +103,8 @@ if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
 fi
 
 kargs=(--karg=rw --karg=splash \
-    --karg=plymouth.ignore-serial-consoles --karg=quiet --karg=loglevel=0)
+    --karg=plymouth.ignore-serial-consoles --karg=quiet --karg=loglevel=0 \
+    --karg=systemd.firstboot=no)
 ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" deploy \
   --os=${EIB_OSTREE_OS} "${kargs[@]}" \
   ${EIB_OSTREE_REMOTE}:${EIB_OSTREE_REF_DEPLOY}
