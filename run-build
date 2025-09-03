@@ -189,10 +189,11 @@ class ImageBuildRoot(object):
         # just reversed, and for the dpkg database we are about to move back
         os.unlink(os.path.join(self.builddir, 'usr/lib/tmpfiles.d/ostree.conf'))
 
-        # Create any files that would normally be handled at runtime. This is
-        # particularly important for /var since it's likely that it was removed
-        # from the ostree commit. Run this inside the chroot to avoid depending on
-        # systemd-tmpfiles on the host system.
+        # Create any user and files that would normally be handled at runtime.
+        # This is # particularly important for /var since it's likely that it
+        # was removed from the ostree commit. Run this inside the chroot to
+        # avoid depending on systemd-tmpfiles on the host system.
+        self._run(['systemd-sysusers'])
         self._run(['systemd-tmpfiles', '--create', '--remove', '--boot', '-E'])
 
         # Move the dpkg database back to its normal location
