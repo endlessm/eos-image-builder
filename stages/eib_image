@@ -457,9 +457,8 @@ EOF
         # in the dual-boot case, and simplicity in the ISO/live case, we
         # arrange for EFI/ to have the right structure:
         mkdir -p "${boot_zip_dir}/EFI/BOOT"
+        cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/shimx64.efi "${boot_zip_dir}/EFI/BOOT/BOOTX64.EFI"
         cp \
-          "${DEPLOY}"/usr/lib/efi_binaries/EFI/BOOT/BOOTX64.EFI \
-          "${DEPLOY}"/usr/lib/efi_binaries/EFI/BOOT/bootia32.efi \
           "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/mmx64.efi \
           "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/grubx64.efi \
           "${boot_zip_dir}/EFI/BOOT"
@@ -470,8 +469,8 @@ EOF
         # triplicating Shim and duplicating the 64-bit GRUB added 50% to the
         # boot.zip size, and this directory was never actually used.)
         mkdir -p "${boot_zip_dir}/EFI3/BOOT" "${boot_zip_dir}/EFI3/endless"
-        cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/BOOT/fbx64.efi "${boot_zip_dir}/EFI3/BOOT"
-        cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/BOOTX64.CSV "${boot_zip_dir}/EFI3/endless"
+        cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/fbx64.efi "${boot_zip_dir}/EFI3/BOOT"
+        cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/bootx64.csv "${boot_zip_dir}/EFI3/endless/BOOTX64.CSV"
 
         # Bundle all GRUB versions up for distribution
         local boot_zip="$(eib_outfile boot.zip)"
