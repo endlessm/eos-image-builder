@@ -155,12 +155,6 @@ if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
   unset sdboot_esp_img_loop
 fi
 
-# Output package list using the dpkg database from the deployment's
-# immutable copy in /usr/share/dpkg/database.
-dpkgdir="${OSTREE_DEPLOYMENT}"/usr/share/dpkg/database
-packageinfo="${EIB_TMPDIR}"/packages.txt
-dpkg-query -W --admindir="${dpkgdir}" > "${packageinfo}"
-
 run_hooks content "${OSTREE_DEPLOYMENT}"
 
 create_image() {
@@ -560,9 +554,8 @@ EOF
   sign_file ${outfile} &
   checksum_file ${outfile} &
 
-  # Copy ostree, package and config info to the output directory.
+  # Copy ostree and config info to the output directory.
   cp "${EIB_TMPDIR}"/ostree.txt "$(eib_outfile ostree.txt)"
-  cp "${EIB_TMPDIR}"/packages.txt "$(eib_outfile packages.txt)"
   cp "${EIB_TMPDIR}"/config.ini "$(eib_outfile config.ini)"
 
   # Create ISO if required. This requires the uncompressed image,

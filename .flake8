@@ -19,5 +19,4 @@ filename =
     ./hooks/image/70-flatpak-appstream-catalog,
     ./hooks/image/70-flatpak-manifest,
     ./hooks/image/70-ostree-manifest,
-    ./hooks/image/70-packages-manifest,
     ./run-build
