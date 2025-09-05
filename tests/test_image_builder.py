@@ -140,7 +140,7 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     expected_loaded = []
     expected_not_loaded = []
     expected_loaded_private = []
-    expected_packages = ''
+    expected_apps = []
     expected_signing_key = ''
 
     def _run_test():
@@ -158,7 +158,7 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
         for path in expected_loaded_private:
             assert ('Loaded private configuration file {}'.format(path)
                     in caplog.text)
-        assert builder.config['buildroot']['packages'] == expected_packages
+        assert builder.config['flatpak-remote-eos-apps']['apps'] == expected_apps
         assert builder.config['image']['signing_key'] == expected_signing_key
 
     configdir = tmp_path / 'config'
@@ -169,14 +169,14 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     defaults = configdir / 'defaults.ini'
     defaults.parent.mkdir()
     defaults.write_text(dedent("""\
-    [buildroot]
-    packages_add = a
+    [flatpak-remote-eos-apps]
+    apps_add = a
 
     [image]
     signing_key = abcdefgh
     """))
     expected_loaded.append(defaults)
-    expected_packages = 'a'
+    expected_apps = 'a'
     expected_signing_key = 'abcdefgh'
 
     _run_test()
@@ -189,7 +189,7 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     signing_key = ijklmnop
     """))
     expected_loaded.append(local_defaults)
-    expected_packages = 'a'
+    expected_apps = 'a'
     expected_signing_key = 'ijklmnop'
 
     _run_test()
@@ -198,18 +198,18 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     eoscustom = configdir / 'product' / 'eoscustom.ini'
     eoscustom.parent.mkdir(exist_ok=True)
     eoscustom.write_text(dedent("""\
-    [buildroot]
-    packages_add = b
-    packages_del = a
+    [flatpak-remote-eos-apps]
+    apps_add = b
+    apps_del = a
     """))
-    expected_packages = 'b'
+    expected_apps = 'b'
     expected_loaded.append(eoscustom)
 
     other = configdir / 'product' / 'other.ini'
     other.parent.mkdir(exist_ok=True)
     other.write_text(dedent("""\
-    [buildroot]
-    packages_add = c
+    [flatpak-remote-eos-apps]
+    apps_add = c
     """))
     expected_not_loaded.append(other)
 
@@ -219,16 +219,16 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     local_base = local_configdir / 'personality' / 'base.ini'
     local_base.parent.mkdir(exist_ok=True)
     local_base.write_text(dedent("""\
-    [buildroot]
-    packages_del = e
+    [flatpak-remote-eos-apps]
+    apps_del = e
     """))
     expected_loaded.append(local_base)
 
     local_other = local_configdir / 'personality' / 'other.ini'
     local_other.parent.mkdir(exist_ok=True)
     local_other.write_text(dedent("""\
-    [buildroot]
-    packages_add = g
+    [flatpak-remote-eos-apps]
+    apps_add = g
     """))
     expected_not_loaded.append(local_other)
 
@@ -236,11 +236,11 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     eoscustom_amd64 = configdir / 'product-arch' / 'eoscustom-amd64.ini'
     eoscustom_amd64.parent.mkdir(exist_ok=True)
     eoscustom_amd64.write_text(dedent("""\
-    [buildroot]
-    packages_add = d e
+    [flatpak-remote-eos-apps]
+    apps_add = d e
     """))
     expected_loaded.append(eoscustom_amd64)
-    expected_packages = 'b\nd'
+    expected_apps = 'b\nd'
 
     _run_test()
 
@@ -248,11 +248,11 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     sysconfig = tmp_builder_paths['SYSCONFDIR'] / 'config.ini'
     sysconfig.parent.mkdir(exist_ok=True)
     sysconfig.write_text(dedent("""\
-    [buildroot]
-    packages_add = f
+    [flatpak-remote-eos-apps]
+    apps_add = f
     """))
     expected_loaded.append(sysconfig)
-    expected_packages = 'b\nd\nf'
+    expected_apps = 'b\nd\nf'
 
     _run_test()
 
@@ -260,11 +260,11 @@ def test_config_paths(make_builder, tmp_path, tmp_builder_paths, caplog):
     checkout = configdir / 'local.ini'
     checkout.parent.mkdir(exist_ok=True)
     checkout.write_text(dedent("""\
-    [buildroot]
-    packages = z
+    [flatpak-remote-eos-apps]
+    apps = z
     """))
     expected_loaded.append(checkout)
-    expected_packages = 'z'
+    expected_apps = 'z'
 
     _run_test()
 

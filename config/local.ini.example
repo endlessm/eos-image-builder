@@ -49,10 +49,3 @@ apps =
 # for eos-apps above.
 apps =
   com.endlessm.photos
-
-[buildroot]
-# The buildroot is generated using packages on the internal OBS repos,
-# which requires VPN access. This is not implemented yet, but running
-# builds outside the SF office would be better to use a public package
-# mirror.
-#repo = http://non-existent-mirror.endlessm.com/eos
