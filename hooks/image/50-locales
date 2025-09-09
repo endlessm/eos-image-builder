@@ -1,8 +1,17 @@
-# Dump flatpak locales variable into a json file that will be concatenated 
-# with the image manifest. Use jq to reformat the newline-separated list of
+#!/usr/bin/python3 -u
+
+# Dump flatpak locales variable into a json file that will be concatenated
+# with the image manifest. Reformat the newline-separated list of
 # locales as a JSON array of strings, dropping empty elements.
-cat > "${EIB_MANIFESTDIR}"/flatpak-locales.json <<EOF
-{
-  "flatpak_locales": $(echo -e "${EIB_FLATPAK_LOCALES}" | jq --raw-input --slurp 'split("\n") | map(select(. != ""))')
-}
-EOF
+
+import json
+import os
+from pathlib import Path
+
+manifestdir = os.environ["EIB_MANIFESTDIR"]
+locales = os.environ.get("EIB_FLATPAK_LOCALES", "").splitlines()
+locales = [loc for loc in locales if loc]
+
+outpath = Path(manifestdir) / "flatpak-locales.json"
+with open(outpath, "w") as f:
+    json.dump({"flatpak_locales": locales}, f)

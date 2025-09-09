@@ -1,0 +1,3 @@
+# Populate /etc/passwd and /etc/group with system users configured in
+# /usr/lib/sysusers.d.
+systemd-sysusers

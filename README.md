@@ -215,11 +215,9 @@ Normally options loaded later in the configuration will override
 identically named options from earlier in the configuration. If an
 unmerged variant ends in `_add` or `_del`, a suffix based on the
 filesystem path will automatically be appended to make it unique. For
-instance, the option `packages_add` in `defaults.ini` will be converted
-to `packages_add_defaults`, and the option `apps_add` in
-`product/eos.ini` will be converted to `apps_add_product_eos`. These
-options can be interpolated in other parts of the configuration using
-the converted names.
+instance, the option `apps_add` in `product/eos.ini` will be converted to
+`apps_add_product_eos`. These options can be interpolated in other parts of the
+configuration using the converted names.
 
 Configuration files in the system directory will additionally include
 `system` in the merged option. For example, the options `apps_del` in

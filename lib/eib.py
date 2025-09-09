@@ -113,7 +113,6 @@ class ImageConfigParser(configparser.ConfigParser):
     # flexibility.
     MERGED_OPTIONS = [
         ('buildroot', 'mounts'),
-        ('buildroot', 'packages'),
         ('check', 'hooks'),
         ('content', 'hooks'),
         ('endlesskey', 'collections'),

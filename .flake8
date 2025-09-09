@@ -14,10 +14,10 @@ filename =
     ./helpers/mutable-path,
     ./helpers/seed-kolibri-channels,
     ./hooks/content/50-flatpak,
+    ./hooks/image/50-locales,
     ./hooks/image/50-flatpak.chroot,
     ./hooks/image/62-kolibri-options,
     ./hooks/image/70-flatpak-appstream-catalog,
     ./hooks/image/70-flatpak-manifest,
     ./hooks/image/70-ostree-manifest,
-    ./hooks/image/70-packages-manifest,
     ./run-build
