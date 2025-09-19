@@ -70,4 +70,6 @@ for name in ${!EIB_*} ; do
 done
 
 # Run the real chroot
-exec env - "${env_vars[@]}" "$(type -P chroot)" "$@"
+new_root=${1:?new root is required}
+shift
+exec env - "${env_vars[@]}" "$(type -P bwrap)" --dev-bind "$new_root" / "$@"
