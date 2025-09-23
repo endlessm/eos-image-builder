@@ -69,6 +69,7 @@ Setup
 
 Known to work on Debian Buster (10) and newer. Required packages:
 
+ * bubblewrap
  * ostree
  * python3
 
