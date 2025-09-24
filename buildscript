@@ -39,6 +39,7 @@ export GIT_SSH="${EIB_HELPERSDIR}/git-ssh"
 
 # Tell aws tools to use credentials in sysconfdir
 export AWS_SHARED_CREDENTIALS_FILE="${EIB_SYSCONFDIR}/aws-credentials"
+. ${EIB_HELPERSDIR}/install-awscli
 
 . "${EIB_BASELIB}"
 

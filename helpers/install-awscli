@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Follow document "Installing or updating to the latest version of the AWS CLI"
+# https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+pushd "$(mktemp -d)"
+curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+./aws/install --bin-dir /usr/bin
+
+# Clean up source
+popd
+rm -r "$OLDPWD"
+
+# Show installed awscli version
+aws --version
