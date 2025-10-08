@@ -211,11 +211,11 @@ create_image() {
         ;;
     esac
 
-    # Raspberry Pi'ss GPU starts the boot process by loading bootloader blobs
+    # Raspberry Pi's GPU starts the boot process by loading bootloader blobs
     # from the first partition which must be VFAT.
     if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
-        # BOOT Partition
-        echo "size=100MiB, type=c"
+        # BOOT Partition using EFI System type for RPi firmware
+        echo "size=100MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
     fi
 
     if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
