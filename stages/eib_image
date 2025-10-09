@@ -349,16 +349,14 @@ EOF
         rpi4)
           mkfs.vfat ${boot_loop}
 
-          # Copy Raspberry Pi's bootloader
+          # Copy Raspberry Pi's bootloader & device tree blobs
+          # https://phabricator.endlessm.com/T27942#760094
           mkdir ${EIB_TMPDIR}/rpiboot
           eib_mount ${boot_loop} ${EIB_TMPDIR}/rpiboot
           cp ${EIB_DATADIR}/rpi-common/* ${EIB_TMPDIR}/rpiboot/
           # Copy Raspberry Pi's u-boot
           local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_arm64
           cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpiboot/kernel8.img
-          # Also need device tree for RPi 4
-          # https://phabricator.endlessm.com/T27942#760094
-          cp ${EIB_DATADIR}/rpi4/* ${EIB_TMPDIR}/rpiboot/
           eib_umount ${EIB_TMPDIR}/rpiboot
 	  ;;
         pinebookpro)
