@@ -359,15 +359,11 @@ EOF
           eib_mount ${boot_loop} ${EIB_TMPDIR}/rpiboot
           cp ${EIB_DATADIR}/rpi-common/* ${EIB_TMPDIR}/rpiboot/
           # Copy Raspberry Pi's u-boot
-          case "${EIB_PLATFORM}" in
-            rpi4)
-	      local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_4
-	      # Also need device tree for RPi 4
-	      # https://phabricator.endlessm.com/T27942#760094
-	      cp ${EIB_DATADIR}/rpi4/* ${EIB_TMPDIR}/rpiboot/
-	      ;;
-          esac
+          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_arm64
           cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpiboot/kernel8.img
+          # Also need device tree for RPi 4
+          # https://phabricator.endlessm.com/T27942#760094
+          cp ${EIB_DATADIR}/rpi4/* ${EIB_TMPDIR}/rpiboot/
           eib_umount ${EIB_TMPDIR}/rpiboot
 	  ;;
         pinebookpro)
