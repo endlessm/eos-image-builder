@@ -351,7 +351,7 @@ EOF
         "${ROOT}"/boot/boot.scr
 
       case "${EIB_PLATFORM}" in
-        rpi3|rpi4)
+        rpi4)
           mkfs.vfat ${boot_loop}
 
           # Copy Raspberry Pi's bootloader
@@ -360,9 +360,6 @@ EOF
           cp ${EIB_DATADIR}/rpi-common/* ${EIB_TMPDIR}/rpiboot/
           # Copy Raspberry Pi's u-boot
           case "${EIB_PLATFORM}" in
-            rpi3)
-              local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_3
-	      ;;
             rpi4)
 	      local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_4
 	      # Also need device tree for RPi 4
