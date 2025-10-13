@@ -244,20 +244,22 @@ create_image() {
       esac
     fi
 
+    rootfs_attrs=()
+
     if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
       # Remaining space is root fs, with special the special 55 attr as a
       # marker indicating the partition should be resized later
       # attrs=... is unused for DOS partition table so it's safe to leave it here
-      rootfs_attrs="GUID:55"
+      rootfs_attrs+=("GUID:55")
     fi
 
     if [[ "${EIB_PLATFORM:0:3}" == "rpi" ]]; then
       # Make u-boot find the bootable partition which is rootfs for Raspberry Pi
-      echo -n "bootable "
+      rootfs_attrs+=("LegacyBIOSBootable")
     fi
 
     # We need to escape attrs= otherwise sfdisk complains when passing an empty string
-    echo "type=${part_type}, attrs=\"${rootfs_attrs}\""
+    echo "type=${part_type}, attrs=\"$(echo ${rootfs_attrs[@]} | tr ' ' ',')\""
 
   ) | sfdisk --force --label "${EIB_IMAGE_PARTITION_TABLE}" "${img}"
 
