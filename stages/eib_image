@@ -70,14 +70,6 @@ else
   ostree --repo="${REPOPATH}" config set sysroot.bootloader none
 fi
 
-# Platform dependent boot arguments
-platform_bootargs="platform_bootargs="
-if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
-  # Raspberry Pi needs the memory config if vc4 is loaded
-  # https://phabricator.endlessm.com/T27774#757530
-  platform_bootargs+="cma=256M@512M"
-fi
-
 # 62MB seems to be arbitrarily chosen to minimize the impact of the ESP
 # on non-EFI and low storage (small EMMC) devices.
 esp_size=62
@@ -344,12 +336,9 @@ EOF
   # Install bootloader
   case "${EIB_ARCH}" in
     arm64)
-      cp "${EIB_DATADIR}"/arm64/boot.src "${EIB_TMPDIR}"/boot.src
-      sed -i "1s/^/"$platform_bootargs"\n/" "${EIB_TMPDIR}"/boot.src
-
       # Make a boot script for u-boot
       mkimage -T script -C none -n "Endless OS arm64 boot script" -d \
-        "${EIB_TMPDIR}"/boot.src \
+        "${EIB_DATADIR}"/arm64/boot.src \
         "${ROOT}"/boot/boot.scr
 
       case "${EIB_PLATFORM}" in
