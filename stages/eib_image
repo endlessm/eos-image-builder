@@ -214,7 +214,7 @@ create_image() {
     # from the first partition which must be VFAT.
     if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
         # BOOT Partition using EFI System type for RPi firmware
-        echo "size=100MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+        echo "size=512MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
     fi
 
     if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
@@ -354,7 +354,14 @@ EOF
           # https://phabricator.endlessm.com/T27942#760094
           mkdir ${EIB_TMPDIR}/rpiboot
           eib_mount ${boot_loop} ${EIB_TMPDIR}/rpiboot
+
           cp ${EIB_DATADIR}/rpi-common/* ${EIB_TMPDIR}/rpiboot/
+
+          eval $(grep "^fdtdir=" ${ROOT}/boot/uEnv.txt)
+          FDTDIR="${ROOT}/${fdtfit}"
+          cp ${FDTDIR}/broadcom/bcm2711-rpi-4*.dtb ${EIB_TMPDIR}/rpiboot/
+          cp -r ${FDTDIR}/overlays ${EIB_TMPDIR}/rpiboot/
+
           # Copy Raspberry Pi's u-boot
           local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_arm64
           cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpiboot/kernel8.img
