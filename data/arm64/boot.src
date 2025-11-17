@@ -3,7 +3,12 @@ ext4load ${devtype} ${devnum}:${distro_bootpart} ${scriptaddr} /boot/uEnv.txt
 env import -t ${scriptaddr} ${filesize}
 
 echo "Load device tree ..."
-ext4load ${devtype} ${devnum}:${distro_bootpart} ${fdt_addr_r} /boot/${fdtdir}/${fdtfile}
+if test ${board} = "rpi"; then
+  fdt addr ${fdt_addr}
+  fdt move ${fdt_addr} ${fdt_addr_r}
+else
+  ext4load ${devtype} ${devnum}:${distro_bootpart} ${fdt_addr_r} /boot/${fdtdir}/${fdtfile}
+fi;
 
 echo "Load kernel and unzip it ..."
 kernel_load_addr_r=${ramdisk_addr_r}
