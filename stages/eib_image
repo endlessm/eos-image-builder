@@ -347,7 +347,7 @@ EOF
           cp ${EIB_DATADIR}/rpi-common/* ${EIB_TMPDIR}/rpiboot/
 
           eval $(grep "^fdtdir=" ${ROOT}/boot/uEnv.txt)
-          FDTDIR="${ROOT}/${fdtfit}"
+          FDTDIR="${ROOT}/${fdtdir}"
           cp ${FDTDIR}/broadcom/bcm2711-rpi-4*.dtb ${EIB_TMPDIR}/rpiboot/
           cp ${FDTDIR}/broadcom/bcm2712-rpi-5*.dtb ${EIB_TMPDIR}/rpiboot/
           cp -r ${FDTDIR}/overlays ${EIB_TMPDIR}/rpiboot/
