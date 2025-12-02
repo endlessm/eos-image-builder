@@ -69,7 +69,7 @@ def test_series(make_builder, branch, expected):
 
 @pytest.mark.parametrize('arch,platform,expected', [
     ('amd64', None, 'amd64'),
-    ('arm64', 'rpi4', 'rpi4'),
+    ('arm64', 'rpi', 'rpi'),
     ('arm64', None, 'arm64'),
     ('i386', 'i386', 'i386'),
     ('i386', None, 'i386'),
@@ -99,15 +99,15 @@ RELEASE_TARGETS = [
     'eos-amd64-amd64-es',
     'eos-amd64-amd64-fr',
     'eos-amd64-amd64-pt_BR',
-    'eos-arm64-rpi4-base',
-    'eos-arm64-rpi4-en',
+    'eos-arm64-rpi-base',
+    'eos-arm64-rpi-en',
     'eos-arm64-pinebookpro-base',
     'eos-arm64-pinebookpro-en',
     'eosinstaller-amd64-amd64-base',
 ]
 CUSTOM_TARGETS = [
     'eoscustom-amd64-amd64-base',
-    'eoscustom-arm64-rpi4-base',
+    'eoscustom-arm64-rpi-base',
 ]
 TEST_VARIANTS = []
 for target in RELEASE_TARGETS + CUSTOM_TARGETS:

@@ -210,7 +210,7 @@ create_image() {
 
     # Raspberry Pi's GPU starts the boot process by loading bootloader blobs
     # from the first partition which must be VFAT.
-    if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
+    if [ "${EIB_PLATFORM}" == "rpi" ]; then
         # BOOT Partition using EFI System type for RPi firmware
         echo "size=512MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
     fi
@@ -245,7 +245,7 @@ create_image() {
       rootfs_attrs+=("GUID:55")
     fi
 
-    if [[ "${EIB_PLATFORM:0:3}" == "rpi" ]]; then
+    if [[ "${EIB_PLATFORM}" == "rpi" ]]; then
       # Make u-boot find the bootable partition which is rootfs for Raspberry Pi
       rootfs_attrs+=("LegacyBIOSBootable")
     fi
@@ -288,7 +288,7 @@ create_image() {
     *)
       # On ARM disable 64bit ext4 option
       ext4_opts="dir_index,^huge_file,^64bit"
-      if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
+      if [ "${EIB_PLATFORM}" == "rpi" ]; then
         boot_loop=${img_loop}p1
         root_loop=${img_loop}p2
       else
@@ -342,7 +342,7 @@ EOF
         "${ROOT}"/boot/boot.scr
 
       case "${EIB_PLATFORM}" in
-        rpi4)
+        rpi)
           mkfs.vfat ${boot_loop}
 
           # Copy Raspberry Pi's bootloader & device tree blobs
