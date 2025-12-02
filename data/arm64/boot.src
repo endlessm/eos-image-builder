@@ -2,7 +2,7 @@ echo "Load u-Boot environment ..."
 ext4load ${devtype} ${devnum}:${distro_bootpart} ${scriptaddr} /boot/uEnv.txt
 env import -t ${scriptaddr} ${filesize}
 
-echo "Load device tree ..."
+echo "Load device tree for ${board}"
 if test ${board} = "rpi"; then
   fdt addr ${fdt_addr}
   fdt move ${fdt_addr} ${fdt_addr_r}
