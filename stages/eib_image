@@ -205,7 +205,7 @@ create_image() {
 
     # Raspberry Pi's GPU starts the boot process by loading bootloader blobs
     # from the first partition which must be VFAT.
-    if [ "${EIB_PLATFORM}" == "rpi" ]; then
+    if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
         # BOOT Partition using EFI System type for RPi firmware
         echo "size=512MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
     fi
@@ -240,7 +240,7 @@ create_image() {
       rootfs_attrs+=("GUID:55")
     fi
 
-    if [[ "${EIB_PLATFORM}" == "rpi" ]]; then
+    if [[ "${EIB_PLATFORM:0:3}" == "rpi" ]]; then
       # Make u-boot find the bootable partition which is rootfs for Raspberry Pi
       rootfs_attrs+=("LegacyBIOSBootable")
     fi
@@ -283,7 +283,7 @@ create_image() {
     *)
       # On ARM disable 64bit ext4 option
       ext4_opts="dir_index,^huge_file,^64bit"
-      if [ "${EIB_PLATFORM}" == "rpi" ]; then
+      if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
         boot_loop=${img_loop}p1
         root_loop=${img_loop}p2
       else
@@ -337,7 +337,7 @@ EOF
         "${ROOT}"/boot/boot.scr
 
       case "${EIB_PLATFORM}" in
-        rpi)
+        rpi|rpi_payg)
           mkfs.vfat ${boot_loop}
 
           # Copy Raspberry Pi's bootloader & device tree blobs
@@ -356,6 +356,14 @@ EOF
           # Copy Raspberry Pi's u-boot
           local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_arm64
           cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpiboot/kernel8.img
+
+          if [ "${EIB_PLATFORM}" == "rpi_payg" ]; then
+            CHRG_BAT="\[pi500\]\n"
+            CHRG_BAT+="# Enable charging RTC battery with PAYG image\n"
+            CHRG_BAT+="dtparam=rtc_bbat_vchg=3000000\n"
+            sed -i "/^\[all\]/i ${CHRG_BAT}" ${EIB_TMPDIR}/rpiboot/config.txt
+          fi
+
           eib_umount ${EIB_TMPDIR}/rpiboot
 	  ;;
         pinebookpro)
