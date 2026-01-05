@@ -356,6 +356,14 @@ EOF
           # Copy Raspberry Pi's u-boot
           local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_arm64
           cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpiboot/kernel8.img
+
+          if [ "${EIB_IMAGE_PAYG}" == "true" ]; then
+            CHRG_BAT="\[pi500\]\n"
+            CHRG_BAT+="# Enable charging RTC battery with PAYG image\n"
+            CHRG_BAT+="dtparam=rtc_bbat_vchg=3000000\n"
+            sed -i "/^\[all\]/i ${CHRG_BAT}" ${EIB_TMPDIR}/rpiboot/config.txt
+          fi
+
           eib_umount ${EIB_TMPDIR}/rpiboot
 	  ;;
         pinebookpro)
