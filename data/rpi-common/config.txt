@@ -49,6 +49,10 @@ enable_uart=1
 # (e.g. for USB device mode) or if USB support is not required.
 otg_mode=1
 
+[pi500]
+# Enable charging RTC battery
+dtparam=rtc_bbat_vchg=3000000
+
 [cm5]
 dtoverlay=dwc2,dr_mode=host
 
