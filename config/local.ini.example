@@ -48,4 +48,4 @@ apps =
 # Completely override the set of installed Flathub apps. See documentation
 # for eos-apps above.
 apps =
-  com.endlessm.photos
+  org.gnome.Loupe
