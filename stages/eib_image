@@ -277,7 +277,6 @@ create_image() {
         bios_boot_loop=${img_loop}p2
         root_loop=${img_loop}p3
       fi
-      ext4_opts="dir_index,^huge_file"
       ESP="${ROOT}"/boot/efi
       if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
         dd conv=notrunc if="${sdboot_esp_img}" of="${esp_loop}" bs=1M
@@ -286,8 +285,6 @@ create_image() {
       fi
       ;;
     *)
-      # On ARM disable 64bit ext4 option
-      ext4_opts="dir_index,^huge_file,^64bit"
       if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
         boot_loop=${img_loop}p1
         root_loop=${img_loop}p2
@@ -297,7 +294,7 @@ create_image() {
       ;;
   esac
 
-  mke2fs -t ext4 -O ${ext4_opts} -m1 -L ostree -T default ${root_loop}
+  mke2fs -t ext4 -O dir_index -m1 -L ostree -T default ${root_loop}
   mkdir -p "${ROOT}"
   eib_mount ${root_loop} "${ROOT}"
 
