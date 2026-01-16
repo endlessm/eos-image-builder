@@ -289,7 +289,7 @@ create_image() {
       ;;
   esac
 
-  mke2fs -t ext4 -O dir_index,^huge_file -m1 -L ostree -T default ${root_loop}
+  mke2fs -t ext4 -O dir_index -m1 -L ostree -T default ${root_loop}
   mkdir -p "${ROOT}"
   eib_mount ${root_loop} "${ROOT}"
 
