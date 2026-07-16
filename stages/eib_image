@@ -351,7 +351,12 @@ EOF
           cp -r ${FDTDIR}/overlays ${EIB_TMPDIR}/rpiboot/
 
           # Copy Raspberry Pi's u-boot
-          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_arm64
+          # https://www.raspberrypi.com/documentation/computers/config_txt.html#kernel
+          local UBOOT_TYPE="rpi_arm64"
+          if [ "${EIB_PLATFORM}" == "rpi_payg" ]; then
+            UBOOT_TYPE="rpi_arm64_sig"
+          fi
+          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/${UBOOT_TYPE}
           cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpiboot/kernel8.img
 
           if [ "${EIB_PLATFORM}" == "rpi_payg" ]; then
@@ -359,6 +364,11 @@ EOF
             CHRG_BAT+="# Enable charging RTC battery with PAYG image\n"
             CHRG_BAT+="dtparam=rtc_bbat_vchg=3000000\n"
             sed -i "/^\[all\]/i ${CHRG_BAT}" ${EIB_TMPDIR}/rpiboot/config.txt
+
+            SIG_VERIFY="# Enable signature verification\ndtoverlay=signature"
+            echo -e "${SIG_VERIFY}" >> ${EIB_TMPDIR}/rpiboot/config.txt
+
+            cp "${DEPLOY}"/usr/lib/u-boot/payg-boot.scr "${ROOT}"/boot/boot.scr
           fi
 
           eib_umount ${EIB_TMPDIR}/rpiboot
