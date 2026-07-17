@@ -375,6 +375,34 @@ EOF
             SIG_VERIFY="# Enable signature verification\ndtoverlay=signature"
             echo -e "${SIG_VERIFY}" >> ${EIB_TMPDIR}/rpiboot/config.txt
 
+            # Package the files in boot partition as boot.img for EOS RPi PAYG.
+            # https://github.com/raspberrypi/usbboot#booting-linux
+            # Create boot.img with vfat format according to content size of the
+            # boot partition.
+            local bootimg_size=$(du --block-size=1 -s "${EIB_TMPDIR}/rpiboot")
+            bootimg_size=${bootimg_size%$'\t'*}
+            local bootimg_extra_size=$((bootimg_size * 5 / 100))
+            (( bootimg_size += bootimg_extra_size ))
+            (( bootimg_size -= bootimg_size % 512 ))
+            local bootimg_path="${EIB_TMPDIR}/boot.img"
+            truncate -s ${bootimg_size} ${bootimg_path}
+            mkfs.vfat ${bootimg_path}
+
+            # Move all of the files from boot partition into boot.img
+            local bootimg_tmpdir="${EIB_TMPDIR}/boot_img"
+            mkdir -p ${bootimg_tmpdir}
+            eib_mount ${bootimg_path} ${bootimg_tmpdir}
+            mv ${EIB_TMPDIR}/rpiboot/* ${bootimg_tmpdir}
+            eib_umount ${bootimg_tmpdir}
+            mv ${bootimg_path} ${EIB_TMPDIR}/rpiboot/
+            rm -rf ${bootimg_tmpdir}
+
+            (
+              echo "# Load the boot files from the ramdisk boot.img"
+              echo "# https://www.raspberrypi.com/documentation/computers/config_txt.html#boot_ramdisk"
+              echo "boot_ramdisk=1"
+            ) > ${EIB_TMPDIR}/rpiboot/config.txt
+
             cp "${DEPLOY}"/usr/lib/u-boot/payg-boot.scr "${ROOT}"/boot/boot.scr
           fi
 
