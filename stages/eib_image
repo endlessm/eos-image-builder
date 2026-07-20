@@ -88,7 +88,9 @@ if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
   # symlinks on vfat. We need the vfat ESP to be mounted at
   # deploy time to ensure these fake symlinks are created.
   eib_mount ${sdboot_esp_img_loop} "${BOOT}"
+fi
 
+if [[ "${EIB_PLATFORM}" = "payg" || "${EIB_PLATFORM}" = "rpi_payg" ]]; then
   # We set the OSTREE_DEPLOY_PAYG env var to alert ostree to the
   # fact that we're deploying a PAYG image.
   export OSTREE_DEPLOY_PAYG=1
@@ -349,14 +351,19 @@ EOF
 
           cp ${EIB_DATADIR}/rpi-common/* ${EIB_TMPDIR}/rpiboot/
 
-          eval $(grep "^fdtdir=" ${ROOT}/boot/uEnv.txt)
-          FDTDIR="${ROOT}/${fdtdir}"
+          FDTDIRS=$(find ${DEPLOY} -name dtb)
+          FDTDIR=${FDTDIRS[0]}
           cp ${FDTDIR}/broadcom/bcm2711-rpi-4*.dtb ${EIB_TMPDIR}/rpiboot/
           cp ${FDTDIR}/broadcom/bcm2712-rpi-5*.dtb ${EIB_TMPDIR}/rpiboot/
           cp -r ${FDTDIR}/overlays ${EIB_TMPDIR}/rpiboot/
 
           # Copy Raspberry Pi's u-boot
-          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/rpi_arm64
+          # https://www.raspberrypi.com/documentation/computers/config_txt.html#kernel
+          local UBOOT_TYPE="rpi_arm64"
+          if [ "${EIB_PLATFORM}" == "rpi_payg" ]; then
+            UBOOT_TYPE="rpi_arm64_sig"
+          fi
+          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/${UBOOT_TYPE}
           cp ${UBOOT_PATH}/u-boot.bin ${EIB_TMPDIR}/rpiboot/kernel8.img
 
           if [ "${EIB_PLATFORM}" == "rpi_payg" ]; then
@@ -364,6 +371,39 @@ EOF
             CHRG_BAT+="# Enable charging RTC battery with PAYG image\n"
             CHRG_BAT+="dtparam=rtc_bbat_vchg=3000000\n"
             sed -i "/^\[all\]/i ${CHRG_BAT}" ${EIB_TMPDIR}/rpiboot/config.txt
+
+            SIG_VERIFY="# Enable signature verification\ndtoverlay=signature"
+            echo -e "${SIG_VERIFY}" >> ${EIB_TMPDIR}/rpiboot/config.txt
+
+            # Package the files in boot partition as boot.img for EOS RPi PAYG.
+            # https://github.com/raspberrypi/usbboot#booting-linux
+            # Create boot.img with vfat format according to content size of the
+            # boot partition.
+            local bootimg_size=$(du --block-size=1 -s "${EIB_TMPDIR}/rpiboot")
+            bootimg_size=${bootimg_size%$'\t'*}
+            local bootimg_extra_size=$((bootimg_size * 5 / 100))
+            (( bootimg_size += bootimg_extra_size ))
+            (( bootimg_size -= bootimg_size % 512 ))
+            local bootimg_path="${EIB_TMPDIR}/boot.img"
+            truncate -s ${bootimg_size} ${bootimg_path}
+            mkfs.vfat ${bootimg_path}
+
+            # Move all of the files from boot partition into boot.img
+            local bootimg_tmpdir="${EIB_TMPDIR}/boot_img"
+            mkdir -p ${bootimg_tmpdir}
+            eib_mount ${bootimg_path} ${bootimg_tmpdir}
+            mv ${EIB_TMPDIR}/rpiboot/* ${bootimg_tmpdir}
+            eib_umount ${bootimg_tmpdir}
+            mv ${bootimg_path} ${EIB_TMPDIR}/rpiboot/
+            rm -rf ${bootimg_tmpdir}
+
+            (
+              echo "# Load the boot files from the ramdisk boot.img"
+              echo "# https://www.raspberrypi.com/documentation/computers/config_txt.html#boot_ramdisk"
+              echo "boot_ramdisk=1"
+            ) > ${EIB_TMPDIR}/rpiboot/config.txt
+
+            cp "${DEPLOY}"/usr/lib/u-boot/payg-boot.scr "${ROOT}"/boot/boot.scr
           fi
 
           eib_umount ${EIB_TMPDIR}/rpiboot
