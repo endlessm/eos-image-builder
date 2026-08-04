@@ -115,6 +115,7 @@ class ImageConfigParser(configparser.ConfigParser):
         ('buildroot', 'mounts'),
         ('check', 'hooks'),
         ('content', 'hooks'),
+        ('diskimage', 'hooks'),
         ('endlesskey', 'collections'),
         ('error', 'hooks'),
         ('flatpak', 'locales'),
