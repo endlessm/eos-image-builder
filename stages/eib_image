@@ -557,6 +557,8 @@ EOF
       ;;
   esac
 
+  run_hooks diskimage "${ROOT}"
+
   eib_fix_boot_checksum "${img_loop}" "${DEPLOY}"
 
   # Read OS version from ostree deployment before we unmount it
