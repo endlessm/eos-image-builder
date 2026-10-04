@@ -162,13 +162,13 @@ create_image() {
   #    used by the copy.
   # 2. We want to boot without a totally full disk even though the
   #    partitions and file systems are expanded on first boot.
-  #
-  # The free space is the minimum of 5% of calculated size or 1GB,
-  # rounded down to the nearest 512-byte sector.
-  local img_size=$(du --block-size=1 -s "${EIB_OSTREE_CHECKOUT}")
+  # The free space is the minimum of 10% of calculated size or 2GB,
+  # rounded down to the nearest 512-byte sector. Use --apparent-size so
+  # hosts with compressed filesystems (e.g. ZFS, Btrfs) calculate true size.
+  local img_size=$(du --apparent-size --block-size=1 -s "${EIB_OSTREE_CHECKOUT}")
   img_size=${img_size%$'\t'*}
-  local extra_size=$((img_size * 5 / 100))
-  local min_extra_size=$((2 ** 30))
+  local extra_size=$((img_size * 10 / 100))
+  local min_extra_size=$((2 * (2 ** 30)))
   (( extra_size < min_extra_size )) && extra_size=${min_extra_size}
   (( img_size += extra_size ))
   (( img_size -= img_size % 512 ))
