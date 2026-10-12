@@ -43,6 +43,12 @@ arm_boost=1
 # U-Boot cannot boot systems on RPi 4 series until enable UART
 enable_uart=1
 
+[pi400]
+# The kernel cannot always allocate 512 MB CMA on the RPi 400 equipped with 4 GB
+# memory successfully. It fails some times and breaks GUI. So, downgrade the CMA
+# allocation size to 256 MB.
+dtoverlay=vc4-kms-v3d,cma-256
+
 [cm4]
 # Enable host mode on the 2711 built-in XHCI USB controller.
 # This line should be removed if the legacy DWC2 controller is required
