@@ -444,7 +444,7 @@ EOF
           local boot_zip_dir=${EIB_TMPDIR}/boot_zip
           mkdir "${boot_zip_dir}"
 
-          # Generate GRUB standalone images and eosldr
+          # Generate GRUB standalone images
           "${EIB_HELPERSDIR}"/create-grub-images "${DEPLOY}" "${boot_zip_dir}"
 
           # Capture second-stage config and modules
