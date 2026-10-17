@@ -162,13 +162,13 @@ create_image() {
   #    used by the copy.
   # 2. We want to boot without a totally full disk even though the
   #    partitions and file systems are expanded on first boot.
-  #
-  # The free space is the minimum of 5% of calculated size or 1GB,
-  # rounded down to the nearest 512-byte sector.
-  local img_size=$(du --block-size=1 -s "${EIB_OSTREE_CHECKOUT}")
+  # The free space is the minimum of 10% of calculated size or 2GB,
+  # rounded down to the nearest 512-byte sector. Use --apparent-size so
+  # hosts with compressed filesystems (e.g. ZFS, Btrfs) calculate true size.
+  local img_size=$(du --apparent-size --block-size=1 -s "${EIB_OSTREE_CHECKOUT}")
   img_size=${img_size%$'\t'*}
-  local extra_size=$((img_size * 5 / 100))
-  local min_extra_size=$((2 ** 30))
+  local extra_size=$((img_size * 10 / 100))
+  local min_extra_size=$((2 * (2 ** 30)))
   (( extra_size < min_extra_size )) && extra_size=${min_extra_size}
   (( img_size += extra_size ))
   (( img_size -= img_size % 512 ))
@@ -492,7 +492,18 @@ EOF
         # in the dual-boot case, and simplicity in the ISO/live case, we
         # arrange for EFI/ to have the right structure:
         mkdir -p "${boot_zip_dir}/EFI/BOOT"
-        cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/shimx64.efi "${boot_zip_dir}/EFI/BOOT/BOOTX64.EFI"
+        if [ -f "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/shimx64.efi ]; then
+          cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/shimx64.efi "${boot_zip_dir}/EFI/BOOT/BOOTX64.EFI"
+        elif [ -f "${DEPLOY}"/usr/lib/efi_binaries/EFI/BOOT/BOOTX64.EFI ]; then
+          cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/BOOT/BOOTX64.EFI "${boot_zip_dir}/EFI/BOOT/BOOTX64.EFI"
+        fi
+
+        if [ -f "${DEPLOY}"/usr/lib/efi_binaries/EFI/BOOT/bootia32.efi ]; then
+          cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/BOOT/bootia32.efi "${boot_zip_dir}/EFI/BOOT"
+        elif [ -f "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/bootia32.efi ]; then
+          cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/bootia32.efi "${boot_zip_dir}/EFI/BOOT"
+        fi
+
         cp \
           "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/mmx64.efi \
           "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/grubx64.efi \
@@ -504,12 +515,27 @@ EOF
         # triplicating Shim and duplicating the 64-bit GRUB added 50% to the
         # boot.zip size, and this directory was never actually used.)
         mkdir -p "${boot_zip_dir}/EFI3/BOOT" "${boot_zip_dir}/EFI3/endless"
-        cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/fbx64.efi "${boot_zip_dir}/EFI3/BOOT"
-        cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/bootx64.csv "${boot_zip_dir}/EFI3/endless/BOOTX64.CSV"
+        if [ -f "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/fbx64.efi ]; then
+          cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/fbx64.efi "${boot_zip_dir}/EFI3/BOOT"
+        elif [ -f "${DEPLOY}"/usr/lib/efi_binaries/EFI/BOOT/fbx64.efi ]; then
+          cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/BOOT/fbx64.efi "${boot_zip_dir}/EFI3/BOOT"
+        fi
+
+        if [ -f "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/BOOTX64.CSV ]; then
+          cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/BOOTX64.CSV "${boot_zip_dir}/EFI3/endless/BOOTX64.CSV"
+        elif [ -f "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/bootx64.csv ]; then
+          cp "${DEPLOY}"/usr/lib/efi_binaries/EFI/endless/bootx64.csv "${boot_zip_dir}/EFI3/endless/BOOTX64.CSV"
+        fi
 
         # Bundle all GRUB versions up for distribution
         local boot_zip="$(eib_outfile boot.zip)"
-        (cd "${boot_zip_dir}" && zip "${boot_zip}" -r *)
+        # OSTree checkouts have 1970 timestamps which the ZIP format (starting in 1980) rejects.
+        find "${boot_zip_dir}" -exec touch {} +
+        if command -v zip >/dev/null 2>&1; then
+          (cd "${boot_zip_dir}" && zip "${boot_zip}" -r *)
+        else
+          (cd "${boot_zip_dir}" && python3 -m zipfile -c "${boot_zip}" *)
+        fi
         rm -r "${boot_zip_dir}"
         sign_file "${boot_zip}" &
         checksum_file "${boot_zip}" &
@@ -537,7 +563,7 @@ EOF
         # Since this will only be used on removable media, it should not
         # include fallback, which alters the system's BootOrder. In effect,
         # we are recreating the layout in boot.zip/EFI, only on the real ESP.
-        rm "${ESP}/EFI/BOOT/fbx64.efi"
+        rm -f "${ESP}/EFI/BOOT/fbx64.efi"
         mv \
           "${ESP}/EFI/endless/mmx64.efi" \
           "${ESP}/EFI/endless/grubx64.efi" \

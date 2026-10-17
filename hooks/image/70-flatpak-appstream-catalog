@@ -4,6 +4,7 @@
 
 import logging
 import os
+import shutil
 import subprocess
 
 from xml.etree import ElementTree
@@ -88,7 +89,8 @@ def main():
     tree.write(appstream_path, encoding="unicode", xml_declaration=True)
 
     logger.info("Compressing %s to %s.gz", appstream_path, appstream_path)
-    subprocess.run(["pigz", "-9", "-f", appstream_path], check=True)
+    compressor = "pigz" if shutil.which("pigz") else "gzip"
+    subprocess.run([compressor, "-9", "-f", appstream_path], check=True)
 
 
 if __name__ == "__main__":

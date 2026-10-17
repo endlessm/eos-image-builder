@@ -145,9 +145,10 @@ eib_umount() {
 eib_umount_all() {
   local -i n
 
+  sync
   # Work from the end of the array to unmount submounts first
   for ((n = ${#EIB_MOUNTS[@]} - 1; n >= 0; n--)); do
-    umount "${EIB_MOUNTS[n]}"
+    eib_retry umount "${EIB_MOUNTS[n]}"
   done
 
   # Clear and re-declare the array
@@ -220,12 +221,18 @@ eib_udevadm_settle() {
 # activity that cause the commands to fail with EBUSY.
 eib_partx_scan() {
   eib_udevadm_settle
-  eib_retry partx -a -v "$1"
+  if [ -b "${1}p1" ]; then
+    partx -u "$1" 2>/dev/null || :
+  else
+    eib_retry partx -a -v "$1" || partx -u "$1" 2>/dev/null || :
+  fi
+  eib_udevadm_settle
 }
 
 eib_partx_delete() {
   eib_udevadm_settle
-  eib_retry partx -d -v "$1"
+  eib_retry partx -d -v "$1" || :
+  eib_udevadm_settle
 }
 
 eib_delete_loop() {
@@ -309,7 +316,11 @@ eib_compress_image() {
       xz -vv -M1G -T0 -4 -c "${1}" > "${2}"
       ;;
     gz)
-      pigz --no-name -c "${1}" > "${2}"
+      if command -v pigz >/dev/null 2>&1; then
+        pigz --no-name -c "${1}" > "${2}"
+      else
+        gzip --no-name -c "${1}" > "${2}"
+      fi
       ;;
     *)
       echo "Unrecognized image compression ${EIB_IMAGE_COMPRESSION}" >&2
