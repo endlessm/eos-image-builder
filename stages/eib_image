@@ -185,14 +185,8 @@ create_image() {
   truncate -s ${img_size} "${img}"
 
   (
-    if [ "${EIB_PLATFORM}" == "pinebookpro" ]; then
-        # Rockchip's boot partition starts at 32768
-        # http://opensource.rock-chips.com/wiki_Partitions#Default_storage_map
-        echo -n "start=32768, "
-    else
-        # Empty space up to 1mb (for GPT, and for uboot on ARM)
-        echo -n "start=2048, "
-    fi
+    # Empty space up to 1mb (for GPT, and for uboot on ARM)
+    echo -n "start=2048, "
 
     case "${EIB_ARCH}" in
       i386|amd64)
@@ -403,13 +397,6 @@ EOF
 
           eib_umount ${EIB_TMPDIR}/rpiboot
 	  ;;
-        pinebookpro)
-          # U-Boot TPL for ddr init and SPL for trust(ATF/OP-TEE) load and run into next stage
-          # http://opensource.rock-chips.com/wiki_Boot_option#Boot_flow
-          local UBOOT_PATH="${DEPLOY}"/usr/lib/u-boot/pinebook-pro-rk3399
-          dd conv=notrunc if="${UBOOT_PATH}"/idbloader.img of=${img} bs=512 seek=64
-          dd conv=notrunc if="${UBOOT_PATH}"/u-boot.itb of=${img} bs=512 seek=16384
-          ;;
         *)
           echo "Unrecognized arm64 platform ${EIB_PLATFORM}" >&2
           return 1
