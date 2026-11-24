@@ -101,8 +101,6 @@ RELEASE_TARGETS = [
     'eos-amd64-amd64-pt_BR',
     'eos-arm64-rpi-base',
     'eos-arm64-rpi-en',
-    'eos-arm64-pinebookpro-base',
-    'eos-arm64-pinebookpro-en',
     'eosinstaller-amd64-amd64-base',
 ]
 CUSTOM_TARGETS = [

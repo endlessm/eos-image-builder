@@ -300,7 +300,7 @@ starting the program.
 Options available:
 
 * `--product`: specify product to build (eos, eosnonfree, eosdev)
-* `--platform`: specify a sub-architecture to build (e.g. pinebookpro)
+* `--platform`: specify a sub-architecture to build (e.g. rpi)
 * `--personality`: specify image personality to build (base, en)
 * `--dry-run`: perform a build, but do not publish the results
 
