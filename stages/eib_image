@@ -202,33 +202,28 @@ create_image() {
         echo "size=512MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
     fi
 
-    if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ]; then
-      part_type="83"
-    else
-      # Partition Type GUIDs
-      # https://www.freedesktop.org/wiki/Specifications/DiscoverablePartitionsSpec/
-      case "${EIB_ARCH}" in
-        i386|amd64)
-          # Root Partition (x86-64)
-          part_type="4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
-          ;;
-        arm64)
-          # Root Partition (64-bit ARM)
-          part_type="b921b045-1df0-41c3-af44-4c6f280d3fae"
-          ;;
-        *)
-          echo "Unrecognized architecture ${EIB_ARCH}" >&2
-          return 1
-          ;;
-      esac
-    fi
+    # Partition Type GUIDs
+    # https://www.freedesktop.org/wiki/Specifications/DiscoverablePartitionsSpec/
+    case "${EIB_ARCH}" in
+      i386|amd64)
+        # Root Partition (x86-64)
+        part_type="4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
+        ;;
+      arm64)
+        # Root Partition (64-bit ARM)
+        part_type="b921b045-1df0-41c3-af44-4c6f280d3fae"
+        ;;
+      *)
+        echo "Unrecognized architecture ${EIB_ARCH}" >&2
+        return 1
+        ;;
+    esac
 
     rootfs_attrs=()
 
     if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
       # Remaining space is root fs, with special the special 55 attr as a
       # marker indicating the partition should be resized later
-      # attrs=... is unused for DOS partition table so it's safe to leave it here
       rootfs_attrs+=("GUID:55")
     fi
 
@@ -241,12 +236,6 @@ create_image() {
     echo "type=${part_type}, attrs=\"$(echo ${rootfs_attrs[@]} | tr ' ' ',')\""
 
   ) | sfdisk --force --label "${EIB_IMAGE_PARTITION_TABLE}" "${img}"
-
-  if [ "${EIB_IMAGE_PARTITION_TABLE}" == "dos" ] && [ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]; then
-    # With the latest 'sfdisk' we are not allowed anymore to create a 0B partition
-    # Bypass this limitation directly hacking into the MBR to set the marker
-    printf "\xdd" | dd of=${img} bs=1 count=1 seek=498 conv=notrunc
-  fi
 
   img_loop=$(losetup -f --show "${img}")
   eib_partx_scan "${img_loop}"
@@ -433,8 +422,8 @@ EOF
         #     fbx64.efi
         #     mmx64.efi
         #
-        # However, the installer for Windows, eos-write-live-image from
-        # eos-meta, and helpers/create-iso in this repository all expect the
+        # However, eos-write-live-image from eos-meta, and
+        # helpers/create-iso in this repository all expect the
         # following layout in boot.zip:
         #
         # EFI/
