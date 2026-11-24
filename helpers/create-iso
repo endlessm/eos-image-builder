@@ -2,8 +2,8 @@
 # -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
 . "${EIB_BASELIB}"
 
-# Write a bootable ISO image containing the image file, Windows tool and other
-# files needed to install Endless OS in every supported configuration.
+# Write a bootable ISO image containing the image file and other files needed
+# to install Endless OS.
 create_iso() {
   local version=${1:?No OS version for $FUNCNAME}
   shift
@@ -47,25 +47,6 @@ create_iso() {
   # but generally speaking we are limited to 32 characters, and the image
   # builder is unaware of localised personality names
   label="${EIB_IMAGE_PRODUCT_NAME} ${version} ${personality}"
-
-  # TODO: Perhaps we should create a package in OBS which just contains
-  # endless-installer.exe?
-  local ei_url="https://images-dl.endlessm.com/endless-installer/endless-installer.exe"
-  local ei_exe="${DIR_IMAGES}/endless-installer.exe"
-  wget -O "${ei_exe}" "${ei_url}"
-
-  # This is for Windows' benefit, so it should be in utf-16 with CRLF line endings
-  sed 's/$/\r/' <<AUTORUN_INF | iconv -f utf-8 -t utf-16 > "${DIR_IMAGES}/autorun.inf"
-[AutoRun]
-label=${label}
-icon=endless-installer.exe
-open=endless-installer.exe
-
-[Content]
-MusicFiles=false
-PictureFiles=false
-VideoFiles=false
-AUTORUN_INF
 
   # Publish size of image inside the ISO (& squashfs). This is the interesting
   # number that can't be easily determined from the size of the ISO itself.
