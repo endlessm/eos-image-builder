@@ -192,10 +192,6 @@ create_image() {
       i386|amd64)
         # EFI system partition
         echo "size=${esp_size}MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
-        if [[ "${EIB_IMAGE_SDBOOT}" != "true" ]]; then
-          # GRUB BIOS BOOT partition
-          echo "size=1MiB, type=21686148-6449-6E6F-744E-656564454649"
-        fi
         ;;
     esac
 
@@ -260,14 +256,8 @@ create_image() {
 
   case "${EIB_ARCH}" in
     i386|amd64)
-      if [[ "${EIB_IMAGE_SDBOOT}" == "true" ]]; then
-        esp_loop=${img_loop}p1
-        root_loop=${img_loop}p2
-      else
-        esp_loop=${img_loop}p1
-        bios_boot_loop=${img_loop}p2
-        root_loop=${img_loop}p3
-      fi
+      esp_loop=${img_loop}p1
+      root_loop=${img_loop}p2
       ESP="${ROOT}"/boot/efi
       if [[ "${EIB_IMAGE_SDBOOT}" = "true" ]]; then
         dd conv=notrunc if="${sdboot_esp_img}" of="${esp_loop}" bs=1M
@@ -409,38 +399,19 @@ EOF
         mkdir -p "${ESP}/EFI/BOOT/"
         cp -r "${DEPLOY}/usr/lib/systemd/boot/efi/systemd-bootx64.efi" "${ESP}/EFI/BOOT/BOOTX64.efi"
       else
-        # MBR bootloader install
-        > "${DEPLOY}"/img
-        mount --bind "${img}" "${DEPLOY}"/img
-        mount --bind "${ROOT}"/boot "${DEPLOY}"/boot
-        mount --bind /dev "${DEPLOY}"/dev
-        mount --bind /proc "${DEPLOY}"/proc
-        mount --bind /sys "${DEPLOY}"/sys
-
-        # Install the real MBR bootloader
-        chroot "${DEPLOY}" /usr/sbin/grub-install \
-                     --modules="ext2 part_msdos part_gpt search" \
-                     --directory=/usr/lib/grub/i386-pc \
-                     --config=/usr/lib/grub/conf/grub_embedded_bios.cfg \
-                     /img
-
-        # Copy grub.cfg
-        cp "${DEPLOY}/usr/lib/grub/conf/grub.cfg" "${DEPLOY}/boot/grub/grub.cfg"
+        # The GRUB UEFI application is standalone, but it loads its
+        # configuration from /boot/grub/grub.cfg on the root partition.
+        mkdir -p "${ROOT}/boot/grub"
+        cp "${DEPLOY}/usr/lib/grub/conf/grub.cfg" "${ROOT}/boot/grub/grub.cfg"
 
         if [ "$EIB_IMAGE_BOOT_ZIP" == "true" ]; then
           local boot_zip_dir=${EIB_TMPDIR}/boot_zip
           mkdir "${boot_zip_dir}"
 
-          # Generate GRUB standalone images
-          "${EIB_HELPERSDIR}"/create-grub-images "${DEPLOY}" "${boot_zip_dir}"
-
-          # Capture second-stage config and modules
-          cp -a "${DEPLOY}/boot/grub" "${boot_zip_dir}"
+          # Capture the second-stage config. The standalone GRUB images
+          # used by the live USB and ISO load it from endless/grub/.
+          cp -a "${ROOT}/boot/grub" "${boot_zip_dir}"
         fi
-
-        "${EIB_HELPERSDIR}"/kill-chroot-procs "${DEPLOY}"
-        umount "${DEPLOY}"/{boot,dev,img,proc,sys}
-        rm -f "${DEPLOY}"/img
 
         # Standard endless system - grub, shim, all that kind of thing
         cp -r "${DEPLOY}"/usr/lib/efi_binaries/EFI "${ESP}"
