@@ -2,8 +2,8 @@
 # -*- mode: Shell-script; sh-basic-offset: 2; indent-tabs-mode: nil -*-
 . "${EIB_BASELIB}"
 
-# Write a bootable ISO image containing the image file, Windows tool and other
-# files needed to install Endless OS in every supported configuration.
+# Write a bootable ISO image containing the image file and other files needed
+# to install Endless OS.
 create_iso() {
   local version=${1:?No OS version for $FUNCNAME}
   shift
@@ -48,25 +48,6 @@ create_iso() {
   # builder is unaware of localised personality names
   label="${EIB_IMAGE_PRODUCT_NAME} ${version} ${personality}"
 
-  # TODO: Perhaps we should create a package in OBS which just contains
-  # endless-installer.exe?
-  local ei_url="https://images-dl.endlessm.com/endless-installer/endless-installer.exe"
-  local ei_exe="${DIR_IMAGES}/endless-installer.exe"
-  wget -O "${ei_exe}" "${ei_url}"
-
-  # This is for Windows' benefit, so it should be in utf-16 with CRLF line endings
-  sed 's/$/\r/' <<AUTORUN_INF | iconv -f utf-8 -t utf-16 > "${DIR_IMAGES}/autorun.inf"
-[AutoRun]
-label=${label}
-icon=endless-installer.exe
-open=endless-installer.exe
-
-[Content]
-MusicFiles=false
-PictureFiles=false
-VideoFiles=false
-AUTORUN_INF
-
   # Publish size of image inside the ISO (& squashfs). This is the interesting
   # number that can't be easily determined from the size of the ISO itself.
   # We will delete $img after creating the squashfs to reduce
@@ -107,32 +88,25 @@ AUTORUN_INF
   mkdosfs "${DIR_ESP}/efi.img"
   mcopy -s -i "${DIR_ESP}/efi.img" "${DIR_EFI}/EFI" '::/'
 
-  # Unpack generic and ISO-specific GRUB files
+  # Unpack generic GRUB files (second-stage config and modules)
   unzip -q -d "${DIR_IMAGES_ENDLESS}" "${boot_zip}" "grub/*"
-  unzip -q -d "${DIR_IMAGES_ENDLESS}/grub/i386-pc/" "${boot_zip}" "iso/*"
 
   local VOLID=$(echo -n "$label" | tr -cs 'A-Za-z0-9_' '-')
 
-  # Generate the ISO image.
-  # Parameters found using https://dev.lovelyhq.com/libburnia/libisoburn/raw/master/frontend/grub-mkrescue-sed.sh
-  #
-  # export MKRESCUE_SED_MODE=mbr_only
-  # export MKRESCUE_SED_PROTECTIVE=no
-  # export MKRESCUE_SED_DEBUG=yes
-  #
-  # grub-mkrescue -o output.iso minimal_directory --xorriso=grub-mkrescue-sed.sh
+  # Generate the ISO image. It is UEFI-only: there is no legacy BIOS
+  # (El Torito i386-pc / GRUB hybrid MBR) boot support. The ESP is both the El
+  # Torito EFI boot image (optical media, VMs) and an appended partition of
+  # type 0xef (USB sticks), so the MBR only needs a protective partition table.
 
   xorriso -as mkisofs \
           -o "${iso}" \
           -r -graft-points -no-pad \
           --sort-weight 0 / \
           --sort-weight 1 /endless \
-          -b endless/grub/i386-pc/iso/eltorito.img \
-          -no-emul-boot -boot-load-size 4 -boot-info-table --grub2-boot-info \
-          --grub2-mbr "${DIR_IMAGES_ENDLESS}/grub/i386-pc/iso/boot_hybrid.img" \
-          -eltorito-alt-boot \
+          -eltorito-platform efi \
           -e --interval:appended_partition_2:all:: \
           -no-emul-boot \
+          --protective-msdos-label \
           -append_partition 2 0xef "${DIR_ESP}/efi.img" \
           -iso-level 3 \
           -joliet -joliet-long \

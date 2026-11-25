@@ -263,6 +263,12 @@ class OVFGenerator:
                     'vmw:key': 'virtualHW.productCompatibility',
                     'vmw:value': 'hosted'})
 
+        # Endless OS images are UEFI-only (no legacy BIOS boot)
+        SubElement(vhw_section, 'vmw:Config',
+                   {'ovf:required': 'false',
+                    'vmw:key': 'firmware',
+                    'vmw:value': 'efi'})
+
         # vbox:Machine section
         vMachine = SubElement(virtual_section, 'vbox:Machine',
                               {'ovf:required': 'false',
@@ -274,7 +280,7 @@ class OVFGenerator:
         )
         hw = SubElement(vMachine, 'Hardware')
         SubElement(hw, 'CPU', {'count': str(self.CPUS)})
-        SubElement(hw, 'BIOS')
+        SubElement(hw, 'Firmware', {'type': 'EFI'})
         SubElement(hw, 'Memory', {'RAMSize': str(self.RAM)})
         SubElement(hw, 'Display', {'controller': 'VMSVGA',
                                    'VRAMSize': '16',
