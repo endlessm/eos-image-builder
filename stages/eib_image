@@ -99,6 +99,12 @@ fi
 kargs=(--karg=rw --karg=splash \
     --karg=plymouth.ignore-serial-consoles --karg=quiet --karg=loglevel=0 \
     --karg=systemd.firstboot=no)
+if [[ "${EIB_IMAGE_REPART}" != "true" ]]; then
+  # The initramfs is shared by all products and runs systemd-repart on boot to
+  # assign partition UUIDs and grow the root partition. Mask it for images that
+  # must not be repartitioned.
+  kargs+=(--karg=systemd.mask=systemd-repart.service)
+fi
 ostree admin --sysroot="${EIB_OSTREE_CHECKOUT}" deploy \
   --os=${EIB_OSTREE_OS} "${kargs[@]}" \
   ${EIB_OSTREE_REMOTE}:${EIB_OSTREE_REF_DEPLOY}
@@ -184,6 +190,11 @@ create_image() {
   rm -f "${img}"
   truncate -s ${img_size} "${img}"
 
+  # The partition UUIDs are deliberately all zeros. They are assigned to unique
+  # random values by systemd-repart on first boot (see systemd-repart(8)), so
+  # that devices flashed from the same image don't share them.
+  local zero_uuid=00000000-0000-0000-0000-000000000000
+
   (
     # Empty space up to 1mb (for GPT, and for uboot on ARM)
     echo -n "start=2048, "
@@ -191,7 +202,7 @@ create_image() {
     case "${EIB_ARCH}" in
       i386|amd64)
         # EFI system partition
-        echo "size=${esp_size}MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+        echo "size=${esp_size}MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=${zero_uuid}"
         ;;
     esac
 
@@ -199,7 +210,7 @@ create_image() {
     # from the first partition which must be VFAT.
     if [ "${EIB_PLATFORM:0:3}" == "rpi" ]; then
         # BOOT Partition using EFI System type for RPi firmware
-        echo "size=512MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+        echo "size=512MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=${zero_uuid}"
     fi
 
     # Partition Type GUIDs
@@ -219,13 +230,9 @@ create_image() {
         ;;
     esac
 
+    # Remaining space is the root fs. It is resized to fill the disk on first
+    # boot by systemd-repart.
     rootfs_attrs=()
-
-    if [[ "${EIB_IMAGE_ROOTFS_RESIZE}" == "true" ]]; then
-      # Remaining space is root fs, with special the special 55 attr as a
-      # marker indicating the partition should be resized later
-      rootfs_attrs+=("GUID:55")
-    fi
 
     if [[ "${EIB_PLATFORM:0:3}" == "rpi" ]]; then
       # Make u-boot find the bootable partition which is rootfs for Raspberry Pi
@@ -233,7 +240,7 @@ create_image() {
     fi
 
     # We need to escape attrs= otherwise sfdisk complains when passing an empty string
-    echo "type=${part_type}, attrs=\"$(echo ${rootfs_attrs[@]} | tr ' ' ',')\""
+    echo "type=${part_type}, uuid=${zero_uuid}, attrs=\"$(echo ${rootfs_attrs[@]} | tr ' ' ',')\""
 
   ) | sfdisk --force --label "${EIB_IMAGE_PARTITION_TABLE}" "${img}"
 
